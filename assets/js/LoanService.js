@@ -2,19 +2,13 @@ import storage from './StorageService.js';
 
 class LoanService {
     async getAll() {
-        // Usa as chaves estrangeiras (`client:clients(*)`) para o Banco realizar um JOIN no lado servidor.
-        const loans = await storage.getAdvanced('loans', { select: '*, client:clients(*)' });
-        return loans;
+        // Fallback para nomes legados no cache
+        return await storage.getAdvanced('loans', { select: '*, client:clients!clientid(*)' });
     }
 
     async getById(id) {
-        // Traz o Empréstimo populado com o Cliente associado em uma única query otimizada
-        const result = await storage.getAdvanced('loans', {
-            select: '*, client:clients(*)',
-            eq: { id: id },
-            limit: 1
-        });
-
+        // Fallback caching do Supabase
+        const result = await storage.getAdvanced('loans', { select: '*, client:clients!clientid(*)', eq: { id: id }, limit: 1 });
         const loan = result.length > 0 ? result[0] : null;
         if (loan) {
             // Installments podem não possuir FK direta clara com Loans para a View Atual, manter query simples.

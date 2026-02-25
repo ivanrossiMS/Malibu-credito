@@ -10,6 +10,7 @@ class ClientService {
     }
 
     async getByUserId(userId) {
+        // Fallback for Supabase hard-cache matching old `clientid` names if column rename isn't propagated
         const result = await storage.getAdvanced('clients', { eq: { userId: userId }, limit: 1 });
         return result.length > 0 ? result[0] : null;
     }
