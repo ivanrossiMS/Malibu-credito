@@ -70,7 +70,7 @@ class AuthService {
         const adminExists = users.find(u => u.email === 'ivanrossi@outlook.com');
 
         if (!adminExists) {
-            await storage.add('users', {
+            const adminId = await storage.add('users', {
                 name: 'Ivan Rossi',
                 email: 'ivanrossi@outlook.com',
                 password: 'admin',
@@ -78,7 +78,16 @@ class AuthService {
                 status: 'ativo',
                 createdAt: new Date().toISOString()
             });
-            console.log("Admin user created.");
+
+            // Criar perfil de cliente para o admin para evitar erro de fetchProfile
+            await storage.add('clients', {
+                userId: adminId,
+                name: 'Ivan Rossi',
+                email: 'ivanrossi@outlook.com',
+                status: 'ativo',
+                createdAt: new Date().toISOString()
+            });
+            console.log("Admin user and profile created.");
         }
 
         // Check for active session
@@ -115,6 +124,21 @@ class AuthService {
 
         this.currentUser = user;
         localStorage.setItem('malibu_session', JSON.stringify({ id: user.id, email: user.email }));
+
+        // Garantir que o admin tenha um perfil se ele não tiver (correção para base existente)
+        if (user.role === 'admin') {
+            const profile = await this.fetchProfile(user.id);
+            if (!profile) {
+                await storage.add('clients', {
+                    userId: user.id,
+                    name: user.name,
+                    email: user.email,
+                    status: 'ativo',
+                    createdAt: new Date().toISOString()
+                });
+                await this.fetchProfile(user.id);
+            }
+        }
 
         return user;
     }
