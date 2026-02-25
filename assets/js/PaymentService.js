@@ -5,7 +5,7 @@ class PaymentService {
     async getAll() {
         // Query de 3º Grau: Pagamento -> Parcela -> Empréstimo -> Cliente. Resolvido pelo Supabase em 1 único passe.
         const items = await storage.getAdvanced('payments', {
-            select: '*, installment:installments!installmentid(*, loan:loans!loanid(*, client:clients!clientid(*)))'
+            select: '*, installment:installments(*, loan:loans(*, client:clients(*)))'
         });
 
         // Achatar os objetos para manter a reatividade da casca original

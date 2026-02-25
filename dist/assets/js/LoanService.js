@@ -2,13 +2,11 @@ import storage from './StorageService.js';
 
 class LoanService {
     async getAll() {
-        // Fallback para nomes legados no cache
-        return await storage.getAdvanced('loans', { select: '*, client:clients!clientid(*)' });
+        return await storage.getAdvanced('loans', { select: '*, client:clients(*)' });
     }
 
     async getById(id) {
-        // Fallback caching do Supabase
-        const result = await storage.getAdvanced('loans', { select: '*, client:clients!clientid(*)', eq: { id: id }, limit: 1 });
+        const result = await storage.getAdvanced('loans', { select: '*, client:clients(*)', eq: { id: id }, limit: 1 });
         const loan = result.length > 0 ? result[0] : null;
         if (loan) {
             // Installments podem não possuir FK direta clara com Loans para a View Atual, manter query simples.

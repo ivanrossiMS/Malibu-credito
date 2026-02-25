@@ -8,7 +8,7 @@ class InstallmentService {
             await loanService.updateAllLoansStatus(); // Safe-guard call
         }
         const items = await storage.getAdvanced('installments', {
-            select: '*, loan:loans!loanid(*, client:clients!clientid(*))'
+            select: '*, loan:loans(*, client:clients(*))'
         });
         for (let item of items) {
             // Compatibilidade Reversa com antigas props independentes (espalmando árvore json pro root)

@@ -168,6 +168,20 @@ class StorageService {
 
         const { data, error } = await query;
         if (error) {
+            // [FALLBACK DO SISTEMA ANTI-TELA-BRANCA]
+            // Se o PostgREST acusar PGRST200 (Falha de Relacionamento/FK), mas estávamos pedindo um JOIN,
+            // cancelamos a árvore e enviamos a lista Plana para não quebrar a UI.
+            if (error.code === 'PGRST200' && selectQuery !== '*') {
+                console.warn(`Fallback Seguro: Join Falhou (${storeName}). Retornando à Carga Simples (Modo Degradado).`);
+
+                let retryQuery = this.supabase.from(storeName).select('*');
+                if (options.eq) { Object.entries(options.eq).forEach(([k, v]) => retryQuery = retryQuery.eq(k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`), v)); }
+                if (options.limit) { retryQuery = retryQuery.limit(options.limit); }
+
+                const fallback = await retryQuery;
+                return this.toCamelCase(fallback.data || []);
+            }
+
             console.error(`Supabase getAdvanced error (${storeName}):`, error);
             return [];
         }
