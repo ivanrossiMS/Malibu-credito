@@ -2,20 +2,12 @@ import storage from './StorageService.js';
 
 class LoanRequestService {
     async getAll() {
-        const requests = await storage.getAll('loan_requests');
-        // Enhance with client data
-        for (let req of requests) {
-            req.client = await storage.getById('clients', req.clientId);
-        }
-        return requests;
+        return await storage.getAdvanced('loan_requests', { select: '*, client:clients(*)' });
     }
 
     async getById(id) {
-        const req = await storage.getById('loan_requests', id);
-        if (req) {
-            req.client = await storage.getById('clients', req.clientId);
-        }
-        return req;
+        const result = await storage.getAdvanced('loan_requests', { select: '*, client:clients(*)', eq: { id: id }, limit: 1 });
+        return result.length > 0 ? result[0] : null;
     }
 
     async save(requestData) {

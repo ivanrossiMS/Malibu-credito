@@ -114,16 +114,61 @@ class StorageService {
 
     async query(storeName, indexName, value) {
         if (!this.supabase) return [];
-        // Converte indexName (camelCase) para snake_case para o Supabase
         const dbColumn = indexName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-
-        const { data, error } = await this.supabase
-            .from(storeName)
-            .select('*')
-            .eq(dbColumn, value);
-
+        const { data, error } = await this.supabase.from(storeName).select('*').eq(dbColumn, value);
         if (error) {
             console.error(`Supabase query error (${storeName}, ${indexName}):`, error);
+            return [];
+        }
+        return this.toCamelCase(data);
+    }
+
+    // Novos métodos de Alta Performance (PostgREST Direct)
+    async getAdvanced(storeName, options = {}) {
+        if (!this.supabase) return [];
+        const selectQuery = options.select || '*';
+        let query = this.supabase.from(storeName).select(selectQuery);
+
+        if (options.eq) {
+            for (const [key, val] of Object.entries(options.eq)) {
+                const dbCol = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                query = query.eq(dbCol, val);
+            }
+        }
+
+        if (options.in) {
+            for (const [key, val] of Object.entries(options.in)) {
+                const dbCol = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                query = query.in(dbCol, val);
+            }
+        }
+
+        if (options.gte) {
+            for (const [key, val] of Object.entries(options.gte)) {
+                const dbCol = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                query = query.gte(dbCol, val);
+            }
+        }
+
+        if (options.lte) {
+            for (const [key, val] of Object.entries(options.lte)) {
+                const dbCol = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                query = query.lte(dbCol, val);
+            }
+        }
+
+        if (options.order) {
+            const dbCol = options.order.column.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            query = query.order(dbCol, { ascending: options.order.ascending ?? true });
+        }
+
+        if (options.limit) {
+            query = query.limit(options.limit);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+            console.error(`Supabase getAdvanced error (${storeName}):`, error);
             return [];
         }
         return this.toCamelCase(data);

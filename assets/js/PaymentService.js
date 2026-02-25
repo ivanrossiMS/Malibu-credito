@@ -3,18 +3,17 @@ import installmentService from './InstallmentService.js';
 
 class PaymentService {
     async getAll() {
-        const items = await storage.getAll('payments');
+        // Query de 3º Grau: Pagamento -> Parcela -> Empréstimo -> Cliente. Resolvido pelo Supabase em 1 único passe.
+        const items = await storage.getAdvanced('payments', {
+            select: '*, installment:installments(*, loan:loans(*, client:clients(*)))'
+        });
+
+        // Achatar os objetos para manter a reatividade da casca original
         for (let item of items) {
-            if (item.installmentId) {
-                const numericId = typeof item.installmentId === 'string' ? parseInt(item.installmentId) : item.installmentId;
-                item.installment = await storage.getById('installments', numericId);
-                if (item.installment) {
-                    const numericLoanId = typeof item.installment.loanId === 'string' ? parseInt(item.installment.loanId) : item.installment.loanId;
-                    item.loan = await storage.getById('loans', numericLoanId);
-                    if (item.loan) {
-                        const numericClientId = typeof item.loan.clientId === 'string' ? parseInt(item.loan.clientId) : item.loan.clientId;
-                        item.client = await storage.getById('clients', numericClientId);
-                    }
+            if (item.installment && item.installment.loan) {
+                item.loan = item.installment.loan;
+                if (item.installment.loan.client) {
+                    item.client = item.installment.loan.client;
                 }
             }
         }

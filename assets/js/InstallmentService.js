@@ -3,12 +3,17 @@ import loanService from './LoanService.js';
 
 class InstallmentService {
     async getAll() {
-        await loanService.updateAllLoansStatus(); // Force status check globally
-        const items = await storage.getAll('installments');
+        // Usa as chaves estrangeiras (`loan:loans(*, client:clients(*))`) para auto-preencher os dados vinculados numa query atômica.
+        if (typeof loanService.updateAllLoansStatus === 'function') {
+            await loanService.updateAllLoansStatus(); // Safe-guard call
+        }
+        const items = await storage.getAdvanced('installments', {
+            select: '*, loan:loans(*, client:clients(*))'
+        });
         for (let item of items) {
-            item.loan = await storage.getById('loans', item.loanId);
-            if (item.loan) {
-                item.client = await storage.getById('clients', item.loan.clientId);
+            // Compatibilidade Reversa com antigas props independentes (espalmando árvore json pro root)
+            if (item.loan && item.loan.client) {
+                item.client = item.loan.client;
             }
         }
         return items;

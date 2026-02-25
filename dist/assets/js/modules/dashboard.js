@@ -57,11 +57,20 @@ export default class DashboardModule {
 
     async loadData() {
         try {
-            this.installments = await installmentService.getAll();
-            this.clients = await clientService.getAll();
-            this.payments = await paymentService.getAll();
-            this.requests = await loanRequestService.getAll();
-            this.loans = await loanService.getAll();
+            // Paraleliza eficientemente as 5 requisições atômicas de carga primária do dashboard (Tempo = 1x a maior request)
+            const [installments, clients, payments, requests, loans] = await Promise.all([
+                installmentService.getAll(),
+                clientService.getAll(),
+                paymentService.getAll(),
+                loanRequestService.getAll(),
+                loanService.getAll()
+            ]);
+
+            this.installments = installments;
+            this.clients = clients;
+            this.payments = payments;
+            this.requests = requests;
+            this.loans = loans;
             this.populateCities();
         } catch (error) {
             console.error("Erro ao carregar dados do dashboard:", error);

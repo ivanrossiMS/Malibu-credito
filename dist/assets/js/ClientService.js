@@ -10,8 +10,8 @@ class ClientService {
     }
 
     async getByUserId(userId) {
-        const all = await this.getAll();
-        return all.find(c => String(c.userId) === String(userId));
+        const result = await storage.getAdvanced('clients', { eq: { userId: userId }, limit: 1 });
+        return result.length > 0 ? result[0] : null;
     }
 
     async save(client) {

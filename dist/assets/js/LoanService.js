@@ -2,18 +2,22 @@ import storage from './StorageService.js';
 
 class LoanService {
     async getAll() {
-        const loans = await storage.getAll('loans');
-        // Enhance with client data
-        for (let loan of loans) {
-            loan.client = await storage.getById('clients', loan.clientId);
-        }
+        // Usa as chaves estrangeiras (`client:clients(*)`) para o Banco realizar um JOIN no lado servidor.
+        const loans = await storage.getAdvanced('loans', { select: '*, client:clients(*)' });
         return loans;
     }
 
     async getById(id) {
-        const loan = await storage.getById('loans', id);
+        // Traz o Empréstimo populado com o Cliente associado em uma única query otimizada
+        const result = await storage.getAdvanced('loans', {
+            select: '*, client:clients(*)',
+            eq: { id: id },
+            limit: 1
+        });
+
+        const loan = result.length > 0 ? result[0] : null;
         if (loan) {
-            loan.client = await storage.getById('clients', loan.clientId);
+            // Installments podem não possuir FK direta clara com Loans para a View Atual, manter query simples.
             loan.installments = await storage.query('installments', 'loanId', id);
         }
         return loan;
