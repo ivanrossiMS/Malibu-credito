@@ -76,20 +76,40 @@ class StorageService {
     async add(storeName, data) {
         if (!this.supabase) return null;
 
-        // Sanitização de payload: Evitar enviar JSONs aninhados resultantes de Joins Anteriores (Causa erro 400 em inserts lisos)
+        // Sanitização de payload extrema: O JS do Supabase converte chaves para snake_case.
+        // Contudo, as tabelas originais do projeto não seguem snake_case (possuem `clientid`).
+        // Precisamos prevenir envios excedentes e reverter as formatações não mapeadas pelo banco.
         const payload = this.toSnakeCase(data);
         delete payload.client;
         delete payload.loan;
         delete payload.installment;
         delete payload.type; // Request frontend prop
 
+        // Se a tabela é estritamente loan_requests (Schema Rígido de 4 Colunas), limitamos o payload.
+        if (storeName === 'loan_requests') {
+            const pureRequest = {
+                clientid: data.clientid || data.clientId,
+                amount: data.amount,
+                status: data.status || 'pendente'
+            };
+
+            const reqResponse = await this.supabase.from(storeName).insert([pureRequest]).select();
+
+            if (reqResponse.error) {
+                console.error(`Supabase add error (${storeName}):`, JSON.stringify(reqResponse.error, null, 2));
+                throw new Error(`${reqResponse.error.code} - ${reqResponse.error.message} \nHint: ${reqResponse.error.hint}\nDetails: ${reqResponse.error.details}`);
+            }
+            return reqResponse.data[0]?.id || reqResponse.data[0];
+        }
+
         const { data: result, error } = await this.supabase
             .from(storeName)
             .insert([payload])
             .select();
+
         if (error) {
-            console.error(`Supabase add error (${storeName}):`, error);
-            throw error;
+            console.error(`Supabase add error (${storeName}):`, JSON.stringify(error, null, 2));
+            throw new Error(`${error.code} - ${error.message} \nHint: ${error.hint}\nDetails: ${error.details}`);
         }
         return result[0]?.id || result[0];
     }

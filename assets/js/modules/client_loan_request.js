@@ -66,7 +66,7 @@ export default class ClientLoanRequestModule {
             const description = document.getElementById('loan-desc').value;
 
             const loanRequest = {
-                client_id: this.client.id,
+                clientid: this.client.id,
                 amount: amount,
                 installments: installments,
                 frequency: frequency,
