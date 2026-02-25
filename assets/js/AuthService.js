@@ -94,6 +94,10 @@ class AuthService {
 
                     // Inicia busca do perfil de forma assíncrona para não travar o init
                     this.fetchProfile(user.id).catch(e => console.error("Async profile fetch error:", e));
+
+                    // Sincroniza dados locais com Supabase (caso existam usuários/clientes locais novos)
+                    storage.syncStoreToSupabase('users');
+                    storage.syncStoreToSupabase('clients');
                 } else {
                     localStorage.removeItem('malibu_session');
                 }
@@ -115,6 +119,11 @@ class AuthService {
 
         this.currentUser = user;
         localStorage.setItem('malibu_session', JSON.stringify({ id: user.id, email: user.email }));
+
+        // Sincroniza logo após o login
+        storage.syncStoreToSupabase('users');
+        storage.syncStoreToSupabase('clients');
+
         return user;
     }
 

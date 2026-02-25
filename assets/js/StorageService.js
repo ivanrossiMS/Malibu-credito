@@ -243,13 +243,45 @@ class StorageService {
                     .from(storeName)
                     .upsert([this.toSnakeCase(data)]);
 
-                if (error) console.warn(`Supabase sync error (put) on ${storeName}:`, error);
+                if (error) {
+                    console.warn(`Supabase sync error (put) on ${storeName}:`, error);
+                    // Adicionando log detalhado para ajudar o usuário
+                    if (error.code === '42501') {
+                        console.error(`ERRO DE PERMISSÃO (RLS) na tabela ${storeName}. Verifique as políticas no dashboard do Supabase.`);
+                    }
+                }
             } catch (err) {
                 console.error(`Failed to sync with Supabase (put) on ${storeName}:`, err);
             }
         }
 
         return result;
+    }
+
+    async syncStoreToSupabase(storeName) {
+        if (!this.supabase || ['settings', 'notifications', 'templates'].includes(storeName)) return;
+
+        try {
+            const localData = await this.getAll(storeName);
+            if (localData.length === 0) return;
+
+            console.log(`Syncing ${localData.length} items from ${storeName} to Supabase...`);
+
+            const dataToSync = localData.map(item => this.toSnakeCase(item));
+
+            const { error } = await this.supabase
+                .from(storeName)
+                .upsert(dataToSync, { onConflict: 'id' });
+
+            if (error) {
+                console.error(`Error syncing ${storeName} to Supabase:`, error);
+                throw error;
+            }
+
+            console.log(`Successfully synced ${storeName} to Supabase.`);
+        } catch (err) {
+            console.error(`Failed bulk sync for ${storeName}:`, err);
+        }
     }
 
     async delete(storeName, id) {
