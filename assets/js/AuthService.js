@@ -88,7 +88,14 @@ class AuthService {
         if (session) {
             try {
                 const userData = JSON.parse(session);
-                const user = await storage.getById('users', userData.id);
+                let user = await storage.getById('users', userData.id);
+
+                // Se não achou local, tenta puxar do Supabase antes de desistir
+                if (!user && storage.supabase) {
+                    await storage.syncSupabaseToLocal('users');
+                    user = await storage.getById('users', userData.id);
+                }
+
                 if (user && user.status === 'ativo') {
                     this.currentUser = user;
 
@@ -104,6 +111,10 @@ class AuthService {
             } catch (e) {
                 localStorage.removeItem('malibu_session');
             }
+        } else if (storage.supabase) {
+            // Se não tem sessão, tenta puxar usuários do Supabase de qualquer forma
+            // para garantir que novos usuários cadastrados em outro local possam logar
+            storage.syncSupabaseToLocal('users').catch(e => console.error("Async user pull error:", e));
         }
 
         this.authLoading = false;
@@ -111,8 +122,16 @@ class AuthService {
     }
 
     async login(email, password) {
-        const users = await storage.getAll('users');
-        const user = users.find(u => u.email === email && u.password === password);
+        let users = await storage.getAll('users');
+        let user = users.find(u => u.email === email && u.password === password);
+
+        // Se não achou localmente, tenta puxar os usuários do Supabase e tenta de novo
+        if (!user && storage.supabase) {
+            console.log("User not found locally, attempting to sync from Supabase...");
+            await storage.syncSupabaseToLocal('users');
+            users = await storage.getAll('users');
+            user = users.find(u => u.email === email && u.password === password);
+        }
 
         if (!user) throw new Error("Credenciais inválidas.");
         if (user.status !== 'ativo') throw new Error(`Conta ${user.status}.`);

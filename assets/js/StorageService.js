@@ -284,6 +284,37 @@ class StorageService {
         }
     }
 
+    async syncSupabaseToLocal(storeName) {
+        if (!this.supabase || ['settings', 'notifications', 'templates'].includes(storeName)) return;
+
+        try {
+            console.log(`Fetching ${storeName} from Supabase to sync local store...`);
+            const { data, error } = await this.supabase
+                .from(storeName)
+                .select('*');
+
+            if (error) throw error;
+            if (!data || data.length === 0) return;
+
+            console.log(`Pulled ${data.length} items from ${storeName}. Syncing local...`);
+
+            for (const item of data) {
+                const camelItem = this.toCamelCase(item);
+                // Usamos put para sobrescrever se já existir ou adicionar se for novo
+                await new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([storeName], "readwrite");
+                    const store = transaction.objectStore(storeName);
+                    const request = store.put(camelItem);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+            console.log(`Local sync for ${storeName} completed.`);
+        } catch (err) {
+            console.error(`Failed to pull ${storeName} from Supabase:`, err);
+        }
+    }
+
     async delete(storeName, id) {
         // Local first
         const localPromise = new Promise((resolve, reject) => {
