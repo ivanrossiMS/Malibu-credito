@@ -80,7 +80,16 @@ export default class ClientLoanRequestModule {
             await loanRequestService.save(loanRequest);
 
             alert("Sua solicitação foi enviada com sucesso! Analisaremos seu perfil e retornaremos em breve.");
-            window.location.href = '?page=client_dashboard';
+
+            // Atualizar UI sem recarregar a página (PWA mode)
+            document.getElementById('loan-amount').value = 1500;
+            document.getElementById('loan-installments').value = 6;
+            document.getElementById('loan-desc').value = '';
+            this.updateSummary();
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>SOLICITAR AGORA</span><i data-lucide="send" class="w-5 h-5"></i>';
+            lucide.createIcons();
         } catch (error) {
             alert("Erro ao enviar solicitação: " + error.message);
             submitBtn.disabled = false;

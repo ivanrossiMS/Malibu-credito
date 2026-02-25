@@ -75,9 +75,16 @@ class StorageService {
 
     async add(storeName, data) {
         if (!this.supabase) return null;
+
+        // Sanitização de payload: Evitar enviar JSONs aninhados resultantes de Joins Anteriores (Causa erro 400 em inserts lisos)
+        const payload = this.toSnakeCase(data);
+        delete payload.client;
+        delete payload.loan;
+        delete payload.installment;
+
         const { data: result, error } = await this.supabase
             .from(storeName)
-            .insert([this.toSnakeCase(data)])
+            .insert([payload])
             .select();
         if (error) {
             console.error(`Supabase add error (${storeName}):`, error);
