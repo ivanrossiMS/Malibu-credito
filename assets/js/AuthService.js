@@ -4,52 +4,62 @@ class AuthService {
     constructor() {
         this.currentUser = null;
         this.profile = null;
+        this.authLoading = true;
+        this.profileLoading = false;
+        console.log("AUTH LOADING:", this.authLoading);
     }
 
     async fetchProfile(userId) {
+        this.profileLoading = true;
+        console.log("PROFILE LOADING:", this.profileLoading);
+
         if (!storage.supabase) {
             console.warn("Supabase client not initialized.");
+            this.profileLoading = false;
+            console.log("PROFILE LOADING:", this.profileLoading);
             return null;
         }
 
         try {
-            // 1) Logar explicitamente o resultado do fetchProfile
-            // 2) Sem .single(), sem timeout manual, sem fallback automático
             const { data, error } = await storage.supabase
                 .from('clients')
                 .select('*')
                 .eq('userId', userId);
 
-            console.log({ profileData: data, profileError: error });
+            console.log("PROFILE RESULT:", data, error);
 
             const profile = data && data.length > 0 ? data[0] : null;
 
-            // 3) Garantir o fluxo solicitado
             if (!profile) {
                 console.log("No profile found");
                 this.setProfile(null);
-                this.stopLoading();
+            } else {
+                this.setProfile(profile);
             }
 
+            this.profileLoading = false;
+            console.log("PROFILE LOADING:", this.profileLoading);
             return profile;
         } catch (err) {
-            // Erro de perfil NÃO pode bloquear renderização
             console.error("fetchProfile critical error (non-blocking):", err);
-            this.stopLoading();
+            this.profileLoading = false;
+            console.log("PROFILE LOADING:", this.profileLoading);
             return null;
         }
     }
 
     setProfile(profile) {
         this.profile = profile;
-        console.log("Profile state updated:", profile);
     }
 
     stopLoading() {
-        console.log("Loading stopped.");
+        // Mantido por compatibilidade, mas o controle agora é via flags individuais
+        console.log("Loading stopped (legacy call).");
     }
 
     async init() {
+        console.log("AUTH LOADING:", this.authLoading);
+
         // Check for admin user presence
         const users = await storage.getAll('users');
         const adminExists = users.find(u => u.email === 'ivanrossi@outlook.com');
@@ -58,21 +68,18 @@ class AuthService {
             await storage.add('users', {
                 name: 'Ivan Rossi',
                 email: 'ivanrossi@outlook.com',
-                password: 'admin', // Atualizado para um padrão mais fácil
+                password: 'admin',
                 role: 'admin',
                 status: 'ativo',
                 createdAt: new Date().toISOString()
             });
             console.log("Admin user created.");
-        } else if (adminExists.password === 'ivanross') {
-            // Força a atualização da senha antiga para admin
-            adminExists.password = 'admin';
-            await storage.put('users', adminExists);
-            console.log("Admin password updated to 'admin'.");
         }
 
-        // Check for active session in localStorage/storage
+        // Check for active session
         const session = localStorage.getItem('malibu_session');
+        console.log("AUTH STATE:", session ? JSON.parse(session) : null);
+
         if (session) {
             try {
                 const userData = JSON.parse(session);
@@ -80,9 +87,8 @@ class AuthService {
                 if (user && user.status === 'ativo') {
                     this.currentUser = user;
 
-                    // Isolar o problema: Logar o perfil explicitamente durante o init
-                    console.log(`[Diagnostic] Buscando perfil para id: ${user.id}`);
-                    await this.fetchProfile(user.id);
+                    // Inicia busca do perfil de forma assíncrona para não travar o init
+                    this.fetchProfile(user.id).catch(e => console.error("Async profile fetch error:", e));
                 } else {
                     localStorage.removeItem('malibu_session');
                 }
@@ -90,6 +96,9 @@ class AuthService {
                 localStorage.removeItem('malibu_session');
             }
         }
+
+        this.authLoading = false;
+        console.log("AUTH LOADING:", this.authLoading);
     }
 
     async login(email, password) {
