@@ -83,6 +83,7 @@
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Proponente</th>
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Cidade</th>
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Valor Base</th>
+                        <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Valor C/ Juros</th>
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Plano Pretendido</th>
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Decisão</th>

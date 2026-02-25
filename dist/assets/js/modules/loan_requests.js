@@ -125,8 +125,11 @@ export default class LoanRequestsModule {
                 <td class="px-8 py-4 text-sm font-bold text-slate-900 text-center">
                     R$ ${parseFloat(req.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
+                <td class="px-8 py-4 text-sm font-bold text-emerald-600 text-center">
+                    ${req.total_amount ? 'R$ ' + parseFloat(req.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '<span class="text-slate-300">-</span>'}
+                </td>
                 <td class="px-8 py-4 text-sm text-slate-600 text-center">
-                    ${req.installments || '?'}x ${req.frequency === 'diaria' ? 'Diário' : (req.frequency === 'mensal' ? 'Mensal' : 'Não Declarado')}
+                    ${req.installments || '?'}x ${String(req.frequency || '').toLowerCase() === 'diaria' || String(req.frequency || '').toLowerCase() === 'diario' ? 'Diário' : (String(req.frequency || '').toLowerCase() === 'mensal' ? 'Mensal' : 'Não Declarado')}
                 </td>
                 <td class="px-8 py-4 text-center">
                     ${statusBadge}
@@ -278,6 +281,7 @@ export default class LoanRequestsModule {
                         originalReq.installments = numInstallments;
                         originalReq.frequency = frequency;
                         originalReq.status = 'aprovado';
+                        originalReq.total_amount = totalAmount; // Nova coluna adicionada para registro histórico
                         await storage.put('loan_requests', originalReq);
                     }
 
