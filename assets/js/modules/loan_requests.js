@@ -267,7 +267,20 @@ export default class LoanRequestsModule {
 
                 try {
                     await loanService.createLoan(loanData);
-                    await loanRequestService.updateStatus(id, 'aprovado');
+
+                    // Sincroniza as edições feitas pelo Admin de volta para a tabela de 'loan_requests'
+                    // Utiliza storage.getById() para obter registro puro (sem joins) evitando PGRST errors no put()
+                    const { default: storage } = await import('../StorageService.js');
+                    const originalReq = await storage.getById('loan_requests', id);
+
+                    if (originalReq) {
+                        originalReq.amount = amount;
+                        originalReq.installments = numInstallments;
+                        originalReq.frequency = frequency;
+                        originalReq.status = 'aprovado';
+                        await storage.put('loan_requests', originalReq);
+                    }
+
                     modal.classList.add('hidden');
                     this.renderRequests();
 
