@@ -545,7 +545,7 @@ export default class ClientDashboardModule {
                     cpf_cnpj: document.getElementById('ob-cpf').value,
                     phone: document.getElementById('ob-phone').value,
                     city: document.getElementById('ob-city').value,
-                    address: document.getElementById('ob-address').value,
+                    street: document.getElementById('ob-address').value,
                     doc_id_img: docId,
                     doc_residence_img: docResidence,
                     status: 'ativo'
