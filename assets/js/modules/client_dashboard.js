@@ -65,10 +65,10 @@ export default class ClientDashboardModule {
         // Render Installments List
         this.renderInstallmentsTable();
 
-        // Check if onboarding is needed
-        if (!this.client.cpf_cnpj || this.client.cpf_cnpj === 'null' || this.client.cpf_cnpj === '') {
-            this.showOnboarding();
-        }
+        // Check if onboarding is needed (Disabled by Admin request)
+        // if (!this.client.cpf_cnpj || this.client.cpf_cnpj === 'null' || this.client.cpf_cnpj === '') {
+        //     this.showOnboarding();
+        // }
 
         lucide.createIcons();
     }
