@@ -19,6 +19,32 @@ class StorageService {
         this.supabase = supabase;
     }
 
+    // Helper to convert camelCase to snake_case
+    toSnakeCase(obj) {
+        if (!obj || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(v => this.toSnakeCase(v));
+
+        const newObj = {};
+        Object.keys(obj).forEach(key => {
+            const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            newObj[snakeKey] = this.toSnakeCase(obj[key]);
+        });
+        return newObj;
+    }
+
+    // Helper to convert snake_case to camelCase
+    toCamelCase(obj) {
+        if (!obj || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(v => this.toCamelCase(v));
+
+        const newObj = {};
+        Object.keys(obj).forEach(key => {
+            const camelKey = key.replace(/(_\w)/g, m => m[1].toUpperCase());
+            newObj[camelKey] = this.toCamelCase(obj[key]);
+        });
+        return newObj;
+    }
+
     async init() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);
@@ -186,7 +212,7 @@ class StorageService {
 
                 const { error } = await this.supabase
                     .from(storeName)
-                    .insert([dataToSync]);
+                    .insert([this.toSnakeCase(dataToSync)]);
 
                 if (error) console.warn(`Supabase sync error (add) on ${storeName}:`, error);
             } catch (err) {
@@ -215,7 +241,7 @@ class StorageService {
             try {
                 const { error } = await this.supabase
                     .from(storeName)
-                    .upsert([data]);
+                    .upsert([this.toSnakeCase(data)]);
 
                 if (error) console.warn(`Supabase sync error (put) on ${storeName}:`, error);
             } catch (err) {

@@ -21,14 +21,19 @@ class AuthService {
         }
 
         try {
+            console.log("FETCH PROFILE FOR USER ID:", userId, typeof userId);
             const { data, error } = await storage.supabase
                 .from('clients')
                 .select('*')
-                .eq('userId', userId);
+                .eq('userId', String(userId)); // Attempting userId based on error log, and ensuring string type
 
-            console.log("PROFILE RESULT:", data, error);
+            if (error) {
+                console.error("Supabase fetchProfile error:", error);
+            }
+            console.log("PROFILE RESULT (Raw):", data);
 
-            const profile = data && data.length > 0 ? data[0] : null;
+            const rawProfile = data && data.length > 0 ? data[0] : null;
+            const profile = rawProfile ? storage.toCamelCase(rawProfile) : null;
 
             if (!profile) {
                 console.log("No profile found");
