@@ -67,9 +67,9 @@ export default class ClientsModule {
                 </td>
                 <td class="px-6 py-4 hidden md:table-cell text-sm text-slate-600 font-medium">${client.city || '<span class="text-slate-400 italic">Não informada</span>'}</td>
                 <td class="px-6 py-4 hidden lg:table-cell">
-                    <a href="https://wa.me/${client.phone.replace(/\D/g, '')}" target="_blank" class="flex items-center gap-1 text-primary hover:underline">
+                    <a href="https://wa.me/${(client.phone || '').replace(/\D/g, '')}" target="_blank" class="flex items-center gap-1 text-primary hover:underline">
                         <i data-lucide="message-circle" class="w-4 h-4"></i>
-                        <span class="text-sm font-medium">${client.phone}</span>
+                        <span class="text-sm font-medium">${client.phone || 'Sem telefone'}</span>
                     </a>
                 </td>
                 <td class="px-6 py-4">
