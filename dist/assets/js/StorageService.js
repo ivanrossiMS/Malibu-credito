@@ -191,6 +191,18 @@ class StorageService {
     // Métodos legados mantidos apenas para evitar quebra de código que ainda os chame
     async syncStoreToSupabase() { return Promise.resolve(); }
     async syncSupabaseToLocal() { return Promise.resolve(); }
+
+    async clearStores(storeNames) {
+        if (!this.supabase) return;
+        for (const storeName of storeNames) {
+            // Em RDBMS nativo, delete() sem filtro não é permitido por segurança.
+            const { error } = await this.supabase.from(storeName).delete().not('id', 'is', null);
+            if (error) {
+                console.error(`Erro ao limpar tabela ${storeName}:`, error);
+            }
+        }
+    }
+
     async clearDatabase() {
         localStorage.clear();
         sessionStorage.clear();
