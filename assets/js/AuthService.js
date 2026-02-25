@@ -40,6 +40,8 @@ class AuthService {
                 this.setProfile(null);
             } else {
                 this.setProfile(profile);
+                // Garantir que o perfil seja salvo localmente para outros módulos (como o Dashboard)
+                await storage.put('clients', profile);
             }
 
             this.profileLoading = false;
@@ -99,8 +101,8 @@ class AuthService {
                 if (user && user.status === 'ativo') {
                     this.currentUser = user;
 
-                    // Inicia busca do perfil de forma assíncrona para não travar o init
-                    this.fetchProfile(user.id).catch(e => console.error("Async profile fetch error:", e));
+                    // Aguarda a busca do perfil para garantir que o Dashboard encontre o registro do cliente
+                    await this.fetchProfile(user.id);
 
                     // Sincroniza dados locais com Supabase (caso existam usuários/clientes locais novos)
                     storage.syncStoreToSupabase('users');
