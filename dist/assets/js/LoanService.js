@@ -85,10 +85,10 @@ class LoanService {
             }
 
             installments.push({
-                loanId: loanId,
+                loanid: loanId,
                 number: i,
-                installmentValue: data.installmentValue,
-                dueDate: dueDate.toISOString().split('T')[0],
+                installment_value: data.installmentValue,
+                due_date: dueDate.toISOString().split('T')[0],
                 status: 'pendente'
             });
         }

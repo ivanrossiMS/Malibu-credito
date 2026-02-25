@@ -108,7 +108,7 @@ export default class LoanRequestsModule {
             html += `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-8 py-4 text-sm text-slate-500 text-center border-l-2 ${req.status === 'pendente' ? 'border-amber-400 bg-amber-50/10' : (req.status === 'aprovado' ? 'border-emerald-400' : 'border-rose-400')}">
-                    ${new Date(req.createdAt).toLocaleDateString('pt-BR')}
+                    ${req.createdAt || req.created_at ? new Date(req.createdAt || req.created_at).toLocaleDateString('pt-BR') : '<span class="italic text-slate-400">N/D</span>'}
                 </td>
                 <td class="px-8 py-4 text-left">
                     <div class="flex items-center gap-3">
@@ -126,7 +126,7 @@ export default class LoanRequestsModule {
                     R$ ${parseFloat(req.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td class="px-8 py-4 text-sm text-slate-600 text-center">
-                    ${req.installments}x ${req.frequency === 'diaria' ? 'Diário' : 'Mensal'}
+                    ${req.installments || '?'}x ${req.frequency === 'diaria' ? 'Diário' : (req.frequency === 'mensal' ? 'Mensal' : 'Não Declarado')}
                 </td>
                 <td class="px-8 py-4 text-center">
                     ${statusBadge}
@@ -254,7 +254,7 @@ export default class LoanRequestsModule {
                 const installmentValue = totalAmount / numInstallments;
 
                 const loanData = {
-                    clientId: req.clientId,
+                    clientid: req.clientid || req.clientId,
                     amount: amount,
                     interestRate: interestRate,
                     interestType: interestType,
@@ -262,8 +262,7 @@ export default class LoanRequestsModule {
                     installmentValue: installmentValue,
                     frequency: frequency,
                     startDate: document.getElementById('req-startDate').value,
-                    notes: req.description || '',
-                    requestId: req.id
+                    notes: req.description || ''
                 };
 
                 try {
