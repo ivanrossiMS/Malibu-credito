@@ -93,8 +93,7 @@ class LoanService {
                 number: i,
                 installmentValue: data.installmentValue,
                 dueDate: dueDate.toISOString().split('T')[0],
-                status: 'pendente',
-                createdAt: new Date().toISOString()
+                status: 'pendente'
             });
         }
 
