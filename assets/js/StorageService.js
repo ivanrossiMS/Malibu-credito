@@ -81,6 +81,7 @@ class StorageService {
         delete payload.client;
         delete payload.loan;
         delete payload.installment;
+        delete payload.type; // Request frontend prop
 
         const { data: result, error } = await this.supabase
             .from(storeName)

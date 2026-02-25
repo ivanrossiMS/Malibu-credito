@@ -66,14 +66,12 @@ export default class ClientLoanRequestModule {
             const description = document.getElementById('loan-desc').value;
 
             const loanRequest = {
-                clientId: this.client.id,
+                client_id: this.client.id,
                 amount: amount,
                 installments: installments,
                 frequency: frequency,
                 description: description,
-                status: 'pendente',
-                createdAt: new Date().toISOString(),
-                type: 'request'
+                status: 'pendente'
             };
 
             // Use the dedicated LoanRequestService

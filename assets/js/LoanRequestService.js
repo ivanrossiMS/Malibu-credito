@@ -14,7 +14,9 @@ class LoanRequestService {
         if (requestData.id) {
             return await storage.put('loan_requests', requestData);
         }
-        requestData.createdAt = new Date().toISOString();
+        if (!requestData.created_at && !requestData.createdAt) {
+            requestData.created_at = new Date().toISOString();
+        }
         requestData.status = 'pendente';
         return await storage.add('loan_requests', requestData);
     }
