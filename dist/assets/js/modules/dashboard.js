@@ -56,6 +56,9 @@ export default class DashboardModule {
     }
 
     async loadData() {
+        // Injetar Skeletons (Tratamento Anti-Bloqueio Visual / Lazy UI)
+        this.renderStatsSkeleton();
+
         try {
             // Paraleliza eficientemente as 5 requisições atômicas de carga primária do dashboard (Tempo = 1x a maior request)
             const [installments, clients, payments, requests, loans] = await Promise.all([
@@ -74,6 +77,30 @@ export default class DashboardModule {
             this.populateCities();
         } catch (error) {
             console.error("Erro ao carregar dados do dashboard:", error);
+        }
+    }
+
+    renderStatsSkeleton() {
+        // Mantém a experiência amigável na SPA antes dos dados chegarem do Banco (Prevenção Flash)
+        const selectors = [
+            'total-receivable', 'total-overdue', 'total-received', 'total-clients'
+        ];
+
+        selectors.forEach(id => {
+            const el = document.getElementById(`stat-${id}`);
+            if (el) el.innerHTML = `<div class="h-6 w-24 bg-slate-200 animate-pulse rounded"></div>`;
+        });
+
+        const listContainer = document.getElementById('details-list');
+        if (listContainer) {
+            listContainer.innerHTML = Array(5).fill(`
+                <div class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl animate-pulse">
+                    <div class="flex gap-4 items-center">
+                        <div class="w-12 h-12 bg-slate-100 rounded-xl"></div>
+                        <div class="space-y-2"><div class="h-4 w-32 bg-slate-100 rounded"></div><div class="h-3 w-20 bg-slate-50 rounded"></div></div>
+                    </div>
+                </div>
+            `).join('');
         }
     }
 
