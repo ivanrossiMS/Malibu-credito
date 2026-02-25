@@ -3,6 +3,50 @@ import storage from './StorageService.js';
 class AuthService {
     constructor() {
         this.currentUser = null;
+        this.profile = null;
+    }
+
+    async fetchProfile(userId) {
+        if (!storage.supabase) {
+            console.warn("Supabase client not initialized.");
+            return null;
+        }
+
+        try {
+            // 1) Logar explicitamente o resultado do fetchProfile
+            // 2) Sem .single(), sem timeout manual, sem fallback automático
+            const { data, error } = await storage.supabase
+                .from('clients')
+                .select('*')
+                .eq('userId', userId);
+
+            console.log({ profileData: data, profileError: error });
+
+            const profile = data && data.length > 0 ? data[0] : null;
+
+            // 3) Garantir o fluxo solicitado
+            if (!profile) {
+                console.log("No profile found");
+                this.setProfile(null);
+                this.stopLoading();
+            }
+
+            return profile;
+        } catch (err) {
+            // Erro de perfil NÃO pode bloquear renderização
+            console.error("fetchProfile critical error (non-blocking):", err);
+            this.stopLoading();
+            return null;
+        }
+    }
+
+    setProfile(profile) {
+        this.profile = profile;
+        console.log("Profile state updated:", profile);
+    }
+
+    stopLoading() {
+        console.log("Loading stopped.");
     }
 
     async init() {
@@ -35,6 +79,10 @@ class AuthService {
                 const user = await storage.getById('users', userData.id);
                 if (user && user.status === 'ativo') {
                     this.currentUser = user;
+
+                    // Isolar o problema: Logar o perfil explicitamente durante o init
+                    console.log(`[Diagnostic] Buscando perfil para id: ${user.id}`);
+                    await this.fetchProfile(user.id);
                 } else {
                     localStorage.removeItem('malibu_session');
                 }
