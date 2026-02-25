@@ -25,7 +25,7 @@ class AuthService {
             const { data, error } = await storage.supabase
                 .from('clients')
                 .select('*')
-                .eq('userId', String(userId)); // Attempting userId based on error log, and ensuring string type
+                .eq('user_id', String(userId)); // Revertendo para user_id e mantendo como String
 
             if (error) {
                 console.error("Supabase fetchProfile error:", error);
