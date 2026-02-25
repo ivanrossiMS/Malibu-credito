@@ -163,7 +163,8 @@ class StorageService {
     }
 
     async add(storeName, data) {
-        return new Promise((resolve, reject) => {
+        // Local first
+        const localPromise = new Promise((resolve, reject) => {
             const transaction = this.db.transaction([storeName], "readwrite");
             const store = transaction.objectStore(storeName);
             const request = store.add(data);
@@ -171,10 +172,34 @@ class StorageService {
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
         });
+
+        const result = await localPromise;
+
+        // Try to sync with Supabase
+        if (this.supabase && !['settings', 'notifications', 'templates'].includes(storeName)) {
+            try {
+                // Ensure data has the generated ID if it was auto-incremented locally
+                const dataToSync = { ...data };
+                if (typeof result === 'number' && !dataToSync.id) {
+                    dataToSync.id = result;
+                }
+
+                const { error } = await this.supabase
+                    .from(storeName)
+                    .insert([dataToSync]);
+
+                if (error) console.warn(`Supabase sync error (add) on ${storeName}:`, error);
+            } catch (err) {
+                console.error(`Failed to sync with Supabase (add) on ${storeName}:`, err);
+            }
+        }
+
+        return result;
     }
 
     async put(storeName, data) {
-        return new Promise((resolve, reject) => {
+        // Local first
+        const localPromise = new Promise((resolve, reject) => {
             const transaction = this.db.transaction([storeName], "readwrite");
             const store = transaction.objectStore(storeName);
             const request = store.put(data);
@@ -182,10 +207,28 @@ class StorageService {
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
         });
+
+        const result = await localPromise;
+
+        // Try to sync with Supabase
+        if (this.supabase && !['settings', 'notifications', 'templates'].includes(storeName)) {
+            try {
+                const { error } = await this.supabase
+                    .from(storeName)
+                    .upsert([data]);
+
+                if (error) console.warn(`Supabase sync error (put) on ${storeName}:`, error);
+            } catch (err) {
+                console.error(`Failed to sync with Supabase (put) on ${storeName}:`, err);
+            }
+        }
+
+        return result;
     }
 
     async delete(storeName, id) {
-        return new Promise((resolve, reject) => {
+        // Local first
+        const localPromise = new Promise((resolve, reject) => {
             const transaction = this.db.transaction([storeName], "readwrite");
             const store = transaction.objectStore(storeName);
             const request = store.delete(id);
@@ -193,6 +236,24 @@ class StorageService {
             request.onsuccess = () => resolve(true);
             request.onerror = () => reject(request.error);
         });
+
+        const result = await localPromise;
+
+        // Try to sync with Supabase
+        if (this.supabase && !['settings', 'notifications', 'templates'].includes(storeName)) {
+            try {
+                const { error } = await this.supabase
+                    .from(storeName)
+                    .delete()
+                    .eq('id', id);
+
+                if (error) console.warn(`Supabase sync error (delete) on ${storeName}:`, error);
+            } catch (err) {
+                console.error(`Failed to sync with Supabase (delete) on ${storeName}:`, err);
+            }
+        }
+
+        return result;
     }
 
     async query(storeName, indexName, value) {
