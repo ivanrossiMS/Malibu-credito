@@ -90,7 +90,11 @@ class StorageService {
             const pureRequest = {
                 clientid: data.clientid || data.clientId,
                 amount: data.amount,
-                status: data.status || 'pendente'
+                status: data.status || 'pendente',
+                installments: data.installments || 0,
+                frequency: data.frequency || '',
+                description: data.description || '',
+                created_at: data.created_at || data.createdAt || new Date().toISOString()
             };
 
             const reqResponse = await this.supabase.from(storeName).insert([pureRequest]).select();
