@@ -55,14 +55,6 @@ async function buildSPA() {
         // Remover abertura do HTML no layout se ele tentar redefinir body/head
         layoutContent = layoutContent.replace(/<!DOCTYPE html>[\s\S]*?<body[^>]*>/i, '');
         layoutContent = cleanPhpTags(layoutContent);
-
-        // Substituir o <?php include $viewPath; ?> pelo container SPA
-        // Como o regex do PHP remove a tag, vamos injetar o container onde provavel havia a tag
-        // No layout.php atual, o conteúdo entra na div.flex-1.flex.flex-col.overflow-hidden
-        layoutContent = layoutContent.replace(
-            /<main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-6 custom-scrollbar">([\s\S]*?)<\/main>/i,
-            '<main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-6 custom-scrollbar"><div id="module-content"></div></main>'
-        );
     }
 
     // 5. Injetar o Layout no index.html
