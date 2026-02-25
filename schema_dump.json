@@ -1,0 +1,81 @@
+{
+  "payments": [
+    "id",
+    "installmentid",
+    "amount"
+  ],
+  "clients": [
+    "id",
+    "user_id",
+    "name",
+    "cpf_cnpj",
+    "phone",
+    "city",
+    "avatar",
+    "rg",
+    "birth_date",
+    "marital_status",
+    "street",
+    "number",
+    "neighborhood",
+    "state",
+    "occupation",
+    "company",
+    "created_at",
+    "email",
+    "status"
+  ],
+  "loans": [
+    "id",
+    "clientid",
+    "amount",
+    "status",
+    "client_id",
+    "interest_rate",
+    "interest_type",
+    "num_installments",
+    "installment_value",
+    "frequency",
+    "start_date",
+    "loan_code",
+    "notes",
+    "created_at"
+  ],
+  "settings": [
+    "key",
+    "value"
+  ],
+  "templates": [
+    "id",
+    "title",
+    "content",
+    "created_at"
+  ],
+  "installments": [
+    "id",
+    "loanid",
+    "duedate",
+    "status",
+    "loan_id"
+  ],
+  "users": [
+    "id",
+    "name",
+    "email",
+    "role",
+    "status",
+    "avatar",
+    "created_at",
+    "password"
+  ],
+  "notifications": [
+    "id",
+    "client_id",
+    "type",
+    "title",
+    "message",
+    "icon",
+    "read",
+    "created_at"
+  ]
+}

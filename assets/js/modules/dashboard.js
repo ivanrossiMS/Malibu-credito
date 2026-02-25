@@ -75,6 +75,12 @@ export default class DashboardModule {
         const totalClientsEl = document.getElementById('stat-total-clients');
         if (totalClientsEl) totalClientsEl.textContent = this.clients.length.toString();
 
+        // Set current username securely to the view
+        const user = window.auth ? window.auth.getCurrentUser() : null;
+        if (user) {
+            document.querySelectorAll('.user-name').forEach(el => el.textContent = user.name.split(' ')[0]);
+        }
+
         this.renderPendingRequests();
         this.renderAIInsights(overdue);
         this.updateCards();
@@ -107,7 +113,7 @@ export default class DashboardModule {
         });
 
         const overdueCount = overdue.length;
-        const overdueValue = overdue.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
+        const overdueValue = overdue.reduce((sum, i) => sum + (parseFloat(i.installmentValue || i.amount) || 0), 0);
 
         let insightText = '';
         if (todayInstallments.length > 0) {
@@ -138,7 +144,7 @@ export default class DashboardModule {
     renderCriticalAlertsSidebar(overdue) {
         const container = document.getElementById('critical-alerts');
         if (!container) return;
-        const top = overdue.sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount)).slice(0, 3);
+        const top = overdue.sort((a, b) => parseFloat(b.installmentValue || b.amount || 0) - parseFloat(a.installmentValue || a.amount || 0)).slice(0, 3);
 
         if (top.length === 0) {
             container.innerHTML = `
@@ -155,7 +161,7 @@ export default class DashboardModule {
                 <div class="bg-rose-100 p-2 rounded-xl text-rose-600"><i data-lucide="skull" class="w-5 h-5"></i></div>
                 <div>
                     <p class="text-sm font-bold text-rose-900">Atraso Crítico</p>
-                    <p class="text-xs text-rose-700">${i.client?.name || '---'} - R$ ${parseFloat(i.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p class="text-xs text-rose-700">${i.client?.name || '---'} - R$ ${parseFloat(i.installmentValue || i.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
             </div>
         `).join('');
@@ -347,9 +353,9 @@ export default class DashboardModule {
         const overdueData = this.getFilteredData('overdue');
         const receivedData = this.getFilteredData('received');
 
-        const receivableTotal = receivableData.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
-        const overdueTotal = overdueData.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
-        const receivedTotal = receivedData.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        const receivableTotal = receivableData.reduce((sum, i) => sum + (parseFloat(i.installmentValue || i.amount) || 0), 0);
+        const overdueTotal = overdueData.reduce((sum, i) => sum + (parseFloat(i.installmentValue || i.amount) || 0), 0);
+        const receivedTotal = receivedData.reduce((sum, p) => sum + (parseFloat(p.amount || p.installmentValue) || 0), 0);
 
         // Puxa a base de clientes com o filtro atual (Cidade)
         const clientsData = this.getFilteredData('clients');
@@ -487,7 +493,7 @@ export default class DashboardModule {
                             </div>
                         </div>
                         <div class="text-right">
-                             <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                             <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.amount || item.installmentValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                     </div>
                 `;
@@ -511,7 +517,7 @@ export default class DashboardModule {
                             </div>
                         </div>
                         <div class="text-right flex items-center gap-4">
-                             <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                             <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.installmentValue || item.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                              <button onclick="window.location.href='?page=installments'" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-${color}-500 hover:text-white transition-all">
                                 <i data-lucide="arrow-right" class="w-4 h-4"></i>
                             </button>
