@@ -26,12 +26,17 @@ class PaymentService {
         // Ensure clientId is present for easy filtering in client view
         if (!paymentData.clientId && paymentData.installmentId) {
             const inst = await storage.getById('installments', paymentData.installmentId);
-            if (inst) {
+            if (inst && inst.loanId) {
                 const loan = await storage.getById('loans', inst.loanId);
                 if (loan) {
                     paymentData.clientId = loan.clientId;
                 }
             }
+        }
+
+        // Sanitização de colunas inexistentes no DB (Evita PGRST204)
+        if (paymentData.notes) {
+            delete paymentData.notes;
         }
 
         const id = await storage.add('payments', paymentData);
