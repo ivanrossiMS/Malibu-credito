@@ -386,35 +386,38 @@ export default class DashboardModule {
             return data;
         }
 
-        const getLocalYYYYMMDD = (d) => {
-            const date = new Date(d);
-            // Se for apenas data (YYYY-MM-DD), o Date() pode interpretar como UTC e deslocar.
-            // Se for timestamp completo, queremos o dia local real.
-            // Para garantir precisão com strings de data pura ou ISO:
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
-
-        // Função para converter string YYYY-MM-DD (ou ISO) para DD/MM/YYYY local sem deslocamento
-        const formatDetailedDate = (dateStr) => {
-            if (!dateStr) return 'Indisponível';
-            // Pega apenas a parte da data YYYY-MM-DD
-            const part = dateStr.split('T')[0].split(' ')[0];
-            const [y, m, d] = part.split('-');
-            if (!y || !m || !d) return dateStr;
-            return `${d}/${m}/${y}`;
+        const toLocalYYYYMMDD = (val) => {
+            if (!val) return '';
+            if (val instanceof Date) {
+                const y = val.getFullYear();
+                const m = String(val.getMonth() + 1).padStart(2, '0');
+                const d = String(val.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+            if (typeof val === 'string') {
+                if (val.includes('T') || val.includes(' ') || val.includes('Z')) {
+                    const date = new Date(val.replace(' ', 'T'));
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${d}`;
+                }
+                return val.split('T')[0].split(' ')[0];
+            }
+            return '';
         };
 
         const todayObj = new Date();
-        const todayStr = getLocalYYYYMMDD(todayObj);
+        const todayStr = toLocalYYYYMMDD(todayObj);
 
-        const tomorrowObj = new Date(); tomorrowObj.setDate(todayObj.getDate() + 1);
-        const yesterdayObj = new Date(); yesterdayObj.setDate(todayObj.getDate() - 1);
+        const addDays = (d, days) => {
+            const res = new Date(d);
+            res.setDate(res.getDate() + days);
+            return res;
+        };
 
-        const tomorrowStr = getLocalYYYYMMDD(tomorrowObj);
-        const yesterdayStr = getLocalYYYYMMDD(yesterdayObj);
+        const tomorrowStr = toLocalYYYYMMDD(addDays(todayObj, 1));
+        const yesterdayStr = toLocalYYYYMMDD(addDays(todayObj, -1));
 
         let startFilter, endFilter;
         let actualPeriod = this.currentPeriod;
@@ -424,18 +427,17 @@ export default class DashboardModule {
         } else if (actualPeriod === 'ontem') {
             startFilter = yesterdayStr; endFilter = yesterdayStr;
         } else if (actualPeriod === '3dias') {
-            const threeDaysAgo = new Date(); threeDaysAgo.setDate(todayObj.getDate() - 3);
-            startFilter = getLocalYYYYMMDD(threeDaysAgo);
+            startFilter = toLocalYYYYMMDD(addDays(todayObj, -3));
             endFilter = yesterdayStr;
         } else if (actualPeriod === 'amanha') {
             startFilter = tomorrowStr; endFilter = tomorrowStr;
         } else if (actualPeriod === '7dias') {
-            const sevenDaysAhead = new Date(); sevenDaysAhead.setDate(todayObj.getDate() + 7);
+            // De hoje até 7 dias pra frente
             startFilter = todayStr;
-            endFilter = getLocalYYYYMMDD(sevenDaysAhead);
+            endFilter = toLocalYYYYMMDD(addDays(todayObj, 7));
         } else if (actualPeriod === 'mes') {
-            startFilter = getLocalYYYYMMDD(new Date(todayObj.getFullYear(), todayObj.getMonth(), 1));
-            endFilter = getLocalYYYYMMDD(new Date(todayObj.getFullYear(), todayObj.getMonth() + 1, 0));
+            startFilter = toLocalYYYYMMDD(new Date(todayObj.getFullYear(), todayObj.getMonth(), 1));
+            endFilter = toLocalYYYYMMDD(new Date(todayObj.getFullYear(), todayObj.getMonth() + 1, 0));
         } else if (actualPeriod === 'ano') {
             startFilter = `${todayObj.getFullYear()}-01-01`;
             endFilter = `${todayObj.getFullYear()}-12-31`;
@@ -447,10 +449,7 @@ export default class DashboardModule {
         return data.filter(item => {
             let itemDateStr = metric === 'received' ? item.createdAt : item.dueDate;
             if (!itemDateStr) return false;
-
-            // Para createdAt (ISO Timestamp), precisamos converter para o dia local real
-            // Para dueDate (YYYY-MM-DD), o split é suficiente mas o Date local é mais seguro se houver timezone
-            const itemDateLocal = getLocalYYYYMMDD(itemDateStr.replace(' ', 'T'));
+            const itemDateLocal = toLocalYYYYMMDD(itemDateStr);
             return itemDateLocal >= startFilter && itemDateLocal <= endFilter;
         });
     }
