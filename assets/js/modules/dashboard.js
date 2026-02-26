@@ -251,21 +251,25 @@ export default class DashboardModule {
 
         // Lógicas detalhadas de Filtros de Períodos
         const limitToShortTerm = ['hoje', 'ontem', 'personalizado'];
+        const limitToOverdue = ['hoje', '3dias', 'ontem', 'personalizado'];
 
         document.querySelectorAll('.filter-period').forEach(btn => {
             const period = btn.dataset.period;
-            if (metric === 'overdue' || metric === 'received') {
+            if (metric === 'overdue') {
+                btn.style.display = limitToOverdue.includes(period) ? '' : 'none';
+            } else if (metric === 'received') {
                 btn.style.display = limitToShortTerm.includes(period) ? '' : 'none';
             } else {
                 // receivable
-                btn.style.display = period === 'ontem' ? 'none' : '';
+                btn.style.display = (period === 'ontem' || period === '3dias') ? 'none' : '';
             }
         });
 
         // Forçar "Hoje" se estiver transitando para um período proibido pela métrica
         let forceToday = false;
-        if ((metric === 'overdue' || metric === 'received') && !limitToShortTerm.includes(this.currentPeriod)) forceToday = true;
-        if (metric === 'receivable' && this.currentPeriod === 'ontem') forceToday = true;
+        if (metric === 'overdue' && !limitToOverdue.includes(this.currentPeriod)) forceToday = true;
+        if (metric === 'received' && !limitToShortTerm.includes(this.currentPeriod)) forceToday = true;
+        if (metric === 'receivable' && (this.currentPeriod === 'ontem' || this.currentPeriod === '3dias')) forceToday = true;
 
         if (forceToday) {
             const hojeBtn = document.querySelector('.filter-period[data-period="hoje"]');
@@ -394,6 +398,9 @@ export default class DashboardModule {
             startFilter = today; endFilter = today;
         } else if (actualPeriod === 'ontem') {
             startFilter = yesterday; endFilter = yesterday;
+        } else if (actualPeriod === '3dias') {
+            startFilter = new Date(today); startFilter.setDate(startFilter.getDate() - 3);
+            endFilter = yesterday;
         } else if (actualPeriod === 'amanha') {
             startFilter = tomorrow; endFilter = tomorrow;
         } else if (actualPeriod === '7dias') {
@@ -450,6 +457,7 @@ export default class DashboardModule {
         let periodLabel = 'ESTE MÊS';
         if (this.currentPeriod === 'hoje') periodLabel = 'HOJE';
         else if (this.currentPeriod === 'ontem') periodLabel = 'ONTEM';
+        else if (this.currentPeriod === '3dias') periodLabel = 'ATÉ 3 DIAS';
         else if (this.currentPeriod === 'amanha') periodLabel = 'AMANHÃ';
         else if (this.currentPeriod === '7dias') periodLabel = '7 DIAS';
         else if (this.currentPeriod === 'mes') periodLabel = 'ESTE MÊS';
