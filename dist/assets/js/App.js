@@ -96,45 +96,59 @@ class App {
 
     async setupUI() {
         if (auth.isAuthenticated()) {
-            const user = auth.currentUser;
+            try {
+                const user = auth.currentUser;
+                if (!user) throw new Error("Current user is null");
 
-            // Try to get client profile for avatar
-            const client = await clientService.getByUserId(user.id);
-            const avatarHtml = client && client.avatar
-                ? `<img src="${client.avatar}" class="w-full h-full object-cover rounded-full">`
-                : null;
+                // Try to get client profile for avatar, safe-guarded
+                const client = user.id ? await clientService.getByUserId(user.id).catch(() => null) : null;
+                const avatarHtml = client && client.avatar
+                    ? `<img src="${client.avatar}" class="w-full h-full object-cover rounded-full">`
+                    : null;
 
-            // Update user info in sidebar
-            const displayName = client?.name || user?.name || user?.email || 'Usuário';
-            const names = displayName.split(' ');
-            const initials = (names[0][0] + (names[names.length - 1][0] || '')).toUpperCase();
+                // Update user info in sidebar securely
+                const displayName = (client && client.name) ? client.name : ((user && user.name) ? user.name : ((user && user.email) ? user.email : 'Usuário'));
+                const safeName = displayName.trim() || 'Usuário';
+                const names = safeName.split(' ');
+                const firstChar = String(names[0]?.[0] || 'U');
+                const lastChar = names.length > 1 ? String(names[names.length - 1]?.[0] || '') : '';
+                const initials = (firstChar + lastChar).toUpperCase();
 
-            document.querySelectorAll('.user-initials').forEach(el => {
-                const isClientDashboard = el.classList.contains('bg-gradient-to-br'); // Flex mode identifier
-                if (avatarHtml) {
-                    el.innerHTML = avatarHtml.replace('rounded-full', isClientDashboard ? 'rounded-2xl' : 'rounded-full');
-                    el.classList.remove('bg-primary', 'bg-gradient-to-br', 'from-primary', 'to-primary-light');
-                    el.classList.add('bg-transparent');
-                } else {
-                    el.innerHTML = initials;
-                    if (!isClientDashboard) {
-                        el.classList.add('bg-primary');
+                document.querySelectorAll('.user-initials').forEach(el => {
+                    const isClientDashboard = el.classList.contains('bg-gradient-to-br'); // Flex mode identifier
+                    if (avatarHtml) {
+                        el.innerHTML = avatarHtml.replace('rounded-full', isClientDashboard ? 'rounded-2xl' : 'rounded-full');
+                        el.classList.remove('bg-primary', 'bg-gradient-to-br', 'from-primary', 'to-primary-light');
+                        el.classList.add('bg-transparent');
+                    } else {
+                        el.innerHTML = initials;
+                        if (!isClientDashboard) {
+                            el.classList.add('bg-primary');
+                        }
                     }
+                });
+
+                document.querySelectorAll('.user-name').forEach(el => el.textContent = safeName);
+                if (user && user.email) {
+                    document.querySelectorAll('.user-email').forEach(el => el.textContent = user.email);
                 }
-            });
-            document.querySelectorAll('.user-name').forEach(el => el.textContent = displayName);
-            document.querySelectorAll('.user-email').forEach(el => el.textContent = user.email);
 
-            // Visibility based on roles
-            if (auth.isAdmin()) {
-                document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-            } else {
-                document.querySelectorAll('.client-only').forEach(el => el.classList.remove('hidden'));
-            }
+                // Visibility based on roles
+                if (auth.isAdmin()) {
+                    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+                } else {
+                    document.querySelectorAll('.client-only').forEach(el => el.classList.remove('hidden'));
+                }
 
-            // Check if impersonating
-            if (auth.isImpersonating()) {
-                this.renderImpersonationBar(user);
+                // Check if impersonating
+                if (auth.isImpersonating()) {
+                    this.renderImpersonationBar(user);
+                }
+            } catch (err) {
+                console.error("Critical error inside setupUI (recovered with fallback):", err);
+                // Hard-fallback pra que a Navbar não fique explícita como '--'
+                document.querySelectorAll('.user-initials').forEach(el => el.innerHTML = 'US');
+                document.querySelectorAll('.user-name').forEach(el => el.textContent = 'Usuário');
             }
         }
     }
