@@ -13,8 +13,8 @@
 
     <!-- Users Tabs -->
     <div class="flex gap-4 border-b border-slate-200">
-        <button class="user-tab px-4 py-2 font-bold text-primary border-b-2 border-primary" data-tab="pendente">Pendentes</button>
-        <button class="user-tab px-4 py-2 font-bold text-slate-400 hover:text-slate-600" data-tab="ativo">Ativos</button>
+        <button class="user-tab px-4 py-2 font-bold text-slate-400 hover:text-slate-600" data-tab="rejeitado">Excluídos</button>
+        <button class="user-tab px-4 py-2 font-bold text-primary border-b-2 border-primary" data-tab="ativo">Ativos</button>
         <button class="user-tab px-4 py-2 font-bold text-slate-400 hover:text-slate-600" data-tab="bloqueado">Bloqueados</button>
         <button class="user-tab px-4 py-2 font-bold text-indigo-400 hover:text-indigo-600" data-tab="admin">Administradores</button>
     </div>

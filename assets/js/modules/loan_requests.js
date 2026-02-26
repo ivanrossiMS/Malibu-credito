@@ -57,7 +57,11 @@ export default class LoanRequestsModule {
         }
 
         // Ordenar: mais recentes primeiro
-        requests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        requests.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.created_at).getTime();
+            const dateB = new Date(b.createdAt || b.created_at).getTime();
+            return dateB - dateA;
+        });
 
         if (requests.length === 0) {
             listContainer.innerHTML = `
@@ -108,7 +112,7 @@ export default class LoanRequestsModule {
             html += `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-8 py-4 text-sm text-slate-500 text-center border-l-2 ${req.status === 'pendente' ? 'border-amber-400 bg-amber-50/10' : (req.status === 'aprovado' ? 'border-emerald-400' : 'border-rose-400')}">
-                    ${req.createdAt || req.created_at ? new Date(req.createdAt || req.created_at).toLocaleDateString('pt-BR') : '<span class="italic text-slate-400">N/D</span>'}
+                    ${DateHelper.formatLocal(req.createdAt || req.created_at)}
                 </td>
                 <td class="px-8 py-4 text-left">
                     <div class="flex items-center gap-3">
@@ -176,9 +180,7 @@ export default class LoanRequestsModule {
             document.getElementById('req-frequency').value = req.frequency === 'diaria' ? 'diario' : 'mensal';
 
             // Set default start date to tomorrow
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            document.getElementById('req-startDate').value = tomorrow.toISOString().split('T')[0];
+            document.getElementById('req-startDate').value = DateHelper.addDays(DateHelper.getTodayStr(), 1);
 
             modal.classList.remove('hidden');
             this.calculateApprovalPreview();

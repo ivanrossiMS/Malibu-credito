@@ -63,7 +63,7 @@ export default class ClientProfileModule {
         }
 
         if (memberSince) {
-            memberSince.textContent = this.client.createdAt ? new Date(this.client.createdAt).toLocaleDateString('pt-BR') : '--/--/----';
+            memberSince.textContent = this.client.createdAt ? DateHelper.formatLocal(this.client.createdAt) : '--/--/----';
         }
 
         if (internalId) {
@@ -75,7 +75,7 @@ export default class ClientProfileModule {
         this.fillElement('profile-cpf', this.formatCpfCnpj(this.client.cpf_cnpj || this.client.cpfCnpj));
         this.fillElement('profile-rg', this.client.rg);
         const birthDate = this.client.birth_date || this.client.birthDate;
-        this.fillElement('profile-birth', birthDate ? new Date(birthDate).toLocaleDateString('pt-BR') : null);
+        this.fillElement('profile-birth', birthDate ? DateHelper.formatLocal(birthDate) : null);
         this.fillElement('profile-marital', this.client.marital_status || this.client.maritalStatus);
 
         // --- 3. CARD: CONTATO ---

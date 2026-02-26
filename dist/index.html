@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,21 +23,64 @@
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary-gradient: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%); }
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-        h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.4); }
-        .premium-card { background: white; border-radius: 2rem; border: 1px solid rgba(241, 245, 249, 1); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .premium-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
-        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        :root {
+            --primary-gradient: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        .font-heading {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .premium-card {
+            background: white;
+            border-radius: 2rem;
+            border: 1px solid rgba(241, 245, 249, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .premium-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
     </style>
 </head>
+
 <body class="bg-slate-50 text-slate-900 min-h-screen m-0 p-0 flex flex-col">
     <div id="app-container" class="hidden flex-1 flex flex-col w-full min-h-screen relative">
 <div class="flex flex-col md:flex-row min-h-screen">
@@ -223,6 +267,7 @@
 </div>
 </div>
     <div id="auth-container" class="hidden"></div>
+    <script src="assets/js/DateHelper.js"></script>
     <script type="module" src="assets/js/App.js"></script>
     <script>
         window.APP_CONFIG = { currentPage: 'dashboard' };
@@ -2944,8 +2989,8 @@
 
     <!-- Users Tabs -->
     <div class="flex gap-4 border-b border-slate-200">
-        <button class="user-tab px-4 py-2 font-bold text-primary border-b-2 border-primary" data-tab="pendente">Pendentes</button>
-        <button class="user-tab px-4 py-2 font-bold text-slate-400 hover:text-slate-600" data-tab="ativo">Ativos</button>
+        <button class="user-tab px-4 py-2 font-bold text-slate-400 hover:text-slate-600" data-tab="rejeitado">Excluídos</button>
+        <button class="user-tab px-4 py-2 font-bold text-primary border-b-2 border-primary" data-tab="ativo">Ativos</button>
         <button class="user-tab px-4 py-2 font-bold text-slate-400 hover:text-slate-600" data-tab="bloqueado">Bloqueados</button>
         <button class="user-tab px-4 py-2 font-bold text-indigo-400 hover:text-indigo-600" data-tab="admin">Administradores</button>
     </div>
@@ -2972,4 +3017,5 @@
 
     </template>
 </body>
+
 </html>

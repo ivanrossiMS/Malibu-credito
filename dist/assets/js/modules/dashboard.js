@@ -108,7 +108,10 @@ export default class DashboardModule {
     }
 
     renderStats() {
-        const overdue = this.installments.filter(i => i.status === 'atrasada');
+        const overdue = this.installments.filter(i => {
+            const status = (i.status || '').toLowerCase();
+            return status === 'atrasada' || (status === 'pendente' && DateHelper.isPast(i.dueDate));
+        });
         this.renderCriticalAlertsSidebar(overdue);
 
         const totalClientsEl = document.getElementById('stat-total-clients');
@@ -194,11 +197,9 @@ export default class DashboardModule {
         }
 
         container.innerHTML = top.map(i => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const due = new Date(i.dueDate + 'T00:00:00');
-            const diffTime = Math.abs(today - due);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const todayStr = DateHelper.getTodayStr();
+            const dueStr = DateHelper.toLocalYYYYMMDD(i.dueDate);
+            const diffDays = DateHelper.getDiffDays(dueStr, todayStr);
 
             return `
             <div class="flex gap-4 items-start p-4 bg-rose-50 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100 transition-colors shadow-sm" onclick="window.location.href='?page=installments&status=atrasada&client_id=${i.loan?.clientId || i.clientId || i.client?.id || ''}'">
@@ -216,7 +217,7 @@ export default class DashboardModule {
                     </div>
                     
                     <div class="flex justify-between items-center text-[10px] font-bold text-rose-500 uppercase tracking-widest w-full">
-                        <span class="flex items-center gap-1 opacity-80"><i data-lucide="calendar-x" class="w-3 h-3"></i> Vencido: ${due.toLocaleDateString('pt-BR')}</span>
+                        <span class="flex items-center gap-1 opacity-80"><i data-lucide="calendar-x" class="w-3 h-3"></i> Vencido: ${DateHelper.formatLocal(i.dueDate)}</span>
                         <span class="flex items-center gap-1 bg-rose-600 text-white px-2 py-0.5 rounded-full shadow-sm">
                            <i data-lucide="clock-4" class="w-3 h-3"></i> ${diffDays} DIAS ATRASO
                         </span>
@@ -359,7 +360,10 @@ export default class DashboardModule {
         if (metric === 'receivable') {
             baseData = this.installments.filter(i => i.status === 'pendente');
         } else if (metric === 'overdue') {
-            baseData = this.installments.filter(i => i.status === 'atrasada');
+            baseData = this.installments.filter(i => {
+                const status = (i.status || '').toLowerCase();
+                return status === 'atrasada' || (status === 'pendente' && DateHelper.isPast(i.dueDate));
+            });
         } else if (metric === 'received') {
             baseData = this.payments;
         } else if (metric === 'clients') {
@@ -386,38 +390,9 @@ export default class DashboardModule {
             return data;
         }
 
-        const toLocalYYYYMMDD = (val) => {
-            if (!val) return '';
-            if (val instanceof Date) {
-                const y = val.getFullYear();
-                const m = String(val.getMonth() + 1).padStart(2, '0');
-                const d = String(val.getDate()).padStart(2, '0');
-                return `${y}-${m}-${d}`;
-            }
-            if (typeof val === 'string') {
-                if (val.includes('T') || val.includes(' ') || val.includes('Z')) {
-                    const date = new Date(val.replace(' ', 'T'));
-                    const y = date.getFullYear();
-                    const m = String(date.getMonth() + 1).padStart(2, '0');
-                    const d = String(date.getDate()).padStart(2, '0');
-                    return `${y}-${m}-${d}`;
-                }
-                return val.split('T')[0].split(' ')[0];
-            }
-            return '';
-        };
-
-        const todayObj = new Date();
-        const todayStr = toLocalYYYYMMDD(todayObj);
-
-        const addDays = (d, days) => {
-            const res = new Date(d);
-            res.setDate(res.getDate() + days);
-            return res;
-        };
-
-        const tomorrowStr = toLocalYYYYMMDD(addDays(todayObj, 1));
-        const yesterdayStr = toLocalYYYYMMDD(addDays(todayObj, -1));
+        const todayStr = DateHelper.getTodayStr();
+        const tomorrowStr = DateHelper.addDays(todayStr, 1);
+        const yesterdayStr = DateHelper.addDays(todayStr, -1);
 
         let startFilter, endFilter;
         let actualPeriod = this.currentPeriod;
@@ -427,20 +402,21 @@ export default class DashboardModule {
         } else if (actualPeriod === 'ontem') {
             startFilter = yesterdayStr; endFilter = yesterdayStr;
         } else if (actualPeriod === '3dias') {
-            startFilter = toLocalYYYYMMDD(addDays(todayObj, -3));
+            startFilter = DateHelper.addDays(todayStr, -3);
             endFilter = yesterdayStr;
         } else if (actualPeriod === 'amanha') {
             startFilter = tomorrowStr; endFilter = tomorrowStr;
         } else if (actualPeriod === '7dias') {
-            // De hoje até 7 dias pra frente
             startFilter = todayStr;
-            endFilter = toLocalYYYYMMDD(addDays(todayObj, 7));
+            endFilter = DateHelper.addDays(todayStr, 7);
         } else if (actualPeriod === 'mes') {
-            startFilter = toLocalYYYYMMDD(new Date(todayObj.getFullYear(), todayObj.getMonth(), 1));
-            endFilter = toLocalYYYYMMDD(new Date(todayObj.getFullYear(), todayObj.getMonth() + 1, 0));
+            const now = new Date();
+            startFilter = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
+            endFilter = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
         } else if (actualPeriod === 'ano') {
-            startFilter = `${todayObj.getFullYear()}-01-01`;
-            endFilter = `${todayObj.getFullYear()}-12-31`;
+            const now = new Date();
+            startFilter = `${now.getFullYear()}-01-01`;
+            endFilter = `${now.getFullYear()}-12-31`;
         } else if (actualPeriod === 'personalizado') {
             startFilter = this.customDateFrom;
             endFilter = this.customDateTo;
@@ -449,7 +425,10 @@ export default class DashboardModule {
         return data.filter(item => {
             let itemDateStr = metric === 'received' ? item.createdAt : item.dueDate;
             if (!itemDateStr) return false;
-            const itemDateLocal = toLocalYYYYMMDD(itemDateStr);
+            const itemDateLocal = DateHelper.toLocalYYYYMMDD(itemDateStr);
+
+            // Fix for overdue metric: it should show items up to today if we are in "Today" period
+            // OR simply follow the period filters. The getFilteredData(overdue) already includes items where isPast(dueDate)
             return itemDateLocal >= startFilter && itemDateLocal <= endFilter;
         });
     }
@@ -534,9 +513,9 @@ export default class DashboardModule {
         // Sort Data
         if (this.currentMetric !== 'clients') {
             data.sort((a, b) => {
-                const dA = new Date(a.createdAt || a.dueDate);
-                const dB = new Date(b.createdAt || b.dueDate);
-                return this.currentMetric === 'received' ? dB - dA : dA - dB;
+                const dA = DateHelper.toLocalYYYYMMDD(a.createdAt || a.dueDate);
+                const dB = DateHelper.toLocalYYYYMMDD(b.createdAt || b.dueDate);
+                return this.currentMetric === 'received' ? (dB < dA ? -1 : 1) : (dA < dB ? -1 : 1);
             });
         }
 
@@ -566,13 +545,6 @@ export default class DashboardModule {
         }
 
         let html = '';
-        const formatDetailedDate = (dateStr) => {
-            if (!dateStr) return 'Indisponível';
-            const part = dateStr.split('T')[0].split(' ')[0];
-            const [y, m, d] = part.split('-');
-            if (!y || !m || !d) return dateStr;
-            return `${d}/${m}/${y}`;
-        };
 
         pageItems.forEach(item => {
             if (this.currentMetric === 'clients') {
@@ -604,8 +576,8 @@ export default class DashboardModule {
                 const instNumber = inst ? inst.number : '?';
                 const instTotal = loan ? loan.numInstallments : '?';
 
-                const dtPaid = formatDetailedDate(item.createdAt);
-                const dtDue = formatDetailedDate(inst?.dueDate);
+                const dtPaid = DateHelper.formatLocal(item.createdAt);
+                const dtDue = DateHelper.formatLocal(inst?.dueDate);
                 const cityDisplay = c.city ? ` - ${c.city}` : '';
 
                 html += `
@@ -637,10 +609,13 @@ export default class DashboardModule {
                 `;
             } else {
                 const c = item.client || this.clients.find(x => String(x.id) === String(item.clientId)) || { name: 'Desconhecido', city: '' };
-                const dt = formatDetailedDate(item.dueDate);
-                const isLate = (item.status || '').toLowerCase() === 'atrasada';
-                const color = isLate ? 'rose' : 'blue';
-                const icon = isLate ? 'alert-circle' : 'calendar-clock';
+                const dt = DateHelper.formatLocal(item.dueDate);
+                const status = (item.status || '').toLowerCase();
+                const isLate = status === 'atrasada' || ((status === 'pendente' || status === 'vendedora_pendente') && DateHelper.isPast(item.dueDate));
+                const isToday = !isLate && (status === 'pendente' || status === 'vencendo') && DateHelper.isToday(item.dueDate);
+
+                const color = isLate ? 'rose' : (isToday ? 'amber' : 'blue');
+                const icon = isLate ? 'alert-circle' : (isToday ? 'clock' : 'calendar-clock');
 
                 const loan = this.loans.find(l => String(l.id) === String(item.loanid || item.loanId));
                 const totalInstCount = loan ? loan.numInstallments : '?';
@@ -671,7 +646,7 @@ export default class DashboardModule {
                         <div class="text-right flex items-center gap-4">
                              <div class="flex flex-col items-end">
                                  <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.installmentValue || item.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                 <span class="text-[9px] font-black uppercase tracking-tighter text-${color}-500">${isLate ? 'Vencida' : 'Disponível'}</span>
+                                 <span class="text-[9px] font-black uppercase tracking-tighter text-${color}-500">${isLate ? 'Vencida' : (isToday ? 'Hoje' : 'Disponível')}</span>
                              </div>
                              <button onclick="window.location.href='?page=installments'" class="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-${color}-500 hover:text-white transition-all shadow-sm">
                                 <i data-lucide="arrow-right" class="w-4 h-4"></i>

@@ -184,37 +184,36 @@ export default class PaymentHistoryModule {
     }
 
     applyFilters() {
-        // Build Date range
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
+        const today = DateHelper.getTodayStr();
         let startFilter = null;
         let endFilter = null;
 
         if (this.currentPeriod === 'hoje') {
             startFilter = today; endFilter = today;
         } else if (this.currentPeriod === '7dias') {
-            startFilter = new Date(today); startFilter.setDate(startFilter.getDate() - 7);
+            startFilter = DateHelper.addDays(today, -7);
             endFilter = today;
         } else if (this.currentPeriod === 'mes') {
-            startFilter = new Date(today.getFullYear(), today.getMonth(), 1);
-            endFilter = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            const now = new Date();
+            startFilter = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
+            endFilter = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
         } else if (this.currentPeriod === 'ano') {
-            startFilter = new Date(today.getFullYear(), 0, 1);
-            endFilter = new Date(today.getFullYear(), 11, 31);
+            const now = new Date();
+            startFilter = `${now.getFullYear()}-01-01`;
+            endFilter = `${now.getFullYear()}-12-31`;
         } else if (this.currentPeriod === 'personalizado' && this.customDateFrom && this.customDateTo) {
-            startFilter = new Date(this.customDateFrom + 'T00:00:00');
-            endFilter = new Date(this.customDateTo + 'T00:00:00');
+            startFilter = this.customDateFrom;
+            endFilter = this.customDateTo;
         }
 
         this.filteredPayments = this.allPayments.filter(p => {
             if (!p.createdAt) return false;
 
             // Search Filter
-            const matchesSearch = !this.searchTerm ||
-                (p.clientObj?.name || '').toLowerCase().includes(this.searchTerm) ||
-                (p.clientObj?.cpf || '').includes(this.searchTerm) ||
-                (p.city || '').toLowerCase().includes(this.searchTerm);
+            const nameMatch = (p.clientObj?.name || '').toLowerCase().includes(this.searchTerm);
+            const cpfMatch = (p.clientObj?.cpf || '').includes(this.searchTerm);
+            const cityMatchSearch = (p.city || '').toLowerCase().includes(this.searchTerm);
+            const matchesSearch = !this.searchTerm || nameMatch || cpfMatch || cityMatchSearch;
 
             // City Filter
             const matchesCity = this.currentCity === 'all' || p.city === this.currentCity;
@@ -226,8 +225,7 @@ export default class PaymentHistoryModule {
             // Date Filter
             let matchesDate = true;
             if (startFilter && endFilter) {
-                const pDateObj = new Date(p.createdAt);
-                const pDate = new Date(pDateObj.getFullYear(), pDateObj.getMonth(), pDateObj.getDate());
+                const pDate = DateHelper.toLocalYYYYMMDD(p.createdAt);
                 matchesDate = (pDate >= startFilter && pDate <= endFilter);
             }
 
@@ -335,8 +333,8 @@ export default class PaymentHistoryModule {
                 <tr class="hover:bg-slate-50 transition-all group">
                     <td class="px-6 py-4">
                         <div class="flex flex-col">
-                            <span class="text-sm font-bold text-slate-900">${date.toLocaleDateString('pt-BR')}</span>
-                            <span class="text-[10px] text-slate-400 uppercase font-bold">${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span class="text-sm font-bold text-slate-900">${DateHelper.formatLocal(p.createdAt)}</span>
+                            <span class="text-[10px] text-slate-400 uppercase font-bold">${new Date(p.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                     </td>
                     <td class="px-6 py-4">
@@ -390,7 +388,7 @@ export default class PaymentHistoryModule {
 
             const instInfo = p.installmentObj ? `P ${p.installmentObj.number}/${totalInst}` : 'N/A';
             return [
-                date.toLocaleDateString('pt-BR'),
+                DateHelper.formatLocal(p.createdAt),
                 date.toLocaleTimeString('pt-BR'),
                 p.clientObj?.name || 'Sistema',
                 p.city,
@@ -403,7 +401,7 @@ export default class PaymentHistoryModule {
         const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `relatorio_pagamentos_${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `relatorio_pagamentos_${DateHelper.getTodayStr()}.csv`;
         link.click();
     }
 }

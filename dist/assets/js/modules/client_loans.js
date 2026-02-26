@@ -45,7 +45,7 @@ export default class ClientLoansModule {
             ...r
         }))];
 
-        this.clientLoans = combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        this.clientLoans = combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
 
     getLoanStatusClass(status) {
@@ -135,7 +135,7 @@ export default class ClientLoansModule {
                     <td class="px-8 py-6">
                         <div class="flex flex-col">
                             <span class="text-sm font-black ${loan.isRequest ? 'text-slate-500' : 'text-slate-900'}">${loan.loanCode || '---'}</span>
-                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${date.toLocaleDateString('pt-BR')}</span>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${DateHelper.formatLocal(loan.createdAt)}</span>
                         </div>
                     </td>
                     <td class="px-8 py-6">
@@ -200,11 +200,8 @@ export default class ClientLoansModule {
                     totalAberto += amountValue;
 
                     if (inst.status === 'pendente') {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const due = new Date(inst.dueDate);
                         // Check if pending is actually overdue
-                        if (due < today) {
+                        if (DateHelper.isPast(inst.dueDate)) {
                             statusClass = 'bg-rose-50 text-rose-600 border border-rose-100';
                             statusText = 'em atraso';
                         } else {
@@ -221,7 +218,7 @@ export default class ClientLoansModule {
                 return `
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
                         <td class="px-8 py-4 font-bold text-slate-700">${inst.number}</td>
-                        <td class="px-8 py-4 text-sm font-medium text-slate-600">${date.toLocaleDateString('pt-BR')}</td>
+                        <td class="px-8 py-4 text-sm font-medium text-slate-600">${DateHelper.formatLocal(inst.dueDate)}</td>
                         <td class="px-8 py-4 font-black text-emerald-600">R$ ${amountValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td class="px-8 py-4">
                             <span class="px-3 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-widest ${statusClass}">

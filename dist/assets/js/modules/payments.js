@@ -29,7 +29,7 @@ export default class PaymentsModule {
 
             listContainer.innerHTML = payments.map(p => `
                 <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-6 py-4 text-sm text-slate-600">${new Date(p.createdAt).toLocaleDateString('pt-BR')}</td>
+                    <td class="px-6 py-4 text-sm text-slate-600">${DateHelper.formatLocal(p.createdAt)}</td>
                     <td class="px-6 py-4 text-sm font-bold text-slate-900">${p.client?.name || 'Cliente deletado'}</td>
                     <td class="px-6 py-4 text-sm font-black text-emerald-600">R$ ${parseFloat(p.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td class="px-6 py-4 text-sm text-slate-500 capitalize">${p.method || 'dinheiro'}</td>
@@ -55,7 +55,7 @@ export default class PaymentsModule {
 
         if (!todayStatEl && !monthStatEl) return;
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = DateHelper.getTodayStr();
         const now = new Date();
         const firstDayMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 

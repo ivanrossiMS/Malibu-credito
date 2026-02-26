@@ -1,9 +1,11 @@
 import storage from '../StorageService.js';
 import auth from '../AuthService.js';
+import clientService from '../ClientService.js';
+import loanService from '../LoanService.js';
 
 export default class UsersModule {
     async init() {
-        this.currentTab = 'pendente';
+        this.currentTab = 'ativo';
         this.renderUsers();
         this.bindEvents();
     }
@@ -47,9 +49,9 @@ export default class UsersModule {
                     </div>
                 </td>
                 <td class="px-6 py-4 text-sm text-slate-600">${user.email}</td>
-                <td class="px-6 py-4 text-sm text-slate-500">${new Date(user.createdAt).toLocaleDateString('pt-BR')}</td>
+                <td class="px-6 py-4 text-sm text-slate-500">${DateHelper.formatLocal(user.createdAt)}</td>
                 <td class="px-6 py-4 text-right">
-                    <div class="flex justify-end gap-2">
+                    <div class="flex justify-end gap-1">
                         ${this.getActionButtons(user)}
                     </div>
                 </td>
@@ -74,7 +76,8 @@ export default class UsersModule {
             return `
                 <button onclick="loginAsUser(${user.id})" class="text-emerald-600 border border-emerald-200 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2 flex items-center gap-1"><i data-lucide="log-in" class="w-3 h-3"></i> Acessar Cliente</button>
                 <button onclick="promoteUser(${user.id})" class="text-indigo-600 border border-indigo-200 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2">Promover a Admin</button>
-                <button onclick="updateUserStatus(${user.id}, 'bloqueado')" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Bloquear</button>
+                <button onclick="updateUserStatus(${user.id}, 'bloqueado')" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2">Bloquear</button>
+                <button onclick="deleteUserPermanently(${user.id})" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Excluir</button>
             `;
         } else {
             return `
@@ -132,6 +135,45 @@ export default class UsersModule {
                     await auth.impersonate(id);
                 } catch (error) {
                     alert('Erro ao acessar conta: ' + error.message);
+                }
+            }
+        };
+
+        window.deleteUserPermanently = async (id) => {
+            if (id === auth.currentUser?.id) {
+                alert("Você não pode excluir sua própria conta.");
+                return;
+            }
+
+            const confirmMsg = "ATENÇÃO: Isso excluirá PERMANENTEMENTE o usuário, seu perfil de cliente, todos os empréstimos, parcelas e pagamentos vinculados.\n\nEsta ação não pode ser desfeita. Deseja continuar?";
+
+            if (confirm(confirmMsg)) {
+                try {
+                    // 1. Find the client profile linked to this user
+                    const clients = await clientService.getAll();
+                    const client = clients.find(c => String(c.userId || c.user_id) === String(id));
+
+                    if (client) {
+                        // 2. Cascade delete loans (this handles installments and payments)
+                        const loans = await loanService.getAll();
+                        const clientLoans = loans.filter(l => String(l.clientId || l.clientid || l.client_id) === String(client.id));
+
+                        for (let loan of clientLoans) {
+                            await loanService.deleteLoan(loan.id);
+                        }
+
+                        // 3. Delete the client profile
+                        await storage.delete('clients', client.id);
+                    }
+
+                    // 4. Delete the user record
+                    await storage.delete('users', id);
+
+                    alert("Usuário e todos os dados vinculados foram removidos com sucesso.");
+                    this.renderUsers();
+                } catch (error) {
+                    console.error("Erro na exclusão em cascata:", error);
+                    alert("Erro ao realizar exclusão em cascata: " + error.message);
                 }
             }
         };

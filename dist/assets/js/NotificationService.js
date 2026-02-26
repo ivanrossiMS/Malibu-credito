@@ -39,7 +39,7 @@ class NotificationService {
             clientId,
             type: 'payment_confirmed',
             title: 'Pagamento Confirmado',
-            message: `Recebemos seu pagamento de R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} referente à parcela de ${new Date(date).toLocaleDateString('pt-BR')}.`,
+            message: `Recebemos seu pagamento de R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} referente à parcela de ${DateHelper.formatLocal(date)}.`,
             icon: 'check-circle'
         });
     }
@@ -59,7 +59,7 @@ class NotificationService {
             clientId,
             type: 'installment_due',
             title: 'Lembrete de Vencimento',
-            message: `Sua parcela de R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} vence amanhã (${new Date(date).toLocaleDateString('pt-BR')}).`,
+            message: `Sua parcela de R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} vence amanhã (${DateHelper.formatLocal(date)}).`,
             icon: 'calendar'
         });
     }

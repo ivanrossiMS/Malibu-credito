@@ -6,6 +6,8 @@ export default class LoansModule {
         this.allLoans = [];
         this.filteredLoans = [];
         this.sortConfig = { key: 'startDate', direction: 'desc' };
+        this.allClients = [];
+        this.clientsMap = new Map();
         this.filterConfig = {
             clientId: '',
             status: '',
@@ -16,8 +18,12 @@ export default class LoansModule {
 
     async init() {
         try {
-            await loanService.updateAllLoansStatus(); // Trigger background validation for auto-overdue tracking
             this.allLoans = await loanService.getAll();
+
+            // Pre-fetch all clients for robust lookup fallback
+            this.allClients = await clientService.getAll();
+            this.clientsMap = new Map(this.allClients.map(c => [c.id, c]));
+
             this.filteredLoans = [...this.allLoans];
 
             await this.loadClientsSelect();
@@ -73,9 +79,19 @@ export default class LoansModule {
             const total = installmentValue * numInstallments;
             const interest = total - requested;
 
-            const avatarHtml = loan.client && loan.client.avatar
-                ? `<img src="${loan.client.avatar}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm shrink-0">`
-                : `<div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">${loan.client?.name ? loan.client.name.charAt(0) : '?'}</div>`;
+            // Robust client lookup with deep property inspection
+            let client = loan.client;
+            if (!client) {
+                // Check every possible variation of client ID property
+                const cid = loan.clientId || loan.clientid || loan.client_id || (loan.loan && (loan.loan.clientid || loan.loan.clientId));
+                if (cid) {
+                    client = this.clientsMap.get(parseInt(cid));
+                }
+            }
+
+            const avatarHtml = client && client.avatar
+                ? `<img src="${client.avatar}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm shrink-0">`
+                : `<div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">${client?.name ? client.name.charAt(0) : '?'}</div>`;
 
             return `
             <tr class="hover:bg-slate-50 transition-colors">
@@ -83,23 +99,28 @@ export default class LoansModule {
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-3">
                         ${avatarHtml}
-                        <span class="text-sm font-bold text-slate-900">${loan.client?.name || 'Cliente não encontrado'}</span>
+                        <span class="text-sm font-bold text-slate-900">${client?.name || 'Cliente não encontrado'}</span>
                     </div>
                 </td>
                 <td class="px-6 py-4 text-sm font-bold text-slate-900 text-right">R$ ${requested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="px-6 py-4 text-sm font-medium text-amber-600 text-right">R$ ${interest.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="px-6 py-4 text-sm font-black text-primary text-right">R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="px-6 py-4 text-sm text-slate-600">${numInstallments}x de R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td class="px-6 py-4 text-sm text-slate-500">${new Date(loan.startDate).toLocaleDateString('pt-BR')}</td>
+                <td class="px-6 py-4 text-sm text-slate-500">${DateHelper.formatLocal(loan.startDate)}</td>
                 <td class="px-6 py-4">
                     <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusClass(loan.status)}">
                         ${loan.status.toUpperCase()}
                     </span>
                 </td>
                 <td class="px-6 py-4 text-right">
-                    <button onclick="editLoan(${loan.id})" class="p-2 text-slate-400 hover:text-primary transition-colors">
-                        <i data-lucide="edit-3" class="w-5 h-5"></i>
-                    </button>
+                    <div class="flex justify-end gap-1">
+                        <button onclick="editLoan(${loan.id})" class="p-2 text-slate-400 hover:text-primary transition-all hover:bg-primary/5 rounded-lg" title="Editar">
+                            <i data-lucide="edit-3" class="w-5 h-5"></i>
+                        </button>
+                        <button onclick="deleteLoan(${loan.id})" class="p-2 text-slate-400 hover:text-rose-600 transition-all hover:bg-rose-50 rounded-lg" title="Excluir">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
             `;
@@ -325,6 +346,21 @@ export default class LoansModule {
 
             this.calculatePreview();
             modal.classList.remove('hidden');
+        };
+
+        window.deleteLoan = async (id) => {
+            if (!confirm("⚠️ ATENÇÃO: Esta ação é permanente!\n\nDeseja realmente excluir este empréstimo e todas as suas parcelas associadas?")) {
+                return;
+            }
+
+            try {
+                await loanService.deleteLoan(id);
+                alert("Empréstimo e parcelas excluídos com sucesso!");
+                this.allLoans = await loanService.getAll();
+                this.applyFilters();
+            } catch (error) {
+                alert("Erro ao excluir empréstimo: " + error.message);
+            }
         };
 
         const filterClient = document.getElementById('filter-client');

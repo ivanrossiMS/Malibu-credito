@@ -133,20 +133,19 @@ export default class ClientPaymentsModule {
         const specificDate = document.getElementById('client-filter-date')?.value;
         const searchQuery = document.getElementById('client-search-input')?.value.toLowerCase() || '';
 
+        const todayStr = DateHelper.getTodayStr();
         const now = new Date();
-        const today = now.toISOString().split('T')[0];
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const startOfMonth = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
+        const startOfYear = `${now.getFullYear()}-01-01`;
 
         this.filteredPayments = this.payments.filter(p => {
             // Period Filter
-            const pDate = new Date(p.createdAt);
-            const pDateStr = p.createdAt.split('T')[0];
+            const pDateStr = DateHelper.toLocalYYYYMMDD(p.createdAt);
 
             let dateMatch = true;
-            if (period === 'today') dateMatch = pDateStr === today;
-            else if (period === 'month') dateMatch = pDate >= startOfMonth;
-            else if (period === 'year') dateMatch = pDate >= startOfYear;
+            if (period === 'today') dateMatch = pDateStr === todayStr;
+            else if (period === 'month') dateMatch = pDateStr >= startOfMonth;
+            else if (period === 'year') dateMatch = pDateStr >= startOfYear;
             else if (period === 'custom' && specificDate) dateMatch = pDateStr === specificDate;
 
             if (!dateMatch) return false;
@@ -248,8 +247,8 @@ export default class ClientPaymentsModule {
                 <tr class="hover:bg-slate-50/50 transition-all group">
                     <td class="px-8 py-6">
                         <div class="flex flex-col">
-                            <span class="text-sm font-black text-slate-900">${date.toLocaleDateString('pt-BR')}</span>
-                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span class="text-sm font-black text-slate-900">${DateHelper.formatLocal(p.createdAt)}</span>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${new Date(p.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                     </td>
                     <td class="px-8 py-6">
@@ -323,7 +322,7 @@ export default class ClientPaymentsModule {
             else if (period === 'month') text = 'Pagos este mês';
             else if (period === 'year') text = 'Pagos este ano';
             else if (period === 'custom') {
-                const formatted = dateVal ? new Date(dateVal + 'T00:00:00').toLocaleDateString('pt-BR') : '...';
+                const formatted = dateVal ? DateHelper.formatLocal(dateVal) : '...';
                 text = `Pagos em ${formatted}`;
             }
             else text = 'Total no histórico';
@@ -384,7 +383,7 @@ export default class ClientPaymentsModule {
         if (this.filteredPayments.length === 0) return alert("Sem dados.");
         const headers = ["Data", "Contrato", "Parcela", "Metodo", "Valor"];
         const rows = this.filteredPayments.map(p => [
-            new Date(p.createdAt).toLocaleDateString('pt-BR'),
+            DateHelper.formatLocal(p.createdAt),
             p.loan?.loanCode || '',
             `${p.installment?.number || '--'} de ${p.loan?.numInstallments || '--'}`,
             'PIX',
@@ -394,7 +393,7 @@ export default class ClientPaymentsModule {
         const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `meus_pagamentos_${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `meus_pagamentos_${DateHelper.getTodayStr()}.csv`;
         link.click();
     }
 }

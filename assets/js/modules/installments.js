@@ -60,7 +60,7 @@ export default class InstallmentsModule {
         if (!listContainer) return;
 
         let allItems = await installmentService.getAll();
-        const today = new Date().toISOString().split('T')[0];
+        const today = DateHelper.getTodayStr();
 
         // 1. Filter by client
         if (this.currentClient) {
@@ -76,36 +76,44 @@ export default class InstallmentsModule {
         if (this.currentDateType) {
             const dateType = this.currentDateType;
             if (dateType === 'hoje') {
-                allItems = allItems.filter(i => i.dueDate && i.dueDate.split('T')[0] === today);
+                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) === today);
             } else if (dateType === 'amanha') {
-                const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-                const tStr = tomorrow.toISOString().split('T')[0];
-                allItems = allItems.filter(i => i.dueDate && i.dueDate.split('T')[0] === tStr);
+                const tStr = DateHelper.addDays(today, 1);
+                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) === tStr);
             } else if (dateType === '7dias') {
-                const nextWeek = new Date(); nextWeek.setDate(nextWeek.getDate() + 7);
-                const nwStr = nextWeek.toISOString().split('T')[0];
-                allItems = allItems.filter(i => i.dueDate && i.dueDate.split('T')[0] >= today && i.dueDate.split('T')[0] <= nwStr);
+                const nwStr = DateHelper.addDays(today, 7);
+                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) >= today && DateHelper.toLocalYYYYMMDD(i.dueDate) <= nwStr);
             } else if (dateType === 'mes') {
-                const startMonth = today.substring(0, 8) + '01';
-                const nextM = new Date(); nextM.setMonth(nextM.getMonth() + 1); nextM.setDate(0);
-                const endMonth = nextM.toISOString().split('T')[0];
-                allItems = allItems.filter(i => i.dueDate && i.dueDate.split('T')[0] >= startMonth && i.dueDate.split('T')[0] <= endMonth);
+                const now = new Date();
+                const startMonth = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
+                const endMonth = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) >= startMonth && DateHelper.toLocalYYYYMMDD(i.dueDate) <= endMonth);
             } else if (dateType === 'ano') {
-                const startYear = today.substring(0, 4) + '-01-01';
-                const endYear = today.substring(0, 4) + '-12-31';
-                allItems = allItems.filter(i => i.dueDate && i.dueDate.split('T')[0] >= startYear && i.dueDate.split('T')[0] <= endYear);
+                const now = new Date();
+                const startYear = `${now.getFullYear()}-01-01`;
+                const endYear = `${now.getFullYear()}-12-31`;
+                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) >= startYear && DateHelper.toLocalYYYYMMDD(i.dueDate) <= endYear);
             } else if (dateType === 'personalizado' && this.currentDateCustom) {
-                allItems = allItems.filter(i => i.dueDate && i.dueDate.split('T')[0] === this.currentDateCustom);
+                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) === this.currentDateCustom);
             }
         }
 
         // Calculate counts for status buttons based on current filters 1-3
         const counts = {
             todas: allItems.length,
-            pendente: allItems.filter(i => (i.status || '').toLowerCase() === 'pendente' && i.dueDate === today).length,
-            atrasada: allItems.filter(i => (i.status || '').toLowerCase() === 'atrasada').length,
-            avencer: allItems.filter(i => (i.status || '').toLowerCase() === 'pendente' && i.dueDate > today).length,
-            paga: allItems.filter(i => (i.status || '').toLowerCase() === 'paga').length
+            pendente: allItems.filter(i => {
+                const status = (i.status || '').toLowerCase();
+                return (status === 'pendente') && DateHelper.isToday(i.dueDate);
+            }).length,
+            atrasada: allItems.filter(i => {
+                const status = (i.status || '').toLowerCase();
+                return status === 'atrasada' || ((status === 'pendente' || status === 'vendedora_pendente') && DateHelper.isPast(i.dueDate));
+            }).length,
+            avencer: allItems.filter(i => {
+                const status = (i.status || '').toLowerCase();
+                return (status === 'pendente' || status === 'vencendo') && DateHelper.isFuture(i.dueDate);
+            }).length,
+            paga: allItems.filter(i => (i.status || '').toLowerCase() === 'paga' || (i.status === 'pago')).length
         };
 
         document.querySelectorAll('.filter-status').forEach(btn => {
@@ -119,9 +127,19 @@ export default class InstallmentsModule {
         // 4. Finally Filter by status
         let installments = allItems;
         if (this.currentStatus === 'avencer') {
-            installments = installments.filter(i => (i.status || '').toLowerCase() === 'pendente' && i.dueDate > today);
+            installments = installments.filter(i => (i.status || '').toLowerCase() === 'pendente' && DateHelper.isFuture(i.dueDate));
         } else if (this.currentStatus === 'pendente') {
-            installments = installments.filter(i => (i.status || '').toLowerCase() === 'pendente' && i.dueDate === today);
+            installments = installments.filter(i => (i.status || '').toLowerCase() === 'pendente' && DateHelper.isToday(i.dueDate));
+        } else if (this.currentStatus === 'atrasada') {
+            installments = installments.filter(i => {
+                const status = (i.status || '').toLowerCase();
+                return status === 'atrasada' || (status === 'pendente' && DateHelper.isPast(i.dueDate));
+            });
+        } else if (this.currentStatus === 'paga') {
+            installments = installments.filter(i => {
+                const status = (i.status || '').toLowerCase();
+                return status === 'paga' || status === 'pago';
+            });
         } else if (this.currentStatus !== 'todas') {
             installments = installments.filter(i => (i.status || '').toLowerCase() === this.currentStatus.toLowerCase());
         }
@@ -196,7 +214,7 @@ export default class InstallmentsModule {
                     ${item.loan?.loanCode || '---'}
                 </td>
                 <td class="px-6 py-4 text-sm font-medium ${this.getStatusCardClass(item.dueDate)}">
-                    ${new Date(item.dueDate).toLocaleDateString('pt-BR')}
+                    ${DateHelper.formatLocal(item.dueDate)}
                 </td>
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-3">
@@ -215,7 +233,7 @@ export default class InstallmentsModule {
                 </td>
                 <td class="px-6 py-4 text-sm font-black text-emerald-600">R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="px-6 py-4 text-sm font-medium text-slate-500">
-                    ${item.paidAt ? new Date(item.paidAt).toLocaleDateString('pt-BR') : '<span class="text-slate-300">-</span>'}
+                    ${DateHelper.formatLocal(item.paidAt)}
                 </td>
                 <td class="px-6 py-4">
                     <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusBadgeClass(item.status, item.dueDate)}">
@@ -248,33 +266,30 @@ export default class InstallmentsModule {
     }
 
     getStatusCardClass(dueDate) {
-        const today = new Date().toISOString().split('T')[0];
-        if (dueDate < today) return 'text-rose-600 font-bold';
-        if (dueDate === today) return 'text-amber-600 font-bold';
+        if (DateHelper.isPast(dueDate)) return 'text-rose-600 font-bold';
+        if (DateHelper.isToday(dueDate)) return 'text-amber-600 font-bold';
         return 'text-slate-600';
     }
 
     getDisplayStatus(status, dueDate) {
         status = String(status || '').toLowerCase();
-        const today = new Date().toISOString().split('T')[0];
-        if (status === 'pendente') {
-            if (dueDate === today) return 'VENCE HOJE';
-            return 'A VENCER';
-        }
-        return status.toUpperCase();
+        if (status === 'paga' || status === 'pago') return 'PAGA';
+
+        if (DateHelper.isPast(dueDate)) return 'ATRASADA';
+        if (DateHelper.isToday(dueDate)) return 'VENCE HOJE';
+
+        return 'A VENCER';
     }
 
     getStatusBadgeClass(status, dueDate) {
         status = String(status || '').toLowerCase();
-        const today = new Date().toISOString().split('T')[0];
-        if (status === 'pendente' && dueDate === today) return 'bg-amber-100/50 text-amber-600 border border-amber-200 shadow-sm';
 
-        switch (status) {
-            case 'pendente': return 'bg-slate-100 text-slate-500';
-            case 'atrasada': return 'bg-rose-50 text-rose-600';
-            case 'paga': return 'bg-emerald-50 text-emerald-600';
-            default: return 'bg-slate-50 text-slate-400';
-        }
+        if (status === 'paga' || status === 'pago') return 'bg-emerald-50 text-emerald-600';
+
+        if (DateHelper.isPast(dueDate)) return 'bg-rose-50 text-rose-600 border border-rose-100';
+        if (DateHelper.isToday(dueDate)) return 'bg-amber-100/50 text-amber-600 border border-amber-200 shadow-sm';
+
+        return 'bg-slate-100 text-slate-500';
     }
 
     bindEvents() {
@@ -373,7 +388,7 @@ export default class InstallmentsModule {
             const modal = document.getElementById('pay-installment-modal');
             if (!modal) return;
             document.getElementById('pay-inst-id').value = id;
-            document.getElementById('pay-inst-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('pay-inst-date').value = DateHelper.getTodayStr();
             document.getElementById('pay-inst-notes').value = '';
             modal.classList.remove('hidden');
         };
@@ -478,7 +493,7 @@ export default class InstallmentsModule {
             const msg = templateService.generateMessage(template, {
                 nome_cliente: inst.client?.name || 'Cliente',
                 valor_parcela: parseFloat(inst.installmentValue || inst.amount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-                data_vencimento: new Date(inst.dueDate).toLocaleDateString('pt-BR')
+                data_vencimento: DateHelper.formatLocal(inst.dueDate)
             });
 
             const phone = inst.client?.phone?.replace(/\D/g, '') || '';

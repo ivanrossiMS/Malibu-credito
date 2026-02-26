@@ -85,9 +85,6 @@ export default class ClientsModule {
                         <button onclick="editClient(${client.id})" class="p-2 text-slate-400 hover:text-primary transition-colors">
                             <i data-lucide="edit-3" class="w-5 h-5"></i>
                         </button>
-                        <button onclick="deleteClient(${client.id})" class="p-2 text-slate-400 hover:text-rose-500 transition-colors">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                        </button>
                     </div>
                 </td>
             </tr>
@@ -219,13 +216,6 @@ export default class ClientsModule {
                 const content = modal.querySelector('.max-w-4xl');
                 if (content) content.classList.remove('scale-95');
             }, 10);
-        };
-
-        window.deleteClient = async (id) => {
-            if (confirm("Deseja realmente excluir este cliente?")) {
-                await clientService.delete(id);
-                this.renderClients();
-            }
         };
     }
 }

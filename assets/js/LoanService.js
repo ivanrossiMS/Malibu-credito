@@ -20,6 +20,9 @@ class LoanService {
         loanData.status = 'ativo';
         loanData.loanCode = await this.generateLoanCode();
 
+        // Explicit fallback for common naming variations
+        loanData.clientid = loanData.clientid || loanData.clientId || loanData.client_id;
+
         const loanId = await storage.add('loans', loanData);
 
         // Generate installments
@@ -72,10 +75,10 @@ class LoanService {
 
     generateInstallments(loanId, data) {
         const installments = [];
-        const startDate = new Date(data.startDate);
+        const startDate = DateHelper.getLocalDate(data.startDate);
 
         for (let i = 1; i <= data.numInstallments; i++) {
-            const dueDate = new Date(startDate);
+            const dueDate = DateHelper.getLocalDate(DateHelper.toLocalYYYYMMDD(startDate));
 
             if (data.frequency === 'diario') {
                 dueDate.setDate(startDate.getDate() + (i - 1));
@@ -86,9 +89,10 @@ class LoanService {
 
             installments.push({
                 loanid: loanId,
+                loan_id: loanId, // Duplicate for safety
                 number: i,
                 installment_value: data.installmentValue,
-                due_date: dueDate.toISOString().split('T')[0],
+                due_date: DateHelper.toLocalYYYYMMDD(dueDate),
                 status: 'pendente'
             });
         }
@@ -110,11 +114,11 @@ class LoanService {
         const installments = await storage.query('installments', 'loanid', loanId);
         if (!installments || installments.length === 0) return;
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = DateHelper.getTodayStr();
 
         // Auto-detect overdue installments
         for (let inst of installments) {
-            if (inst.status === 'pendente' && inst.dueDate < today) {
+            if (inst.status === 'pendente' && DateHelper.isPast(inst.dueDate)) {
                 inst.status = 'atrasada';
                 await storage.put('installments', inst);
             }
@@ -143,6 +147,25 @@ class LoanService {
             loan.status = newStatus;
             await storage.put('loans', loan);
         }
+    }
+
+    async deleteLoan(id) {
+        // 1. Get all installments
+        const installments = await storage.query('installments', 'loanid', id);
+
+        // 2. Delete all records in cascade (Payments -> Installments -> Loan)
+        for (let inst of installments) {
+            // Delete payments linked to this installment
+            const payments = await storage.query('payments', 'installmentid', inst.id);
+            for (let pay of payments) {
+                await storage.delete('payments', pay.id);
+            }
+            // Delete the installment
+            await storage.delete('installments', inst.id);
+        }
+
+        // 3. Delete the loan record
+        return await storage.delete('loans', id);
     }
 
     async updateAllLoansStatus() {

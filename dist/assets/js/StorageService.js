@@ -80,6 +80,13 @@ class StorageService {
         // Contudo, as tabelas originais do projeto não seguem snake_case (possuem `clientid`).
         // Precisamos prevenir envios excedentes e reverter as formatações não mapeadas pelo banco.
         const payload = this.toSnakeCase(data);
+
+        // [RESILIÊNCIA DE BANCO] - Injetar duplicatas para colunas legadas
+        // O banco possui colunas como `clientid` e `client_id`. O Supabase FK depende de `clientid`.
+        if (payload.client_id) payload.clientid = payload.client_id;
+        if (payload.loan_id) payload.loanid = payload.loan_id;
+        if (payload.installment_id) payload.installmentid = payload.installment_id;
+
         delete payload.client;
         delete payload.loan;
         delete payload.installment;
@@ -88,10 +95,10 @@ class StorageService {
         // Se a tabela é estritamente loan_requests (Schema Rígido de 4 Colunas), limitamos o payload.
         if (storeName === 'loan_requests') {
             const pureRequest = {
-                clientid: data.clientid || data.clientId,
+                clientid: data.clientid || data.clientId || data.client_id,
                 amount: data.amount,
                 status: data.status || 'pendente',
-                installments: data.installments || 0,
+                installments: data.installments || 1,
                 frequency: data.frequency || '',
                 description: data.description || '',
                 created_at: data.created_at || data.createdAt || new Date().toISOString()

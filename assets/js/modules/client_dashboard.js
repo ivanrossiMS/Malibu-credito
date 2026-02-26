@@ -79,26 +79,24 @@ export default class ClientDashboardModule {
 
         let filtered = this.installments || [];
 
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
+        const todayStr = DateHelper.getTodayStr();
 
         filtered = filtered.filter(inst => {
-            const due = new Date(inst.dueDate);
-            due.setHours(0, 0, 0, 0);
-
             const isPaga = inst.status === 'paga' || inst.status === 'pago';
-            const isLate = inst.status === 'atrasado' || inst.status === 'em atraso' || inst.status === 'atrasada' || (!isPaga && due < now);
+            const isLate = !isPaga && DateHelper.isPast(inst.dueDate);
 
             if (this.currentFilter === 'paga') return isPaga;
-            if (this.currentFilter === 'vencida') return isLate && !isPaga;
+            if (this.currentFilter === 'vencida') return isLate;
             if (this.currentFilter === 'pendente') return !isPaga && !isLate;
             return true;
         });
 
         // Ordenação inteligente baseada no filtro
         filtered.sort((a, b) => {
-            if (this.currentFilter === 'paga') return new Date(b.dueDate) - new Date(a.dueDate);
-            return new Date(a.dueDate) - new Date(b.dueDate);
+            const dateA = DateHelper.toLocalYYYYMMDD(a.dueDate);
+            const dateB = DateHelper.toLocalYYYYMMDD(b.dueDate);
+            if (this.currentFilter === 'paga') return (dateB < dateA ? -1 : 1);
+            return (dateA < dateB ? -1 : 1);
         });
 
         const totalItems = filtered.length;
@@ -122,10 +120,12 @@ export default class ClientDashboardModule {
             listBody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Nenhuma parcela encontrada nesta categoria.</td></tr>`;
         } else {
             listBody.innerHTML = pageItems.map(inst => {
-                const dueStr = new Date(inst.dueDate); dueStr.setHours(0, 0, 0, 0);
-                const isLateVisual = (inst.status !== 'paga' && inst.status !== 'pago') && dueStr < now;
-                const displayStatus = isLateVisual ? 'VENCIDA' : inst.status;
-                const statusClass = isLateVisual ? 'bg-rose-50 text-rose-600 border border-rose-100' : this.getStatusClass(inst.status);
+                const isPaga = inst.status === 'paga' || inst.status === 'pago';
+                const isLateVisual = !isPaga && DateHelper.isPast(inst.dueDate);
+                const isTodayVisual = !isPaga && DateHelper.isToday(inst.dueDate);
+
+                const displayStatus = isPaga ? 'PAGA' : (isLateVisual ? 'VENCIDA' : (isTodayVisual ? 'VENCE HOJE' : 'PENDENTE'));
+                const statusClass = isPaga ? 'bg-emerald-50 text-emerald-600' : (isLateVisual ? 'bg-rose-50 text-rose-600 border border-rose-100' : (isTodayVisual ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-slate-50 text-slate-500'));
 
                 return `
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
@@ -199,7 +199,7 @@ export default class ClientDashboardModule {
         if (!list) return;
 
         const notifications = (await notificationService.getAllForClient(this.client.id))
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         const unreadCount = notifications.filter(n => !n.read).length;
 
         if (unreadCount > 0) {
@@ -244,12 +244,8 @@ export default class ClientDashboardModule {
         if (!titleEl) return;
 
         // --- 1. LOCAL DATE NORMALIZATION ---
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const todayStr = `${year}-${month}-${day}`;
-        const localNowMidnight = new Date(year, now.getMonth(), now.getDate());
+        const todayStr = DateHelper.getTodayStr();
+        const localNowMidnight = DateHelper.getLocalDate(todayStr);
 
         // Filter valid active installments
         const active = installments.filter(i =>
@@ -265,15 +261,15 @@ export default class ClientDashboardModule {
         // --- 2. DATA AGGREGATION ---
 
         // A. Overdue
-        const overdue = active.filter(i => i.dueDate < todayStr)
-            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        const overdue = active.filter(i => DateHelper.isPast(i.dueDate))
+            .sort((a, b) => DateHelper.toLocalYYYYMMDD(a.dueDate) < DateHelper.toLocalYYYYMMDD(b.dueDate) ? -1 : 1);
 
         // B. Today
-        const todayItems = active.filter(i => i.dueDate === todayStr);
+        const todayItems = active.filter(i => DateHelper.isToday(i.dueDate));
 
         // C. Next Upcoming
-        const upcoming = active.filter(i => i.dueDate > todayStr)
-            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        const upcoming = active.filter(i => DateHelper.isFuture(i.dueDate))
+            .sort((a, b) => DateHelper.toLocalYYYYMMDD(a.dueDate) < DateHelper.toLocalYYYYMMDD(b.dueDate) ? -1 : 1);
 
         // --- 3. CONSTRUCTING THE AGGREGATED VIEW ---
         titleEl.textContent = "Resumo Financeiro 📊";
@@ -293,7 +289,7 @@ export default class ClientDashboardModule {
         // Overdue Info
         if (overdue.length > 0) {
             const oldest = overdue[0];
-            const diffDays = Math.ceil(Math.abs(localNowMidnight - new Date(oldest.dueDate + 'T00:00:00')) / (1000 * 60 * 60 * 24));
+            const diffDays = DateHelper.getDiffDays(oldest.dueDate, todayStr);
             lines.push(`<span class="text-rose-400 font-bold">⚠️ ${overdue.length} ${overdue.length === 1 ? 'PARCELA ATRASADA' : 'PARCELAS ATRASADAS'}</span> (há ${diffDays} ${diffDays === 1 ? 'dia' : 'dias'})`);
         }
 
@@ -490,8 +486,7 @@ export default class ClientDashboardModule {
     }
 
     formatDateTime(dateStr) {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        return DateHelper.formatLocal(dateStr) + ' às ' + DateHelper.getLocalDate(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     }
 
     formatCurrency(val) {
@@ -499,7 +494,7 @@ export default class ClientDashboardModule {
     }
 
     formatDate(dateStr) {
-        return new Date(dateStr).toLocaleDateString('pt-BR');
+        return DateHelper.formatLocal(dateStr);
     }
 
     getStatusClass(status) {

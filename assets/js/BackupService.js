@@ -13,7 +13,7 @@ class BackupService {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `malibu-credito-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `malibu-credito-backup-${DateHelper.getTodayStr()}.json`;
         a.click();
         URL.revokeObjectURL(url);
     }
