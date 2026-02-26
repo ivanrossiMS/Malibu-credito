@@ -306,7 +306,9 @@ export default class LoansModule {
             await this.loadClientsSelect(); // Injeta options ativamente para evitar seletion null
 
             document.getElementById('loan-id').value = loan.id;
-            document.getElementById('clientId').value = loan.clientId;
+            // Fix visual selection by forcing String and hunting nested ID properties if 'clientId' is nullified by the relation JOIN
+            const targetClientId = loan.clientId || loan.client?.id || loan.clientid || '';
+            document.getElementById('clientId').value = String(targetClientId);
             document.getElementById('amount').value = loan.amount;
             document.getElementById('interestRate').value = loan.interestRate;
             document.getElementById('interestType').value = loan.interestType || 'percent';
