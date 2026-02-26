@@ -281,7 +281,7 @@ export default class LoanRequestsModule {
                         originalReq.installments = numInstallments;
                         originalReq.frequency = frequency;
                         originalReq.status = 'aprovado';
-                        originalReq.total_amount = totalAmount; // Nova coluna adicionada para registro histórico
+                        // Removemos a injeção do total_amount pois o PostgreSQL schema não possui esta coluna. (Evita erro PGRST204)
                         await storage.put('loan_requests', originalReq);
                     }
 
