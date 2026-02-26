@@ -2,12 +2,13 @@ import storage from '../StorageService.js';
 import auth from '../AuthService.js';
 import clientService from '../ClientService.js';
 import loanService from '../LoanService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class UsersModule {
     async init() {
         this.currentTab = 'ativo';
+        this.bindEvents(); // Bind events FIRST so they are available
         this.renderUsers();
-        this.bindEvents();
     }
 
     async renderUsers() {
@@ -87,6 +88,49 @@ export default class UsersModule {
     }
 
     bindEvents() {
+        console.log("Binding users page events...");
+
+        window.deleteUserPermanently = async (id) => {
+            console.log("Delete called for ID:", id);
+
+            if (id === auth.currentUser?.id) {
+                alert("Você não pode excluir sua própria conta.");
+                return;
+            }
+
+            const confirmMsg = "ATENÇÃO: Isso excluirá PERMANENTEMENTE o usuário, seu perfil de cliente, todos os empréstimos, parcelas e pagamentos vinculados.\n\nEsta ação não pode ser desfeita. Deseja continuar?";
+
+            if (confirm(confirmMsg)) {
+                try {
+                    // 1. Find the client profile linked to this user
+                    const clients = await clientService.getAll();
+                    const client = clients.find(c => String(c.userId || c.user_id) === String(id));
+
+                    if (client) {
+                        // 2. Cascade delete loans (this handles installments and payments)
+                        const loans = await loanService.getAll();
+                        const clientLoans = loans.filter(l => String(l.clientId || l.clientid || l.client_id) === String(client.id));
+
+                        for (let loan of clientLoans) {
+                            await loanService.deleteLoan(loan.id);
+                        }
+
+                        // 3. Delete the client profile
+                        await storage.delete('clients', client.id);
+                    }
+
+                    // 4. Delete the user record
+                    await storage.delete('users', id);
+
+                    alert("Usuário e todos os dados vinculados foram removidos com sucesso.");
+                    this.renderUsers();
+                } catch (error) {
+                    console.error("Erro na exclusão em cascata:", error);
+                    alert("Erro ao realizar exclusão em cascata: " + error.message);
+                }
+            }
+        };
+
         document.querySelectorAll('.user-tab').forEach(btn => {
             btn.onclick = () => {
                 document.querySelectorAll('.user-tab').forEach(b => {
@@ -135,45 +179,6 @@ export default class UsersModule {
                     await auth.impersonate(id);
                 } catch (error) {
                     alert('Erro ao acessar conta: ' + error.message);
-                }
-            }
-        };
-
-        window.deleteUserPermanently = async (id) => {
-            if (id === auth.currentUser?.id) {
-                alert("Você não pode excluir sua própria conta.");
-                return;
-            }
-
-            const confirmMsg = "ATENÇÃO: Isso excluirá PERMANENTEMENTE o usuário, seu perfil de cliente, todos os empréstimos, parcelas e pagamentos vinculados.\n\nEsta ação não pode ser desfeita. Deseja continuar?";
-
-            if (confirm(confirmMsg)) {
-                try {
-                    // 1. Find the client profile linked to this user
-                    const clients = await clientService.getAll();
-                    const client = clients.find(c => String(c.userId || c.user_id) === String(id));
-
-                    if (client) {
-                        // 2. Cascade delete loans (this handles installments and payments)
-                        const loans = await loanService.getAll();
-                        const clientLoans = loans.filter(l => String(l.clientId || l.clientid || l.client_id) === String(client.id));
-
-                        for (let loan of clientLoans) {
-                            await loanService.deleteLoan(loan.id);
-                        }
-
-                        // 3. Delete the client profile
-                        await storage.delete('clients', client.id);
-                    }
-
-                    // 4. Delete the user record
-                    await storage.delete('users', id);
-
-                    alert("Usuário e todos os dados vinculados foram removidos com sucesso.");
-                    this.renderUsers();
-                } catch (error) {
-                    console.error("Erro na exclusão em cascata:", error);
-                    alert("Erro ao realizar exclusão em cascata: " + error.message);
                 }
             }
         };
