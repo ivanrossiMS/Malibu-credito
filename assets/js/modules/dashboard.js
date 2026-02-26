@@ -386,44 +386,50 @@ export default class DashboardModule {
             return data;
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-        const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+        const getISODate = (d) => d.toISOString().split('T')[0];
+        const todayStr = getISODate(new Date());
+
+        const todayObj = new Date();
+        const tomorrowObj = new Date(); tomorrowObj.setDate(todayObj.getDate() + 1);
+        const yesterdayObj = new Date(); yesterdayObj.setDate(todayObj.getDate() - 1);
+
+        const tomorrowStr = getISODate(tomorrowObj);
+        const yesterdayStr = getISODate(yesterdayObj);
 
         let startFilter, endFilter;
         let actualPeriod = this.currentPeriod;
 
         if (actualPeriod === 'hoje') {
-            startFilter = today; endFilter = today;
+            startFilter = todayStr; endFilter = todayStr;
         } else if (actualPeriod === 'ontem') {
-            startFilter = yesterday; endFilter = yesterday;
+            startFilter = yesterdayStr; endFilter = yesterdayStr;
         } else if (actualPeriod === '3dias') {
-            startFilter = new Date(today); startFilter.setDate(startFilter.getDate() - 3);
-            endFilter = yesterday;
+            const threeDaysAgo = new Date(); threeDaysAgo.setDate(todayObj.getDate() - 3);
+            startFilter = getISODate(threeDaysAgo);
+            endFilter = yesterdayStr;
         } else if (actualPeriod === 'amanha') {
-            startFilter = tomorrow; endFilter = tomorrow;
+            startFilter = tomorrowStr; endFilter = tomorrowStr;
         } else if (actualPeriod === '7dias') {
-            startFilter = today;
-            endFilter = new Date(today); endFilter.setDate(endFilter.getDate() + 7);
+            const sevenDaysAhead = new Date(); sevenDaysAhead.setDate(todayObj.getDate() + 7);
+            startFilter = todayStr;
+            endFilter = getISODate(sevenDaysAhead);
         } else if (actualPeriod === 'mes') {
-            startFilter = new Date(today.getFullYear(), today.getMonth(), 1);
-            endFilter = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            startFilter = getISODate(new Date(todayObj.getFullYear(), todayObj.getMonth(), 1));
+            endFilter = getISODate(new Date(todayObj.getFullYear(), todayObj.getMonth() + 1, 0));
         } else if (actualPeriod === 'ano') {
-            startFilter = new Date(today.getFullYear(), 0, 1);
-            endFilter = new Date(today.getFullYear(), 11, 31);
+            startFilter = `${todayObj.getFullYear()}-01-01`;
+            endFilter = `${todayObj.getFullYear()}-12-31`;
         } else if (actualPeriod === 'personalizado') {
-            startFilter = new Date(this.customDateFrom + 'T00:00:00');
-            endFilter = new Date(this.customDateTo + 'T00:00:00');
+            startFilter = this.customDateFrom;
+            endFilter = this.customDateTo;
         }
 
         return data.filter(item => {
             let itemDateStr = metric === 'received' ? item.createdAt : item.dueDate;
             if (!itemDateStr) return false;
-            // Garante o funcionamento com timestamps formato ISO ('T') ou 'legacy' do PHP MySql/Supabase (' ')
-            const datePart = itemDateStr.split('T')[0].split(' ')[0];
-            const d = new Date(datePart + 'T00:00:00'); // Normalize timezone
-            return d >= startFilter && d <= endFilter;
+            // Extrai YYYY-MM-DD independente do formato (ISO ou DB)
+            const dStr = itemDateStr.split('T')[0].split(' ')[0];
+            return dStr >= startFilter && dStr <= endFilter;
         });
     }
 
