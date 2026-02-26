@@ -201,7 +201,7 @@
                     <input type="number" id="numInstallments" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="12">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">Frequência</label>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Frequência de pagamento</label>
                     <select id="frequency" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all">
                         <option value="mensal">Mensal</option>
                         <option value="diario">Diário</option>

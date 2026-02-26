@@ -149,7 +149,7 @@
                     <input type="number" id="req-installments" required class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-bold">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-tight mb-1">Frequência</label>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-tight mb-1">Frequência de pagamento</label>
                     <select id="req-frequency" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-bold">
                         <option value="mensal">Mensal</option>
                         <option value="diario">Diário</option>
