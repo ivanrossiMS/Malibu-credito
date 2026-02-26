@@ -152,8 +152,8 @@ export default class ClientsModule {
                     id: idValue ? parseInt(idValue) : null,
                     name: document.getElementById('name').value,
                     cpf_cnpj: document.getElementById('cpf_cnpj').value,
-                    birth: document.getElementById('birth').value,
-                    marital: document.getElementById('marital').value,
+                    birth_date: document.getElementById('birth').value,
+                    marital_status: document.getElementById('marital').value,
                     email: document.getElementById('email').value,
                     phone: document.getElementById('phone').value,
                     status: document.getElementById('status').value,
@@ -192,8 +192,8 @@ export default class ClientsModule {
             document.getElementById('client-id').value = client.id;
             document.getElementById('name').value = client.name || '';
             document.getElementById('cpf_cnpj').value = client.cpf_cnpj || '';
-            document.getElementById('birth').value = client.birth || '';
-            document.getElementById('marital').value = client.marital || '';
+            document.getElementById('birth').value = client.birth_date || '';
+            document.getElementById('marital').value = client.marital_status || '';
             document.getElementById('email').value = client.email || '';
             document.getElementById('phone').value = client.phone || '';
             document.getElementById('status').value = client.status || 'ativo';
