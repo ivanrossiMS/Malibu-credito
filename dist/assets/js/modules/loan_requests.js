@@ -196,11 +196,19 @@ export default class LoanRequestsModule {
             const amount = parseFloat(document.getElementById('req-amount').value) || 0;
             const interest = parseFloat(document.getElementById('req-interest').value) || 0;
             const interestType = document.getElementById('req-interest-type').value;
-            const installments = parseInt(document.getElementById('req-installments').value) || 0;
+            const frequency = document.getElementById('req-frequency').value;
 
             if (amount > 0 && installments > 0) {
-                const installmentValue = (amount / installments) + interest;
-                const total = installmentValue * installments;
+                let installmentValue = 0;
+                let total = 0;
+
+                if (frequency === 'semanal') {
+                    installmentValue = (amount / installments) + interest;
+                    total = installmentValue * installments;
+                } else {
+                    total = amount + interest;
+                    installmentValue = total / installments;
+                }
                 document.getElementById('req-total-preview-display').textContent = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             } else {
                 document.getElementById('req-total-preview-display').textContent = 'R$ 0,00';
@@ -243,8 +251,16 @@ export default class LoanRequestsModule {
                 const frequency = document.getElementById('req-frequency').value;
 
                 // Simple calculation for approval
-                const installmentValue = (amount / numInstallments) + interestRate;
-                const totalAmount = installmentValue * numInstallments;
+                let installmentValue = 0;
+                let totalAmount = 0;
+
+                if (frequency === 'semanal') {
+                    installmentValue = (amount / numInstallments) + interestRate;
+                    totalAmount = installmentValue * numInstallments;
+                } else {
+                    totalAmount = amount + interestRate;
+                    installmentValue = totalAmount / numInstallments;
+                }
 
                 const loanData = {
                     clientid: req.clientid || req.clientId,

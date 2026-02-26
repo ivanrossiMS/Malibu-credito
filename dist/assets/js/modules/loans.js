@@ -276,9 +276,16 @@ export default class LoansModule {
                 const numInstallments = parseInt(document.getElementById('numInstallments').value);
                 const interestType = document.getElementById('interestType').value;
                 const frequency = document.getElementById('frequency').value;
+                let installmentValue = 0;
+                let totalAmount = 0;
 
-                const installmentValue = (amount / numInstallments) + interestRate;
-                const totalAmount = installmentValue * numInstallments;
+                if (frequency === 'semanal') {
+                    installmentValue = (amount / numInstallments) + interestRate;
+                    totalAmount = installmentValue * numInstallments;
+                } else {
+                    totalAmount = amount + interestRate;
+                    installmentValue = totalAmount / numInstallments;
+                }
 
                 const data = {
                     clientId: parseInt(document.getElementById('clientId').value),
@@ -410,8 +417,17 @@ export default class LoansModule {
         const interestType = document.getElementById('interestType').value;
 
         if (amount > 0 && numInstallments > 0) {
-            const installmentValue = (amount / numInstallments) + interestRate;
-            const totalAmount = installmentValue * numInstallments;
+            const frequency = document.getElementById('frequency').value;
+            let installmentValue = 0;
+            let totalAmount = 0;
+
+            if (frequency === 'semanal') {
+                installmentValue = (amount / numInstallments) + interestRate;
+                totalAmount = installmentValue * numInstallments;
+            } else {
+                totalAmount = amount + interestRate;
+                installmentValue = totalAmount / numInstallments;
+            }
 
             const previewEl = document.getElementById('installment-preview');
             const totalPreviewEl = document.getElementById('total-preview');
