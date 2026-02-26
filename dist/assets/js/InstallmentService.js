@@ -42,7 +42,7 @@ class InstallmentService {
         if (!item) throw new Error("Parcela não encontrada.");
 
         if (data.dueDate !== undefined) item.dueDate = data.dueDate;
-        if (data.amount !== undefined) item.amount = data.amount;
+        if (data.amount !== undefined) item.installmentValue = data.amount;
         if (data.status !== undefined) item.status = data.status;
 
         if (item.status === 'paga' && !item.paidAt) {

@@ -184,8 +184,8 @@ export default class InstallmentsModule {
                 ? `<img src="${item.client.avatar}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm shrink-0">`
                 : `<div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">${item.client?.name ? item.client.name.charAt(0) : '?'}</div>`;
 
-            // Fix for NaN (installment database column is 'installment_value', not purely 'amount')
-            const installmentValue = parseFloat(item.installment_value || item.amount || 0);
+            // Fix for 0,00: StorageService converts DB 'installment_value' to camelCase 'installmentValue'
+            const installmentValue = parseFloat(item.installmentValue || item.amount || 0);
 
             return `
             <tr class="hover:bg-slate-50 transition-colors">
@@ -360,7 +360,7 @@ export default class InstallmentsModule {
                 if (inst) {
                     await paymentService.registerPayment({
                         installmentId: inst.id,
-                        amount: inst.amount,
+                        amount: inst.installmentValue || inst.amount || 0,
                         method: 'pix', // Padrão para baixa manual admin
                         notes: 'Baixa manual pelo administrador'
                     });
@@ -407,7 +407,7 @@ export default class InstallmentsModule {
             const template = templates[0];
             const msg = templateService.generateMessage(template, {
                 nome_cliente: inst.client?.name || 'Cliente',
-                valor_parcela: parseFloat(inst.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+                valor_parcela: parseFloat(inst.installmentValue || inst.amount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
                 data_vencimento: new Date(inst.dueDate).toLocaleDateString('pt-BR')
             });
 
@@ -428,7 +428,7 @@ export default class InstallmentsModule {
             document.getElementById('edit-inst-date-original').value = originalDate;
             document.getElementById('edit-inst-date-new').value = '';
 
-            document.getElementById('edit-inst-amount').value = parseFloat(inst.amount).toFixed(2);
+            document.getElementById('edit-inst-amount').value = parseFloat(inst.installmentValue || inst.amount || 0).toFixed(2);
             document.getElementById('edit-inst-status').value = inst.status;
 
             // Load existing payment method or default
