@@ -8,9 +8,10 @@ export default class InstallmentsModule {
     async init() {
         const urlParams = new URLSearchParams(window.location.search);
         const urlStatus = urlParams.get('status');
+        const urlClientId = urlParams.get('client_id');
 
         this.currentStatus = urlStatus || 'todas';
-        this.currentClient = '';
+        this.currentClient = urlClientId || '';
         this.currentDateType = '';
         this.currentDateCustom = '';
         this.sortConfig = { field: 'dueDate', direction: 'asc' };
@@ -44,6 +45,7 @@ export default class InstallmentsModule {
         if (clientSelect) {
             clientSelect.innerHTML = '<option value="">Todos os Clientes</option>' +
                 clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            if (this.currentClient) clientSelect.value = this.currentClient;
         }
 
         if (citySelect) {

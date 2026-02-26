@@ -44,7 +44,7 @@ export default class LoansModule {
 
         const clients = await clientService.getAll();
         select.innerHTML = '<option value="">Selecione um cliente...</option>' +
-            clients.map(c => `<option value="${c.id}">${c.name} (${c.cpf_cnpj})</option>`).join('');
+            clients.map(c => `<option value="${c.id}">${c.name} (${c.document || c.cpf_cnpj || c.cpf || 'Sem documento'})</option>`).join('');
     }
 
     async renderLoans(loansToRender = null) {

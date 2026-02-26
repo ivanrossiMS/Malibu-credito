@@ -194,7 +194,7 @@ export default class DashboardModule {
         }
 
         container.innerHTML = top.map(i => `
-            <div class="flex gap-4 items-start p-3 bg-rose-50 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100 transition-colors" onclick="window.location.href='?page=installments'">
+            <div class="flex gap-4 items-start p-3 bg-rose-50 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100 transition-colors" onclick="window.location.href='?page=installments&status=atrasada&client_id=${i.loan?.clientId || i.clientId || i.client?.id || ''}'">
                 <div class="bg-rose-100 p-2 rounded-xl text-rose-600"><i data-lucide="skull" class="w-5 h-5"></i></div>
                 <div>
                     <p class="text-sm font-bold text-rose-900">Atraso Crítico</p>
