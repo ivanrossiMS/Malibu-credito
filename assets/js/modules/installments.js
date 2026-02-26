@@ -256,7 +256,10 @@ export default class InstallmentsModule {
 
     getDisplayStatus(status, dueDate) {
         const today = new Date().toISOString().split('T')[0];
-        if (status === 'pendente' && dueDate === today) return 'VENCE HOJE';
+        if (status === 'pendente') {
+            if (dueDate === today) return 'VENCE HOJE';
+            return 'A VENCER';
+        }
         return status.toUpperCase();
     }
 

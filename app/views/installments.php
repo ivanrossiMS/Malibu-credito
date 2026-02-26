@@ -225,3 +225,57 @@
     </div>
 </div>
 
+<!-- Modal Marcar Como Paga (Baixa) -->
+<div id="pay-installment-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden flex flex-col transform transition-all">
+        <div class="p-6 md:p-8 border-b border-slate-100 flex justify-between items-start relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-br from-emerald-50 to-teal-50/50"></div>
+            <div class="relative z-10 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-inner shrink-0">
+                    <i data-lucide="badge-check" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl md:text-2xl font-black font-heading text-slate-800 tracking-tight">Baixar Parcela</h2>
+                    <p class="text-slate-500 text-xs md:text-sm font-medium mt-1">Confirme os detalhes do pagamento recebido.</p>
+                </div>
+            </div>
+            <button type="button" class="close-pay-installment relative z-10 group flex items-center justify-center w-10 h-10 rounded-full bg-white/50 hover:bg-white/80 border border-slate-200 transition-all text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <div class="p-6 md:p-8 bg-slate-50/50">
+            <form id="pay-installment-form" class="space-y-6">
+                <input type="hidden" id="pay-inst-id">
+                
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Data do Pagamento</label>
+                    <div class="relative">
+                        <i data-lucide="calendar-check" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-500"></i>
+                        <input type="date" id="pay-inst-date" required
+                               class="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm font-bold text-slate-800 shadow-sm cursor-pointer hover:border-emerald-300">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Comprovante / Observações (Opcional)</label>
+                    <div class="relative">
+                        <i data-lucide="receipt" class="absolute left-4 top-4 w-5 h-5 text-slate-400"></i>
+                        <textarea id="pay-inst-notes" rows="3" placeholder="Ex: PIX recebido no Bradesco"
+                               class="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm font-medium text-slate-700 shadow-sm resize-none hover:border-emerald-300"></textarea>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="p-6 border-t border-slate-100 bg-white flex flex-col-reverse sm:flex-row justify-end gap-3 rounded-b-[2rem]">
+            <button type="button" class="close-pay-installment w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors text-xs uppercase tracking-widest">Cancelar</button>
+            <button type="submit" form="pay-installment-form" class="w-full sm:w-auto px-8 py-3.5 rounded-xl font-black bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30 transition-all transform hover:scale-[1.02] active:scale-95 text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                <i data-lucide="check-circle" class="w-4 h-4"></i>
+                Confirmar Pagamento
+            </button>
+        </div>
+    </div>
+</div>
+
+</div>
