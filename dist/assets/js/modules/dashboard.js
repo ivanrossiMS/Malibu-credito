@@ -599,25 +599,42 @@ export default class DashboardModule {
             } else {
                 const c = item.client || this.clients.find(x => String(x.id) === String(item.clientId)) || { name: 'Desconhecido', city: '' };
                 const dt = new Date(item.dueDate).toLocaleDateString('pt-BR');
-                const isLate = item.status === 'atrasada';
+                const isLate = (item.status || '').toLowerCase() === 'atrasada';
                 const color = isLate ? 'rose' : 'blue';
+                const icon = isLate ? 'alert-circle' : 'calendar-clock';
+
                 const loan = this.loans.find(l => String(l.id) === String(item.loanid || item.loanId));
                 const totalInstCount = loan ? loan.numInstallments : '?';
                 const cityDisplay = c.city ? ` - ${c.city}` : '';
+
                 html += `
-                    <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-${color}-100 transition-colors shadow-sm">
+                    <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-${color}-100 transition-all shadow-sm hover:shadow-md group">
                         <div class="flex items-center gap-3">
-                            <div class="bg-${color}-50 p-2 rounded-xl text-${color}-600">
-                                <i data-lucide="${isLate ? 'alert-circle' : 'clock'}" class="w-5 h-5"></i>
+                            <div class="bg-${color}-50 p-2.5 rounded-xl text-${color}-600 shadow-inner shrink-0 group-hover:scale-110 transition-transform">
+                                <i data-lucide="${icon}" class="w-5 h-5"></i>
                             </div>
-                            <div>
-                                <p class="text-sm font-bold text-slate-800">${c.name}<span class="text-slate-500 font-medium">${cityDisplay}</span></p>
-                                <p class="text-[10px] text-${color}-600 font-bold uppercase tracking-widest mt-0.5">${dt} · Parcela ${item.number} de ${totalInstCount}</p>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-black text-slate-800 truncate pr-2 group-hover:text-${color}-700 transition-colors">
+                                    ${c.name || 'Cliente Sem Nome'}<span class="text-slate-500 font-medium ml-1">${cityDisplay}</span>
+                                </p>
+                                
+                                <div class="flex items-center gap-2 mt-1 mb-1">
+                                    <span class="bg-${color}-50 px-2 py-0.5 rounded text-[10px] font-bold text-${color}-600 tracking-widest uppercase border border-${color}-100 shadow-sm">
+                                        PARCELA ${item.number} / ${totalInstCount}
+                                    </span>
+                                </div>
+                                
+                                <div class="flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest gap-3">
+                                    <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3 text-${color}-500"></i> VENCMENTO: ${dt}</span>
+                                </div>
                             </div>
                         </div>
                         <div class="text-right flex items-center gap-4">
-                             <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.installmentValue || item.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                             <button onclick="window.location.href='?page=installments'" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-${color}-500 hover:text-white transition-all">
+                             <div class="flex flex-col items-end">
+                                 <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.installmentValue || item.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                 <span class="text-[9px] font-black uppercase tracking-tighter text-${color}-500">${isLate ? 'Vencida' : 'Disponível'}</span>
+                             </div>
+                             <button onclick="window.location.href='?page=installments'" class="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-${color}-500 hover:text-white transition-all shadow-sm">
                                 <i data-lucide="arrow-right" class="w-4 h-4"></i>
                             </button>
                         </div>
