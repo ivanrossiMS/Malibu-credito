@@ -16,6 +16,7 @@ export default class LoansModule {
 
     async init() {
         try {
+            await loanService.updateAllLoansStatus(); // Trigger background validation for auto-overdue tracking
             this.allLoans = await loanService.getAll();
             this.filteredLoans = [...this.allLoans];
 

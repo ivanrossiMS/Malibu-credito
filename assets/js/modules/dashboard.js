@@ -56,6 +56,9 @@ export default class DashboardModule {
     }
 
     async loadData() {
+        // Run daily heuristic trigger silently in background before loading analytical lists for true precision
+        await loanService.updateAllLoansStatus();
+
         // Injetar Skeletons (Tratamento Anti-Bloqueio Visual / Lazy UI)
         this.renderStatsSkeleton();
 
