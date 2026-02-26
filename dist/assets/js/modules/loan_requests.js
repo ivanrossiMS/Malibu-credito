@@ -133,7 +133,7 @@ export default class LoanRequestsModule {
                     ${req.total_amount ? 'R$ ' + parseFloat(req.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '<span class="text-slate-300">-</span>'}
                 </td>
                 <td class="px-8 py-4 text-sm text-slate-600 text-center">
-                    ${req.installments || '?'}x ${String(req.frequency || '').toLowerCase() === 'diaria' || String(req.frequency || '').toLowerCase() === 'diario' ? 'Diário' : (String(req.frequency || '').toLowerCase() === 'mensal' ? 'Mensal' : 'Não Declarado')}
+                    ${req.installments || '?'}x ${String(req.frequency || '').toLowerCase() === 'diaria' || String(req.frequency || '').toLowerCase() === 'diario' ? 'Diário' : (String(req.frequency || '').toLowerCase() === 'semanal' ? 'Semanal' : (String(req.frequency || '').toLowerCase() === 'mensal' ? 'Mensal' : 'Não Declarado'))}
                 </td>
                 <td class="px-8 py-4 text-center">
                     ${statusBadge}
@@ -199,9 +199,8 @@ export default class LoanRequestsModule {
             const installments = parseInt(document.getElementById('req-installments').value) || 0;
 
             if (amount > 0 && installments > 0) {
-                let totalInterest = 0;
-                totalInterest = interest; // Fixed R$ only now
-                const total = amount + totalInterest;
+                const installmentValue = (amount / installments) + interest;
+                const total = installmentValue * installments;
                 document.getElementById('req-total-preview-display').textContent = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             } else {
                 document.getElementById('req-total-preview-display').textContent = 'R$ 0,00';
@@ -244,10 +243,8 @@ export default class LoanRequestsModule {
                 const frequency = document.getElementById('req-frequency').value;
 
                 // Simple calculation for approval
-                let totalInterest = interestRate; // Fixed R$ only now
-
-                const totalAmount = amount + totalInterest;
-                const installmentValue = totalAmount / numInstallments;
+                const installmentValue = (amount / numInstallments) + interestRate;
+                const totalAmount = installmentValue * numInstallments;
 
                 const loanData = {
                     clientid: req.clientid || req.clientId,

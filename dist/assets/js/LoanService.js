@@ -82,6 +82,8 @@ class LoanService {
 
             if (data.frequency === 'diario') {
                 dueDate.setDate(startDate.getDate() + (i - 1));
+            } else if (data.frequency === 'semanal') {
+                dueDate.setDate(startDate.getDate() + (i - 1) * 7);
             } else {
                 // Default: Mensal
                 dueDate.setMonth(startDate.getMonth() + (i - 1));

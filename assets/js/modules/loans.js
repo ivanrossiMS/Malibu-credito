@@ -105,7 +105,7 @@ export default class LoansModule {
                 <td class="px-6 py-4 text-sm font-bold text-slate-900 text-right">R$ ${requested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="px-6 py-4 text-sm font-medium text-amber-600 text-right">R$ ${interest.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="px-6 py-4 text-sm font-black text-primary text-right">R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td class="px-6 py-4 text-sm text-slate-600">${numInstallments}x de R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="px-6 py-4 text-sm text-slate-600">${numInstallments}x de R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span class="text-[10px] font-bold opacity-50 uppercase">${loan.frequency || 'mensal'}</span></td>
                 <td class="px-6 py-4 text-sm text-slate-500">${DateHelper.formatLocal(loan.startDate)}</td>
                 <td class="px-6 py-4">
                     <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusClass(loan.status)}">
@@ -277,10 +277,8 @@ export default class LoansModule {
                 const interestType = document.getElementById('interestType').value;
                 const frequency = document.getElementById('frequency').value;
 
-                let totalInterest = interestRate; // Fixed R$ only now
-
-                const totalAmount = amount + totalInterest;
-                const installmentValue = totalAmount / numInstallments;
+                const installmentValue = (amount / numInstallments) + interestRate;
+                const totalAmount = installmentValue * numInstallments;
 
                 const data = {
                     clientId: parseInt(document.getElementById('clientId').value),
@@ -412,11 +410,8 @@ export default class LoansModule {
         const interestType = document.getElementById('interestType').value;
 
         if (amount > 0 && numInstallments > 0) {
-            let totalInterest = 0;
-            totalInterest = interestRate; // Fixed R$ only now
-
-            const totalAmount = amount + totalInterest;
-            const installmentValue = totalAmount / numInstallments;
+            const installmentValue = (amount / numInstallments) + interestRate;
+            const totalAmount = installmentValue * numInstallments;
 
             const previewEl = document.getElementById('installment-preview');
             const totalPreviewEl = document.getElementById('total-preview');

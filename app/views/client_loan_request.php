@@ -51,6 +51,13 @@
                             </div>
                         </label>
                         <label class="relative flex items-center justify-center p-5 rounded-[1.5rem] border-2 border-slate-50 cursor-pointer hover:border-primary/20 transition-all group bg-slate-50/50 has-[:checked]:border-primary has-[:checked]:bg-white has-[:checked]:shadow-premium">
+                            <input type="radio" name="loan-frequency" value="semanal" class="hidden">
+                            <div class="flex flex-col items-center gap-1.5">
+                                <span class="text-base font-black text-slate-700 group-has-[:checked]:text-primary transition-colors">Semanal</span>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">A cada 7 dias</span>
+                            </div>
+                        </label>
+                        <label class="relative flex items-center justify-center p-5 rounded-[1.5rem] border-2 border-slate-50 cursor-pointer hover:border-primary/20 transition-all group bg-slate-50/50 has-[:checked]:border-primary has-[:checked]:bg-white has-[:checked]:shadow-premium">
                             <input type="radio" name="loan-frequency" value="diaria" class="hidden">
                             <div class="flex flex-col items-center gap-1.5">
                                 <span class="text-base font-black text-slate-700 group-has-[:checked]:text-primary transition-colors">Diária</span>

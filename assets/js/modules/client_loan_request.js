@@ -56,7 +56,7 @@ export default class ClientLoanRequestModule {
 
         document.getElementById('sum-amount').textContent = this.formatCurrency(amount);
         document.getElementById('sum-installments').textContent = installmentsValue + 'x';
-        document.getElementById('sum-frequency').textContent = frequencyValue === 'diaria' ? 'Diário' : 'Mensal';
+        document.getElementById('sum-frequency').textContent = frequencyValue === 'diaria' ? 'Diário' : (frequencyValue === 'semanal' ? 'Semanal' : 'Mensal');
 
         const sumDate = document.getElementById('sum-start-date');
         if (startDateInput && startDateInput.value && sumDate) {
