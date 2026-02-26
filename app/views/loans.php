@@ -121,7 +121,7 @@
                         </th>
                         <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Parcelas</th>
                         <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest cursor-pointer hover:text-primary transition-colors sortable" data-sort="startDate">
-                            <div class="flex items-center gap-1">Data <i data-lucide="chevrons-up-down" class="w-3 h-3"></i></div>
+                            <div class="flex items-center gap-1">1ª Parcela <i data-lucide="chevrons-up-down" class="w-3 h-3"></i></div>
                         </th>
                         <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest cursor-pointer hover:text-primary transition-colors sortable" data-sort="status">
                             <div class="flex items-center gap-1">Status <i data-lucide="chevrons-up-down" class="w-3 h-3"></i></div>

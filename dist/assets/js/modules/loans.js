@@ -303,6 +303,8 @@ export default class LoansModule {
             const loan = await loanService.getById(id);
             if (!loan) return;
 
+            await this.loadClientsSelect(); // Injeta options ativamente para evitar seletion null
+
             document.getElementById('loan-id').value = loan.id;
             document.getElementById('clientId').value = loan.clientId;
             document.getElementById('amount').value = loan.amount;
