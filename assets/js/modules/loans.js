@@ -277,12 +277,7 @@ export default class LoansModule {
                 const interestType = document.getElementById('interestType').value;
                 const frequency = document.getElementById('frequency').value;
 
-                let totalInterest = 0;
-                if (interestType === 'percent') {
-                    totalInterest = amount * (interestRate / 100) * numInstallments;
-                } else {
-                    totalInterest = interestRate;
-                }
+                let totalInterest = interestRate; // Fixed R$ only now
 
                 const totalAmount = amount + totalInterest;
                 const installmentValue = totalAmount / numInstallments;
@@ -333,7 +328,7 @@ export default class LoansModule {
             document.getElementById('clientId').value = String(targetClientId);
             document.getElementById('amount').value = loan.amount;
             document.getElementById('interestRate').value = loan.interestRate;
-            document.getElementById('interestType').value = loan.interestType || 'percent';
+            document.getElementById('interestType').value = loan.interestType || 'fixed';
             document.getElementById('numInstallments').value = loan.numInstallments;
             document.getElementById('frequency').value = loan.frequency || 'mensal';
             document.getElementById('startDate').value = loan.startDate;
@@ -418,11 +413,7 @@ export default class LoansModule {
 
         if (amount > 0 && numInstallments > 0) {
             let totalInterest = 0;
-            if (interestType === 'percent') {
-                totalInterest = amount * (interestRate / 100) * numInstallments;
-            } else {
-                totalInterest = interestRate;
-            }
+            totalInterest = interestRate; // Fixed R$ only now
 
             const totalAmount = amount + totalInterest;
             const installmentValue = totalAmount / numInstallments;

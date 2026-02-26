@@ -140,8 +140,7 @@
                     <div class="flex gap-1">
                         <input type="number" step="0.01" id="req-interest" required value="3.5" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-bold">
                         <select id="req-interest-type" class="w-14 px-1 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-600 outline-none text-xs">
-                            <option value="percent">%</option>
-                            <option value="fixed">R$</option>
+                            <option value="fixed" selected>R$</option>
                         </select>
                     </div>
                 </div>

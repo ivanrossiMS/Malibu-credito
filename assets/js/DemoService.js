@@ -62,7 +62,7 @@ class DemoService {
             for (let j = 0; j < numLoans; j++) {
                 const amount = this.getRandomInt(5, 50) * 100; // 500 to 5000
                 const numInstallments = this.getRandomItem([3, 6, 9, 12, 18, 24]);
-                const interestRate = this.getRandomInt(2, 6); // 2% to 6%
+                const interestRate = this.getRandomInt(50, 300); // Fixed R$ 50 to 300
 
                 // create random start date from up to 60 days ago to up to 15 days in future
                 const startDateOffset = this.getRandomInt(-60, 15);
@@ -70,7 +70,7 @@ class DemoService {
                 startDate.setDate(startDate.getDate() + startDateOffset);
                 const startDateStr = startDate.toISOString().split('T')[0];
 
-                const totalInterest = amount * (interestRate / 100) * numInstallments;
+                const totalInterest = interestRate; // Fixed now
                 const totalAmount = amount + totalInterest;
                 const installmentValue = totalAmount / numInstallments;
 
@@ -78,7 +78,7 @@ class DemoService {
                     clientId: c.id,
                     amount: amount,
                     interestRate: interestRate,
-                    interestType: 'percent',
+                    interestType: 'fixed',
                     numInstallments: numInstallments,
                     installmentValue: installmentValue,
                     frequency: 'mensal',

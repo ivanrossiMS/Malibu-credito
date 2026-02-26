@@ -200,11 +200,7 @@ export default class LoanRequestsModule {
 
             if (amount > 0 && installments > 0) {
                 let totalInterest = 0;
-                if (interestType === 'percent') {
-                    totalInterest = amount * (interest / 100) * installments;
-                } else {
-                    totalInterest = interest;
-                }
+                totalInterest = interest; // Fixed R$ only now
                 const total = amount + totalInterest;
                 document.getElementById('req-total-preview-display').textContent = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             } else {
@@ -248,12 +244,7 @@ export default class LoanRequestsModule {
                 const frequency = document.getElementById('req-frequency').value;
 
                 // Simple calculation for approval
-                let totalInterest = 0;
-                if (interestType === 'percent') {
-                    totalInterest = amount * (interestRate / 100) * numInstallments;
-                } else {
-                    totalInterest = interestRate;
-                }
+                let totalInterest = interestRate; // Fixed R$ only now
 
                 const totalAmount = amount + totalInterest;
                 const installmentValue = totalAmount / numInstallments;

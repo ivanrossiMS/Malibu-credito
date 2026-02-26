@@ -192,8 +192,7 @@
                     <div class="flex gap-2">
                         <input type="number" step="0.01" id="interestRate" required class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="0.00">
                         <select id="interestType" class="w-20 px-2 py-2.5 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-600 outline-none">
-                            <option value="percent">%</option>
-                            <option value="fixed">R$</option>
+                            <option value="fixed" selected>R$</option>
                         </select>
                     </div>
                 </div>
