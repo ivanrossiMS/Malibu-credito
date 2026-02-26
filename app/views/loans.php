@@ -188,7 +188,7 @@
                     <input type="number" step="0.01" id="amount" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="0,00">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">Taxa de Juros</label>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Juros</label>
                     <div class="flex gap-2">
                         <input type="number" step="0.01" id="interestRate" required class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="0.00">
                         <select id="interestType" class="w-20 px-2 py-2.5 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-600 outline-none">
