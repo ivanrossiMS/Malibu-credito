@@ -179,7 +179,15 @@ export default class InstallmentsModule {
             return;
         }
 
-        listContainer.innerHTML = paginatedInstallments.map(item => `
+        listContainer.innerHTML = paginatedInstallments.map(item => {
+            const avatarHtml = item.client && item.client.avatar
+                ? `<img src="${item.client.avatar}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm shrink-0">`
+                : `<div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">${item.client?.name ? item.client.name.charAt(0) : '?'}</div>`;
+
+            // Fix for NaN (installment database column is 'installment_value', not purely 'amount')
+            const installmentValue = parseFloat(item.installment_value || item.amount || 0);
+
+            return `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4 text-xs font-medium text-slate-400">
                     ${item.loan?.loanCode || '---'}
@@ -188,8 +196,13 @@ export default class InstallmentsModule {
                     ${new Date(item.dueDate).toLocaleDateString('pt-BR')}
                 </td>
                 <td class="px-6 py-4">
-                    <p class="font-bold text-slate-900">${item.client?.name || 'Cliente Sem Nome'}</p>
-                    <p class="text-xs text-slate-500">${item.client?.phone || ''}</p>
+                    <div class="flex items-center gap-3">
+                        ${avatarHtml}
+                        <div>
+                            <p class="font-bold text-slate-900">${item.client?.name || 'Cliente Sem Nome'}</p>
+                            <p class="text-xs text-slate-500">${item.client?.phone || ''}</p>
+                        </div>
+                    </div>
                 </td>
                 <td class="px-6 py-4 text-sm font-medium text-slate-500">
                     ${item.client?.city || '<span class="italic text-slate-300">Não informada</span>'}
@@ -197,7 +210,7 @@ export default class InstallmentsModule {
                 <td class="px-6 py-4 text-sm text-slate-600 font-bold tracking-widest uppercase">
                     P ${item.number} <span class="text-xs text-slate-400 font-medium">/ ${item.loan?.numInstallments || item.number}</span>
                 </td>
-                <td class="px-6 py-4 text-sm font-black text-emerald-600">R$ ${parseFloat(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="px-6 py-4 text-sm font-black text-emerald-600">R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="px-6 py-4 text-sm font-medium text-slate-500">
                     ${item.paidAt ? new Date(item.paidAt).toLocaleDateString('pt-BR') : '<span class="text-slate-300">-</span>'}
                 </td>
@@ -225,7 +238,8 @@ export default class InstallmentsModule {
                     ` : ''}
                 </td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
         lucide.createIcons();
     }

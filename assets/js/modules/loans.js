@@ -72,10 +72,19 @@ export default class LoansModule {
             const total = installmentValue * numInstallments;
             const interest = total - requested;
 
+            const avatarHtml = loan.client && loan.client.avatar
+                ? `<img src="${loan.client.avatar}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm shrink-0">`
+                : `<div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">${loan.client?.name ? loan.client.name.charAt(0) : '?'}</div>`;
+
             return `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4 text-[10px] font-bold text-primary/70 uppercase tracking-tighter">${loan.loanCode || '---'}</td>
-                <td class="px-6 py-4 text-sm font-bold text-slate-900">${loan.client?.name || 'Cliente não encontrado'}</td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        ${avatarHtml}
+                        <span class="text-sm font-bold text-slate-900">${loan.client?.name || 'Cliente não encontrado'}</span>
+                    </div>
+                </td>
                 <td class="px-6 py-4 text-sm font-bold text-slate-900 text-right">R$ ${requested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="px-6 py-4 text-sm font-medium text-amber-600 text-right">R$ ${interest.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="px-6 py-4 text-sm font-black text-primary text-right">R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

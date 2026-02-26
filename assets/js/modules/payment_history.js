@@ -340,7 +340,7 @@ export default class PaymentHistoryModule {
                     </td>
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-black text-xs text-primary border border-primary/20 overflow-hidden shadow-sm">
+                            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-black text-xs text-primary border border-primary/20 overflow-hidden shadow-sm shrink-0">
                                 ${p.clientObj?.avatar ? `<img src="${p.clientObj.avatar}" class="w-full h-full object-cover">` : (p.clientObj?.name?.charAt(0) || 'S')}
                             </div>
                             <div class="flex flex-col">

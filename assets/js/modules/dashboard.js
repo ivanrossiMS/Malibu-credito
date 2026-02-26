@@ -495,8 +495,8 @@ export default class DashboardModule {
                 html += `
                     <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 transition-colors shadow-sm">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-sm uppercase">
-                                ${item.name ? item.name.charAt(0) : '?'}
+                            <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-sm uppercase border border-primary/20 overflow-hidden shadow-sm shrink-0">
+                                ${item.avatar ? `<img src="${item.avatar}" class="w-full h-full object-cover">` : (item.name ? item.name.charAt(0) : '?')}
                             </div>
                             <div>
                                 <p class="text-sm font-bold text-slate-800">${item.name}<span class="text-slate-500 font-medium">${cityDisplay}</span></p>

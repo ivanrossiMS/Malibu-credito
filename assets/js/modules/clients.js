@@ -52,13 +52,16 @@ export default class ClientsModule {
             return;
         }
 
-        listContainer.innerHTML = clients.map(client => `
+        listContainer.innerHTML = clients.map(client => {
+            const avatarHtml = client.avatar
+                ? `<img src="${client.avatar}" class="w-10 h-10 rounded-full object-cover border-2 border-slate-100 shadow-sm shrink-0">`
+                : `<div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-sm uppercase shrink-0">${client.name ? client.name.charAt(0) : '?'}</div>`;
+
+            return `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold uppercase">
-                            ${client.name[0]}
-                        </div>
+                        ${avatarHtml}
                         <div>
                             <p class="font-bold text-slate-900">${client.name}</p>
                             <p class="text-xs text-slate-500">${client.email || 'Sem email'}</p>
@@ -88,7 +91,8 @@ export default class ClientsModule {
                     </div>
                 </td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
         lucide.createIcons();
     }
