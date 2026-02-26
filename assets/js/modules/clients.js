@@ -1,4 +1,6 @@
 import clientService from '../ClientService.js';
+import auth from '../AuthService.js';
+import storage from '../StorageService.js';
 
 export default class ClientsModule {
     async init() {
@@ -155,6 +157,7 @@ export default class ClientsModule {
                     birth_date: document.getElementById('birth').value,
                     marital_status: document.getElementById('marital').value,
                     email: document.getElementById('email').value,
+                    password: document.getElementById('password').value,
                     phone: document.getElementById('phone').value,
                     status: document.getElementById('status').value,
                     street: document.getElementById('street').value,
@@ -167,18 +170,39 @@ export default class ClientsModule {
                 };
 
                 try {
-                    // Update only explicitly via update() if editing, to preserve avatar/images
                     if (data.id) {
+                        // UPDATE CLIENT
                         await clientService.update(data.id, data);
+
+                        // IF PASSWORD PROVIDED, UPDATE USER RECORD TOO
+                        if (data.password && data.password.trim() !== "") {
+                            const clientObj = await clientService.getById(data.id);
+                            if (clientObj && clientObj.user_id) {
+                                const users = await storage.getAll('users');
+                                const userObj = users.find(u => String(u.id) === String(clientObj.user_id));
+                                if (userObj) {
+                                    userObj.password = data.password;
+                                    await storage.put('users', userObj);
+                                }
+                            }
+                        }
+                        // Notifications or alert
                     } else {
-                        await clientService.save(data);
+                        // CREATE CLIENT VIA AUTH (creates user + client)
+                        if (!data.password) {
+                            throw new Error("Senha é obrigatória para novos clientes.");
+                        }
+                        await auth.register(data);
                     }
 
                     const modal = document.getElementById('client-modal');
-                    const content = modal.querySelector('.max-w-4xl');
-                    if (content) content.classList.add('scale-95');
-                    setTimeout(() => modal.classList.add('hidden'), 200);
+                    if (modal) {
+                        const content = modal.querySelector('.max-w-4xl');
+                        if (content) content.classList.add('scale-95');
+                        setTimeout(() => modal.classList.add('hidden'), 200);
+                    }
 
+                    this.allClients = await clientService.getAll();
                     this.renderClients();
                 } catch (error) {
                     alert(error.message);
@@ -195,6 +219,7 @@ export default class ClientsModule {
             document.getElementById('birth').value = client.birth_date || '';
             document.getElementById('marital').value = client.marital_status || '';
             document.getElementById('email').value = client.email || '';
+            document.getElementById('password').value = ''; // Don't show existing password
             document.getElementById('phone').value = client.phone || '';
             document.getElementById('status').value = client.status || 'ativo';
 

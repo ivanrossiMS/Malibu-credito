@@ -191,6 +191,13 @@
                                 <input type="email" id="email" required class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm font-bold text-slate-700">
                             </div>
                         </div>
+                        <div class="space-y-1">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Senha de Acesso</label>
+                            <div class="relative">
+                                <i data-lucide="lock" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                <input type="password" id="password" placeholder="Defina uma senha" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm font-bold text-slate-700">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
