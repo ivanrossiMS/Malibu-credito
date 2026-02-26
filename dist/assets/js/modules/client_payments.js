@@ -2,6 +2,7 @@ import paymentService from '../PaymentService.js';
 import clientService from '../ClientService.js';
 import installmentService from '../InstallmentService.js';
 import auth from '../AuthService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class ClientPaymentsModule {
     constructor() {

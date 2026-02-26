@@ -5,6 +5,7 @@ import loanService from '../LoanService.js';
 import installmentService from '../InstallmentService.js';
 import notificationService from '../NotificationService.js';
 import paymentService from '../PaymentService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class ClientDashboardModule {
     async init() {

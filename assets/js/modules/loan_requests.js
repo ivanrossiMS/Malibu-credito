@@ -1,6 +1,7 @@
 import loanRequestService from '../LoanRequestService.js';
 import loanService from '../LoanService.js';
 import clientService from '../ClientService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class LoanRequestsModule {
     async init() {

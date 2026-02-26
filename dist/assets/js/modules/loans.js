@@ -1,5 +1,6 @@
 import loanService from '../LoanService.js';
 import clientService from '../ClientService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class LoansModule {
     constructor() {

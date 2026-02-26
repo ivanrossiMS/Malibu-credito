@@ -2,6 +2,7 @@ import paymentService from '../PaymentService.js';
 import clientService from '../ClientService.js';
 import installmentService from '../InstallmentService.js';
 import loanService from '../LoanService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class PaymentHistoryModule {
     constructor() {

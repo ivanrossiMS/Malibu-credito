@@ -3,6 +3,7 @@ import clientService from '../ClientService.js';
 import paymentService from '../PaymentService.js';
 import loanRequestService from '../LoanRequestService.js';
 import loanService from '../LoanService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class DashboardModule {
     async init() {

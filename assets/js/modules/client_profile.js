@@ -1,5 +1,6 @@
 import auth from '../AuthService.js';
 import clientService from '../ClientService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class ClientProfileModule {
     constructor() {

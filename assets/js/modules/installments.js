@@ -3,6 +3,7 @@ import templateService from '../TemplateService.js';
 import clientService from '../ClientService.js';
 import paymentService from '../PaymentService.js';
 import storage from '../StorageService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class InstallmentsModule {
     async init() {

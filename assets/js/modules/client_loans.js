@@ -3,6 +3,7 @@ import loanService from '../LoanService.js';
 import installmentService from '../InstallmentService.js';
 import auth from '../AuthService.js';
 import loanRequestService from '../LoanRequestService.js';
+import DateHelper from '../DateHelper.js';
 
 export default class ClientLoansModule {
     constructor() {
