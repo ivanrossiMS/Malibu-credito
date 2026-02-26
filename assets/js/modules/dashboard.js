@@ -386,20 +386,35 @@ export default class DashboardModule {
             return data;
         }
 
-        const getISODate = (d) => {
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
+        const getLocalYYYYMMDD = (d) => {
+            const date = new Date(d);
+            // Se for apenas data (YYYY-MM-DD), o Date() pode interpretar como UTC e deslocar.
+            // Se for timestamp completo, queremos o dia local real.
+            // Para garantir precisão com strings de data pura ou ISO:
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
         };
-        const todayStr = getISODate(new Date());
+
+        // Função para converter string YYYY-MM-DD (ou ISO) para DD/MM/YYYY local sem deslocamento
+        const formatDetailedDate = (dateStr) => {
+            if (!dateStr) return 'Indisponível';
+            // Pega apenas a parte da data YYYY-MM-DD
+            const part = dateStr.split('T')[0].split(' ')[0];
+            const [y, m, d] = part.split('-');
+            if (!y || !m || !d) return dateStr;
+            return `${d}/${m}/${y}`;
+        };
 
         const todayObj = new Date();
+        const todayStr = getLocalYYYYMMDD(todayObj);
+
         const tomorrowObj = new Date(); tomorrowObj.setDate(todayObj.getDate() + 1);
         const yesterdayObj = new Date(); yesterdayObj.setDate(todayObj.getDate() - 1);
 
-        const tomorrowStr = getISODate(tomorrowObj);
-        const yesterdayStr = getISODate(yesterdayObj);
+        const tomorrowStr = getLocalYYYYMMDD(tomorrowObj);
+        const yesterdayStr = getLocalYYYYMMDD(yesterdayObj);
 
         let startFilter, endFilter;
         let actualPeriod = this.currentPeriod;
@@ -410,17 +425,17 @@ export default class DashboardModule {
             startFilter = yesterdayStr; endFilter = yesterdayStr;
         } else if (actualPeriod === '3dias') {
             const threeDaysAgo = new Date(); threeDaysAgo.setDate(todayObj.getDate() - 3);
-            startFilter = getISODate(threeDaysAgo);
+            startFilter = getLocalYYYYMMDD(threeDaysAgo);
             endFilter = yesterdayStr;
         } else if (actualPeriod === 'amanha') {
             startFilter = tomorrowStr; endFilter = tomorrowStr;
         } else if (actualPeriod === '7dias') {
             const sevenDaysAhead = new Date(); sevenDaysAhead.setDate(todayObj.getDate() + 7);
             startFilter = todayStr;
-            endFilter = getISODate(sevenDaysAhead);
+            endFilter = getLocalYYYYMMDD(sevenDaysAhead);
         } else if (actualPeriod === 'mes') {
-            startFilter = getISODate(new Date(todayObj.getFullYear(), todayObj.getMonth(), 1));
-            endFilter = getISODate(new Date(todayObj.getFullYear(), todayObj.getMonth() + 1, 0));
+            startFilter = getLocalYYYYMMDD(new Date(todayObj.getFullYear(), todayObj.getMonth(), 1));
+            endFilter = getLocalYYYYMMDD(new Date(todayObj.getFullYear(), todayObj.getMonth() + 1, 0));
         } else if (actualPeriod === 'ano') {
             startFilter = `${todayObj.getFullYear()}-01-01`;
             endFilter = `${todayObj.getFullYear()}-12-31`;
@@ -432,9 +447,11 @@ export default class DashboardModule {
         return data.filter(item => {
             let itemDateStr = metric === 'received' ? item.createdAt : item.dueDate;
             if (!itemDateStr) return false;
-            // Extrai YYYY-MM-DD independente do formato (ISO ou DB)
-            const dStr = itemDateStr.split('T')[0].split(' ')[0];
-            return dStr >= startFilter && dStr <= endFilter;
+
+            // Para createdAt (ISO Timestamp), precisamos converter para o dia local real
+            // Para dueDate (YYYY-MM-DD), o split é suficiente mas o Date local é mais seguro se houver timezone
+            const itemDateLocal = getLocalYYYYMMDD(itemDateStr.replace(' ', 'T'));
+            return itemDateLocal >= startFilter && itemDateLocal <= endFilter;
         });
     }
 
@@ -550,6 +567,14 @@ export default class DashboardModule {
         }
 
         let html = '';
+        const formatDetailedDate = (dateStr) => {
+            if (!dateStr) return 'Indisponível';
+            const part = dateStr.split('T')[0].split(' ')[0];
+            const [y, m, d] = part.split('-');
+            if (!y || !m || !d) return dateStr;
+            return `${d}/${m}/${y}`;
+        };
+
         pageItems.forEach(item => {
             if (this.currentMetric === 'clients') {
                 const cityDisplay = item.city ? ` - ${item.city}` : '';
@@ -570,22 +595,18 @@ export default class DashboardModule {
                     </div>
                 `;
             } else if (this.currentMetric === 'received') {
-                // Recupera a parcela real associada a este Pagamento
+                // ... logic to find inst and loan ...
                 const inst = item.installment || this.installments.find(i => String(i.id) === String(item.installmentId || item.installment_id));
-                // Recupera o Empréstimo
                 const loanId = inst ? (inst.loanid || inst.loanId || (inst.loan && inst.loan.id)) : null;
                 const loan = loanId ? this.loans.find(l => String(l.id) === String(loanId)) : (inst && inst.loan ? inst.loan : null);
-
-                // Tenta extrair o nome do cliente de várias fontes
                 const cId = item.clientId || (item.client && item.client.id) || (loan && loan.clientId) || (inst && inst.client && inst.client.id);
                 const c = this.clients.find(x => String(x.id) === String(cId)) || item.client || (inst && inst.client) || { name: 'Desconhecido', city: '' };
 
-                // Busca as infos de Parcela
                 const instNumber = inst ? inst.number : '?';
                 const instTotal = loan ? loan.numInstallments : '?';
 
-                const dtPaid = new Date(item.createdAt).toLocaleDateString('pt-BR');
-                const dtDue = inst && inst.dueDate ? new Date(inst.dueDate).toLocaleDateString('pt-BR') : 'Indisponível';
+                const dtPaid = formatDetailedDate(item.createdAt);
+                const dtDue = formatDetailedDate(inst?.dueDate);
                 const cityDisplay = c.city ? ` - ${c.city}` : '';
 
                 html += `
@@ -617,7 +638,7 @@ export default class DashboardModule {
                 `;
             } else {
                 const c = item.client || this.clients.find(x => String(x.id) === String(item.clientId)) || { name: 'Desconhecido', city: '' };
-                const dt = new Date(item.dueDate).toLocaleDateString('pt-BR');
+                const dt = formatDetailedDate(item.dueDate);
                 const isLate = (item.status || '').toLowerCase() === 'atrasada';
                 const color = isLate ? 'rose' : 'blue';
                 const icon = isLate ? 'alert-circle' : 'calendar-clock';
