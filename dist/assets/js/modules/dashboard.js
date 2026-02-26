@@ -227,21 +227,21 @@ export default class DashboardModule {
         }
 
         // Lógicas detalhadas de Filtros de Períodos
-        const showForOverdue = ['hoje', 'ontem', 'personalizado'];
+        const limitToShortTerm = ['hoje', 'ontem', 'personalizado'];
 
         document.querySelectorAll('.filter-period').forEach(btn => {
             const period = btn.dataset.period;
-            if (metric === 'overdue') {
-                btn.style.display = showForOverdue.includes(period) ? '' : 'none';
+            if (metric === 'overdue' || metric === 'received') {
+                btn.style.display = limitToShortTerm.includes(period) ? '' : 'none';
             } else {
-                // receivable ou received (liberados)
-                btn.style.display = period === 'ontem' && metric !== 'received' ? 'none' : '';
+                // receivable
+                btn.style.display = period === 'ontem' ? 'none' : '';
             }
         });
 
         // Forçar "Hoje" se estiver transitando para um período proibido pela métrica
         let forceToday = false;
-        if (metric === 'overdue' && !showForOverdue.includes(this.currentPeriod)) forceToday = true;
+        if ((metric === 'overdue' || metric === 'received') && !limitToShortTerm.includes(this.currentPeriod)) forceToday = true;
         if (metric === 'receivable' && this.currentPeriod === 'ontem') forceToday = true;
 
         if (forceToday) {
@@ -348,6 +348,7 @@ export default class DashboardModule {
                 } else {
                     let clientId = item.clientId;
                     if (!clientId && item.client && item.client.id) clientId = item.client.id; // handle nested client
+                    if (!clientId && item.installment && item.installment.loan) clientId = item.installment.loan.clientId; // handle legacy nested payment structure
                     const c = this.clients.find(x => String(x.id) === String(clientId));
                     return c && c.city === this.currentCity;
                 }
@@ -389,7 +390,9 @@ export default class DashboardModule {
         return data.filter(item => {
             let itemDateStr = metric === 'received' ? item.createdAt : item.dueDate;
             if (!itemDateStr) return false;
-            const d = new Date(itemDateStr.split('T')[0] + 'T00:00:00'); // Normalize timezone
+            // Garante o funcionamento com timestamps formato ISO ('T') ou 'legacy' do PHP MySql/Supabase (' ')
+            const datePart = itemDateStr.split('T')[0].split(' ')[0];
+            const d = new Date(datePart + 'T00:00:00'); // Normalize timezone
             return d >= startFilter && d <= endFilter;
         });
     }
