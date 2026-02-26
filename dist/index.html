@@ -697,18 +697,23 @@
             </div>
 
             <!-- Financial Insight (Modern Glass) -->
-            <div class="premium-card p-8 bg-gradient-sidebar border-white/5 relative overflow-hidden group shadow-2xl">
+            <div class="relative rounded-[2rem] p-8 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 overflow-hidden group shadow-[0_8px_30px_rgb(0,0,0,0.12)] shadow-purple-500/30 border border-white/20">
+                <!-- Inner glow overlay -->
+                <div class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                <div class="absolute -right-20 -bottom-20 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700"></div>
+                
                 <div class="relative z-10">
                     <div class="flex items-center gap-3 mb-6">
-                        <div class="bg-primary/20 p-2 rounded-xl border border-primary/20">
-                            <i data-lucide="trending-up" class="w-4 h-4 text-primary"></i>
+                        <div class="bg-white/20 backdrop-blur-md p-2 rounded-xl border border-white/30 shadow-inner">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-white"></i>
                         </div>
-                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Score Malibu</span>
+                        <span class="text-[10px] font-black uppercase tracking-widest text-white/90 drop-shadow-sm">Inteligência Operacional</span>
                     </div>
-                    <h2 id="insight-title" class="text-xl font-black mb-2 text-white font-heading">Tudo em dia! ✨</h2>
-                    <p id="insight-message" class="text-slate-400 text-sm leading-relaxed font-medium">Seu comprometimento financeiro está excelente. Continue assim para desbloquear novos limites em breve.</p>
+                    <h2 id="insight-title" class="text-xl md:text-2xl font-black mb-3 text-white font-heading tracking-tight drop-shadow-md">Tudo em dia! ✨</h2>
+                    <p id="insight-message" class="text-white/90 text-sm leading-relaxed font-medium drop-shadow-sm">Seu comprometimento financeiro está excelente. Continue assim para desbloquear novos limites em breve.</p>
                 </div>
-                <i data-lucide="award" class="absolute -right-6 -bottom-6 w-32 h-32 text-white/5 -rotate-12 group-hover:rotate-0 transition-all duration-1000"></i>
+                
+                <i data-lucide="cpu" class="absolute -right-4 -bottom-4 w-32 h-32 text-white/10 -rotate-12 group-hover:rotate-0 transition-all duration-1000 group-hover:scale-110"></i>
             </div>
         </div>
     </div>
