@@ -28,9 +28,11 @@ class InstallmentService {
         const item = await storage.getById('installments', numericId);
         if (!item) throw new Error("Parcela não encontrada.");
         item.status = status;
-        if (status === 'paga') {
-            item.paidAt = new Date().toISOString();
-        }
+
+        // Strip paidAt as it's not a real column in installments (it belongs to payments) to prevent PGRST204
+        delete item.paidAt;
+        delete item.paid_at;
+
         await storage.put('installments', item);
         await loanService.checkAndUpdateLoanStatus(item.loanId); // Informa o contrato de que uma parcela evoluiu
         return item; // Ensure returning item is compatible if anything relies on returning value
@@ -45,9 +47,9 @@ class InstallmentService {
         if (data.amount !== undefined) item.installmentValue = data.amount;
         if (data.status !== undefined) item.status = data.status;
 
-        if (item.status === 'paga' && !item.paidAt) {
-            item.paidAt = new Date().toISOString();
-        }
+        // Strip paidAt as it's not a real column in installments (it belongs to payments) to prevent PGRST204
+        delete item.paidAt;
+        delete item.paid_at;
 
         await storage.put('installments', item);
         await loanService.checkAndUpdateLoanStatus(item.loanId);

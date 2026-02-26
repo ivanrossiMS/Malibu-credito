@@ -153,6 +153,7 @@ export default class InstallmentsModule {
         paginatedInstallments.forEach(item => {
             const payment = payments.find(p => String(p.installmentId) === String(item.id));
             if (payment && payment.proof) item.proof = payment.proof;
+            if (payment && payment.createdAt) item.paidAt = payment.createdAt; // Herança visual da data do pagamento legítimo
         });
 
         // Update pagination UI
