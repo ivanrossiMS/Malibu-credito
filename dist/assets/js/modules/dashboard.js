@@ -551,27 +551,48 @@ export default class DashboardModule {
                     </div>
                 `;
             } else if (this.currentMetric === 'received') {
-                // Tenta extrair o nome do cliente de várias fontes possíveis no BD
-                const cId = item.clientId || (item.client && item.client.id) || (item.installment && item.installment.loan && item.installment.loan.clientId);
-                const c = this.clients.find(x => String(x.id) === String(cId)) || item.client || { name: 'Desconhecido', city: '' };
+                // Recupera a parcela real associada a este Pagamento
+                const inst = item.installment || this.installments.find(i => String(i.id) === String(item.installmentId || item.installment_id));
+                // Recupera o Empréstimo
+                const loanId = inst ? (inst.loanid || inst.loanId || (inst.loan && inst.loan.id)) : null;
+                const loan = loanId ? this.loans.find(l => String(l.id) === String(loanId)) : (inst && inst.loan ? inst.loan : null);
+
+                // Tenta extrair o nome do cliente de várias fontes
+                const cId = item.clientId || (item.client && item.client.id) || (loan && loan.clientId) || (inst && inst.client && inst.client.id);
+                const c = this.clients.find(x => String(x.id) === String(cId)) || item.client || (inst && inst.client) || { name: 'Desconhecido', city: '' };
 
                 // Busca as infos de Parcela
-                const instNumber = (item.installment && item.installment.number) ? item.installment.number : '?';
-                const instTotal = (item.installment && item.installment.loan && item.installment.loan.numInstallments) ? item.installment.loan.numInstallments : '?';
+                const instNumber = inst ? inst.number : '?';
+                const instTotal = loan ? loan.numInstallments : '?';
 
-                const dt = new Date(item.createdAt).toLocaleDateString('pt-BR');
+                const dtPaid = new Date(item.createdAt).toLocaleDateString('pt-BR');
+                const dtDue = inst && inst.dueDate ? new Date(inst.dueDate).toLocaleDateString('pt-BR') : 'Indisponível';
                 const cityDisplay = c.city ? ` - ${c.city}` : '';
+
                 html += `
                     <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-emerald-100 transition-colors shadow-sm">
                         <div class="flex items-center gap-3">
-                            <div class="bg-emerald-50 p-2 rounded-xl text-emerald-600"><i data-lucide="check-circle" class="w-5 h-5"></i></div>
-                            <div>
-                                <p class="text-sm font-bold text-slate-800">${c.name}<span class="text-slate-500 font-medium">${cityDisplay}</span></p>
-                                <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-0.5">Pagamento · ${dt} · Parcela ${instNumber} de ${instTotal}</p>
+                            <div class="bg-emerald-50 p-2.5 rounded-xl text-emerald-600 shadow-inner shrink-0"><i data-lucide="check-circle" class="w-5 h-5"></i></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-black text-emerald-900 truncate pr-2">${c.name || 'Cliente Sem Nome'}<span class="text-slate-500 font-medium ml-1">${cityDisplay}</span></p>
+                                
+                                <div class="flex items-center gap-2 mt-1 mb-1">
+                                    <span class="bg-white/60 px-2 py-0.5 rounded text-[10px] font-bold text-emerald-600 tracking-widest uppercase border border-emerald-200 shadow-sm">
+                                        PARCELA ${instNumber} / ${instTotal}
+                                    </span>
+                                </div>
+                                
+                                <div class="flex items-center text-[10px] font-bold text-emerald-600/80 uppercase tracking-widest gap-3">
+                                    <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-3 h-3"></i> PAGO: ${dtPaid}</span>
+                                    <span class="flex items-center gap-1 opacity-70"><i data-lucide="calendar-clock" class="w-3 h-3"></i> VENC: ${dtDue}</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="text-right">
+                        <div class="text-right flex items-center gap-4">
                              <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.amount || item.installmentValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                             <button onclick="window.location.href='?page=installments'" class="w-8 h-8 rounded-full bg-slate-50 text-emerald-500 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all shadow-sm">
+                                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                            </button>
                         </div>
                     </div>
                 `;
