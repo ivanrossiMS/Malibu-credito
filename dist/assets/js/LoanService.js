@@ -103,6 +103,7 @@ class LoanService {
     }
 
     async checkAndUpdateLoanStatus(loanId) {
+        if (!loanId || loanId === 'undefined' || loanId === 'null') return; // Gatekeeper anti-null pointer de query no Supabase (Erro 22P02)
         const loan = await storage.getById('loans', loanId);
         if (!loan) return;
 
