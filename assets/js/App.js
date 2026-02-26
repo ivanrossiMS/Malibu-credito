@@ -53,14 +53,15 @@ class App {
                 navigator.serviceWorker.register('sw.js').then(() => console.log("SW Registered")).catch(e => console.error("SW Erro:", e));
             }
 
-            await this.setupUI();
-            this.handleAuthVisibility();
-            this.bindEvents();
-
-            // Load specific module if authenticated
+            // Load specific module if authenticated e injeta HTML
             if (auth.isAuthenticated()) {
-                // SPA Injector - Caso o conteudo do modulo venha de template (Netlify/SPA mode)
+                // SPA Injector - Injeta HTML da pagina ANTES do setupUI ler os seletores CSS
                 this.renderSPAPage(this.config.currentPage);
+
+                // Agora varre o CSS e substitui nomes e fotos (já cobrindo o conteúdo recém-injetado)
+                await this.setupUI();
+                this.handleAuthVisibility();
+                this.bindEvents();
 
                 if (modules[this.config.currentPage]) {
                     try {
@@ -75,6 +76,11 @@ class App {
                         console.error(`Erro CRÍTICO ao iniciar o módulo: ${this.config.currentPage}`, moduleError);
                     }
                 }
+            } else {
+                // Se não está logado, garante exec da bindEvents para forms de Login
+                await this.setupUI();
+                this.handleAuthVisibility();
+                this.bindEvents();
             }
 
         } catch (error) {
