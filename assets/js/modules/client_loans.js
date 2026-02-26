@@ -175,7 +175,7 @@ export default class ClientLoansModule {
 
         try {
             const allInstallments = await installmentService.getAll();
-            const installments = allInstallments.filter(i => String(i.loanId) === String(loanId));
+            const installments = allInstallments.filter(i => String(i.loanid || i.loanId) === String(loanId));
 
             // Sort by number
             installments.sort((a, b) => parseInt(a.number) - parseInt(b.number));

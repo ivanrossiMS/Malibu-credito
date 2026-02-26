@@ -255,7 +255,7 @@ export default class ClientPaymentsModule {
                     <td class="px-8 py-6">
                         <div class="flex items-center gap-2">
                              <div class="w-2 h-2 rounded-full bg-primary/30"></div>
-                             <span class="text-xs font-mono font-bold text-slate-500 uppercase tracking-tighter">${p.loan ? p.loan.loanCode : 'REF-' + String(p.loanId || '').substring(0, 4)}</span>
+                             <span class="text-xs font-mono font-bold text-slate-500 uppercase tracking-tighter">${p.loan ? p.loan.loanCode : 'REF-' + String(p.loanid || p.loanId || '').substring(0, 4)}</span>
                         </div>
                     </td>
                     <td class="px-8 py-6">

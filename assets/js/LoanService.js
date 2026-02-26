@@ -10,7 +10,7 @@ class LoanService {
         const loan = result.length > 0 ? result[0] : null;
         if (loan) {
             // Installments podem não possuir FK direta clara com Loans para a View Atual, manter query simples.
-            loan.installments = await storage.query('installments', 'loanId', id);
+            loan.installments = await storage.query('installments', 'loanid', id);
         }
         return loan;
     }
@@ -39,7 +39,7 @@ class LoanService {
         await storage.put('loans', loan);
 
         // Regenerate unpaid installments safely
-        const allInstallments = await storage.query('installments', 'loanId', id);
+        const allInstallments = await storage.query('installments', 'loanid', id);
         const existingPaid = allInstallments.filter(i => i.status === 'paga');
 
         // Remove pending installments
@@ -107,7 +107,7 @@ class LoanService {
         const loan = await storage.getById('loans', loanId);
         if (!loan) return;
 
-        const installments = await storage.query('installments', 'loanId', loanId);
+        const installments = await storage.query('installments', 'loanid', loanId);
         if (!installments || installments.length === 0) return;
 
         const today = new Date().toISOString().split('T')[0];

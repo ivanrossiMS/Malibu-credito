@@ -55,7 +55,8 @@ export default class PaymentHistoryModule {
                 if (!clientId && inst && inst.client) clientId = inst.client.id;
 
                 const clientObj = this.clientsCache.find(c => String(c.id) === String(clientId));
-                const loanObj = inst && inst.loanId ? this.loansCache.find(l => String(l.id) === String(inst.loanId)) : null;
+                const refId = inst ? (inst.loanid || inst.loanId) : null;
+                const loanObj = refId ? this.loansCache.find(l => String(l.id) === String(refId)) : null;
 
                 return {
                     ...p,

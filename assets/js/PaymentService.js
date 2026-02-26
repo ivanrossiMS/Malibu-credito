@@ -26,8 +26,9 @@ class PaymentService {
         // Ensure clientId is present for easy filtering in client view
         if (!paymentData.clientId && paymentData.installmentId) {
             const inst = await storage.getById('installments', paymentData.installmentId);
-            if (inst && inst.loanId) {
-                const loan = await storage.getById('loans', inst.loanId);
+            const refLoanId = inst ? (inst.loanid || inst.loanId) : null;
+            if (refLoanId) {
+                const loan = await storage.getById('loans', refLoanId);
                 if (loan) {
                     paymentData.clientId = loan.clientId;
                 }

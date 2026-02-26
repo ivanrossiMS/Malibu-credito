@@ -20,7 +20,7 @@ class InstallmentService {
     }
 
     async getByLoan(loanId) {
-        return await storage.query('installments', 'loanId', loanId);
+        return await storage.query('installments', 'loanid', loanId);
     }
 
     async updateStatus(id, status) {
@@ -34,7 +34,7 @@ class InstallmentService {
         delete item.paid_at;
 
         await storage.put('installments', item);
-        await loanService.checkAndUpdateLoanStatus(item.loanId); // Informa o contrato de que uma parcela evoluiu
+        await loanService.checkAndUpdateLoanStatus(item.loanid || item.loanId); // Informa o contrato de que uma parcela evoluiu
         return item; // Ensure returning item is compatible if anything relies on returning value
     }
 
@@ -52,7 +52,7 @@ class InstallmentService {
         delete item.paid_at;
 
         await storage.put('installments', item);
-        await loanService.checkAndUpdateLoanStatus(item.loanId);
+        await loanService.checkAndUpdateLoanStatus(item.loanid || item.loanId);
         return item;
     }
 

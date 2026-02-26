@@ -541,7 +541,7 @@ export default class DashboardModule {
                 const dt = new Date(item.dueDate).toLocaleDateString('pt-BR');
                 const isLate = item.status === 'atrasada';
                 const color = isLate ? 'rose' : 'blue';
-                const loan = this.loans.find(l => String(l.id) === String(item.loanId));
+                const loan = this.loans.find(l => String(l.id) === String(item.loanid || item.loanId));
                 const totalInstCount = loan ? loan.numInstallments : '?';
                 const cityDisplay = c.city ? ` - ${c.city}` : '';
                 html += `
