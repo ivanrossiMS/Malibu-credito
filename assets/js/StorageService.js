@@ -88,9 +88,13 @@ class StorageService {
 
         // [RESILIÊNCIA DE BANCO] - Injetar duplicatas para colunas legadas
         // O banco possui colunas como `clientid` e `client_id`. O Supabase FK depende de `clientid`.
-        if (payload.client_id) payload.clientid = payload.client_id;
-        if (payload.loan_id) payload.loanid = payload.loan_id;
-        if (payload.installment_id) payload.installmentid = payload.installment_id;
+        // Aplicamos apenas a tabelas conhecidas por usarem este padrão legado para evitar PGRST204 em outras (ex: payments)
+        const legacyTables = ['loans', 'installments', 'loan_requests'];
+        if (legacyTables.includes(storeName)) {
+            if (payload.client_id) payload.clientid = payload.client_id;
+            if (payload.loan_id) payload.loanid = payload.loan_id;
+            if (payload.installment_id) payload.installmentid = payload.installment_id;
+        }
 
         delete payload.client;
         delete payload.loan;
