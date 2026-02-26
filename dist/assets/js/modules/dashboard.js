@@ -193,15 +193,38 @@ export default class DashboardModule {
             return;
         }
 
-        container.innerHTML = top.map(i => `
-            <div class="flex gap-4 items-start p-3 bg-rose-50 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100 transition-colors" onclick="window.location.href='?page=installments&status=atrasada&client_id=${i.loan?.clientId || i.clientId || i.client?.id || ''}'">
-                <div class="bg-rose-100 p-2 rounded-xl text-rose-600"><i data-lucide="skull" class="w-5 h-5"></i></div>
-                <div>
-                    <p class="text-sm font-bold text-rose-900">Atraso Crítico</p>
-                    <p class="text-xs text-rose-700">${i.client?.name || '---'} - R$ ${parseFloat(i.installmentValue || i.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        container.innerHTML = top.map(i => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const due = new Date(i.dueDate + 'T00:00:00');
+            const diffTime = Math.abs(today - due);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            return `
+            <div class="flex gap-4 items-start p-4 bg-rose-50 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100 transition-colors shadow-sm" onclick="window.location.href='?page=installments&status=atrasada&client_id=${i.loan?.clientId || i.clientId || i.client?.id || ''}'">
+                <div class="bg-rose-100 p-2.5 rounded-xl text-rose-600 shadow-inner shrink-0"><i data-lucide="skull" class="w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-start mb-1">
+                        <p class="text-sm font-black text-rose-900 truncate pr-2">${i.client?.name || 'Cliente Sem Nome'}</p>
+                        <p class="text-sm font-black text-rose-700 whitespace-nowrap">R$ ${parseFloat(i.installmentValue || i.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-white/60 px-2 py-0.5 rounded text-[10px] font-bold text-rose-600 tracking-widest uppercase border border-rose-200 shadow-sm">
+                            PARCELA ${i.number} / ${i.loan?.numInstallments || '?'}
+                        </span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center text-[10px] font-bold text-rose-500 uppercase tracking-widest w-full">
+                        <span class="flex items-center gap-1 opacity-80"><i data-lucide="calendar-x" class="w-3 h-3"></i> Vencido: ${due.toLocaleDateString('pt-BR')}</span>
+                        <span class="flex items-center gap-1 bg-rose-600 text-white px-2 py-0.5 rounded-full shadow-sm">
+                           <i data-lucide="clock-4" class="w-3 h-3"></i> ${diffDays} DIAS ATRASO
+                        </span>
+                    </div>
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
         lucide.createIcons();
     }
 
