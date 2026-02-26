@@ -72,10 +72,11 @@ export default class ClientProfileModule {
 
 
         // --- 2. CARD: IDENTIDADE ---
-        this.fillElement('profile-cpf', this.formatCpfCnpj(this.client.cpf_cnpj));
+        this.fillElement('profile-cpf', this.formatCpfCnpj(this.client.cpf_cnpj || this.client.cpfCnpj));
         this.fillElement('profile-rg', this.client.rg);
-        this.fillElement('profile-birth', this.client.birth_date ? new Date(this.client.birth_date).toLocaleDateString('pt-BR') : null);
-        this.fillElement('profile-marital', this.client.marital_status);
+        const birthDate = this.client.birth_date || this.client.birthDate;
+        this.fillElement('profile-birth', birthDate ? new Date(birthDate).toLocaleDateString('pt-BR') : null);
+        this.fillElement('profile-marital', this.client.marital_status || this.client.maritalStatus);
 
         // --- 3. CARD: CONTATO ---
         this.fillElement('profile-phone', this.formatPhone(this.client.phone));
@@ -211,19 +212,21 @@ export default class ClientProfileModule {
     populateEditForm() {
         const cl = this.client;
         document.getElementById('edit-name').value = cl.name || '';
-        document.getElementById('edit-cpf').value = cl.cpf_cnpj || '';
+        document.getElementById('edit-cpf').value = cl.cpf_cnpj || cl.cpfCnpj || '';
         document.getElementById('edit-rg').value = cl.rg || '';
 
         // Handling dates correctly for <input type="date"> (YYYY-MM-DD)
-        if (cl.birth_date) {
+        const birthDate = cl.birth_date || cl.birthDate;
+        if (birthDate) {
             try {
-                document.getElementById('edit-birth').value = new Date(cl.birth_date).toISOString().split('T')[0];
+                document.getElementById('edit-birth').value = new Date(birthDate).toISOString().split('T')[0];
             } catch (e) { }
         }
 
         const maritalSelect = document.getElementById('edit-marital');
-        if (cl.marital_status && Array.from(maritalSelect.options).some(o => o.value === cl.marital_status)) {
-            maritalSelect.value = cl.marital_status;
+        const maritalVal = cl.marital_status || cl.maritalStatus;
+        if (maritalVal && Array.from(maritalSelect.options).some(o => o.value === maritalVal)) {
+            maritalSelect.value = maritalVal;
         }
 
         document.getElementById('edit-phone').value = cl.phone || '';

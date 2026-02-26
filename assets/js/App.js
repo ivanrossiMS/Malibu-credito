@@ -105,7 +105,8 @@ class App {
                 : null;
 
             // Update user info in sidebar
-            const names = user.name.split(' ');
+            const displayName = client?.name || user?.name || user?.email || 'Usuário';
+            const names = displayName.split(' ');
             const initials = (names[0][0] + (names[names.length - 1][0] || '')).toUpperCase();
 
             document.querySelectorAll('.user-initials').forEach(el => {
@@ -117,7 +118,7 @@ class App {
                     el.classList.add('bg-primary');
                 }
             });
-            document.querySelectorAll('.user-name').forEach(el => el.textContent = user.name);
+            document.querySelectorAll('.user-name').forEach(el => el.textContent = displayName);
             document.querySelectorAll('.user-email').forEach(el => el.textContent = user.email);
 
             // Visibility based on roles
