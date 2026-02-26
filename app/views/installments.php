@@ -244,8 +244,8 @@
             </button>
         </div>
 
-        <div class="p-6 md:p-8 bg-slate-50/50">
-            <form id="pay-installment-form" class="space-y-6">
+        <form id="pay-installment-form" class="flex flex-col">
+            <div class="p-6 md:p-8 bg-slate-50/50 space-y-6">
                 <input type="hidden" id="pay-inst-id">
                 
                 <div>
@@ -265,16 +265,16 @@
                                class="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm font-medium text-slate-700 shadow-sm resize-none hover:border-emerald-300"></textarea>
                     </div>
                 </div>
-            </form>
-        </div>
-        
-        <div class="p-6 border-t border-slate-100 bg-white flex flex-col-reverse sm:flex-row justify-end gap-3 rounded-b-[2rem]">
-            <button type="button" class="close-pay-installment w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors text-xs uppercase tracking-widest">Cancelar</button>
-            <button type="submit" form="pay-installment-form" class="w-full sm:w-auto px-8 py-3.5 rounded-xl font-black bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30 transition-all transform hover:scale-[1.02] active:scale-95 text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                <i data-lucide="check-circle" class="w-4 h-4"></i>
-                Confirmar Pagamento
-            </button>
-        </div>
+            </div>
+            
+            <div class="p-6 border-t border-slate-100 bg-white flex flex-col-reverse sm:flex-row justify-end gap-3 rounded-b-[2rem]">
+                <button type="button" class="close-pay-installment w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors text-xs uppercase tracking-widest">Cancelar</button>
+                <button type="submit" class="w-full sm:w-auto px-8 py-3.5 rounded-xl font-black bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30 transition-all transform hover:scale-[1.02] active:scale-95 text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    Confirmar Pagamento
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 

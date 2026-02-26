@@ -102,10 +102,10 @@ export default class InstallmentsModule {
         // Calculate counts for status buttons based on current filters 1-3
         const counts = {
             todas: allItems.length,
-            pendente: allItems.filter(i => i.status === 'pendente' && i.dueDate === today).length,
-            atrasada: allItems.filter(i => i.status === 'atrasada').length,
-            avencer: allItems.filter(i => i.status === 'pendente' && i.dueDate > today).length,
-            paga: allItems.filter(i => i.status === 'paga').length
+            pendente: allItems.filter(i => (i.status || '').toLowerCase() === 'pendente' && i.dueDate === today).length,
+            atrasada: allItems.filter(i => (i.status || '').toLowerCase() === 'atrasada').length,
+            avencer: allItems.filter(i => (i.status || '').toLowerCase() === 'pendente' && i.dueDate > today).length,
+            paga: allItems.filter(i => (i.status || '').toLowerCase() === 'paga').length
         };
 
         document.querySelectorAll('.filter-status').forEach(btn => {
@@ -119,11 +119,11 @@ export default class InstallmentsModule {
         // 4. Finally Filter by status
         let installments = allItems;
         if (this.currentStatus === 'avencer') {
-            installments = installments.filter(i => i.status === 'pendente' && i.dueDate > today);
+            installments = installments.filter(i => (i.status || '').toLowerCase() === 'pendente' && i.dueDate > today);
         } else if (this.currentStatus === 'pendente') {
-            installments = installments.filter(i => i.status === 'pendente' && i.dueDate === today);
+            installments = installments.filter(i => (i.status || '').toLowerCase() === 'pendente' && i.dueDate === today);
         } else if (this.currentStatus !== 'todas') {
-            installments = installments.filter(i => i.status === this.currentStatus);
+            installments = installments.filter(i => (i.status || '').toLowerCase() === this.currentStatus.toLowerCase());
         }
 
         // 4. Sort
@@ -255,6 +255,7 @@ export default class InstallmentsModule {
     }
 
     getDisplayStatus(status, dueDate) {
+        status = String(status || '').toLowerCase();
         const today = new Date().toISOString().split('T')[0];
         if (status === 'pendente') {
             if (dueDate === today) return 'VENCE HOJE';
@@ -264,6 +265,7 @@ export default class InstallmentsModule {
     }
 
     getStatusBadgeClass(status, dueDate) {
+        status = String(status || '').toLowerCase();
         const today = new Date().toISOString().split('T')[0];
         if (status === 'pendente' && dueDate === today) return 'bg-amber-100/50 text-amber-600 border border-amber-200 shadow-sm';
 
@@ -376,20 +378,27 @@ export default class InstallmentsModule {
             modal.classList.remove('hidden');
         };
 
-        // Handle the pay modal submit
-        const payForm = document.getElementById('pay-installment-form');
-        if (payForm) {
-            payForm.addEventListener('submit', async (e) => {
+        // Handle the pay modal submit (Event Delegation explicitly targeting the form in case of rebuilds)
+        document.addEventListener('submit', async (e) => {
+            if (e.target.id === 'pay-installment-form') {
                 e.preventDefault();
+
+                // Evite dupla execução se o formulário for submetido várias vezes acidentalmente
+                if (e.target.dataset.processing === 'true') return;
+                e.target.dataset.processing = 'true';
+
                 const id = document.getElementById('pay-inst-id').value;
                 const date = document.getElementById('pay-inst-date').value;
                 const notes = document.getElementById('pay-inst-notes').value;
 
                 const btn = e.target.querySelector('button[type="submit"]');
-                const originalContent = btn.innerHTML;
-                btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Processando...';
-                btn.disabled = true;
-                lucide.createIcons();
+                let originalContent = 'Confirmar Pagamento';
+                if (btn) {
+                    originalContent = btn.innerHTML;
+                    btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Processando...';
+                    btn.disabled = true;
+                    lucide.createIcons();
+                }
 
                 try {
                     const installments = await installmentService.getAll();
@@ -411,12 +420,15 @@ export default class InstallmentsModule {
                 } catch (error) {
                     alert("Erro ao baixar parcela: " + error.message);
                 } finally {
-                    btn.innerHTML = originalContent;
-                    btn.disabled = false;
-                    lucide.createIcons();
+                    delete e.target.dataset.processing;
+                    if (btn) {
+                        btn.innerHTML = originalContent;
+                        btn.disabled = false;
+                        lucide.createIcons();
+                    }
                 }
-            });
-        }
+            }
+        });
 
         // Close pay modal
         document.querySelectorAll('.close-pay-installment').forEach(btn => {
