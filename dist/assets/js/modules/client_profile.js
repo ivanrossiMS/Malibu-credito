@@ -73,7 +73,6 @@ export default class ClientProfileModule {
 
         // --- 2. CARD: IDENTIDADE ---
         this.fillElement('profile-cpf', this.formatCpfCnpj(this.client.cpf_cnpj || this.client.cpfCnpj));
-        this.fillElement('profile-rg', this.client.rg);
         const birthDate = this.client.birth_date || this.client.birthDate;
         this.fillElement('profile-birth', birthDate ? DateHelper.formatLocal(birthDate) : null);
         this.fillElement('profile-marital', this.client.marital_status || this.client.maritalStatus);
@@ -132,7 +131,6 @@ export default class ClientProfileModule {
                     const updatedData = {
                         name: document.getElementById('edit-name').value.trim(),
                         cpf_cnpj: document.getElementById('edit-cpf').value.trim(),
-                        rg: document.getElementById('edit-rg').value.trim(),
                         birth_date: document.getElementById('edit-birth').value,
                         marital_status: document.getElementById('edit-marital').value,
                         street: document.getElementById('edit-street').value.trim(),
@@ -213,7 +211,6 @@ export default class ClientProfileModule {
         const cl = this.client;
         document.getElementById('edit-name').value = cl.name || '';
         document.getElementById('edit-cpf').value = cl.cpf_cnpj || cl.cpfCnpj || '';
-        document.getElementById('edit-rg').value = cl.rg || '';
 
         // Handling dates correctly for <input type="date"> (YYYY-MM-DD)
         const birthDate = cl.birth_date || cl.birthDate;

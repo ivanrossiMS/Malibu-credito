@@ -85,10 +85,6 @@
                         <p id="profile-cpf" class="text-sm font-bold text-slate-700">--</p>
                     </div>
                     <div class="space-y-1">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">RG / Órgão Expedidor</p>
-                        <p id="profile-rg" class="text-sm font-bold text-slate-700">--</p>
-                    </div>
-                    <div class="space-y-1">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data de Nascimento</p>
                         <p id="profile-birth" class="text-sm font-bold text-slate-700">--</p>
                     </div>
@@ -239,10 +235,6 @@
                         <div class="space-y-1">
                             <label class="block text-[10px] font-black text-slate-400 uppercase">CPF</label>
                             <input type="text" id="edit-cpf" required class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 text-slate-700 outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-all">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="block text-[10px] font-black text-slate-400 uppercase">RG / Órgão</label>
-                            <input type="text" id="edit-rg" required class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 text-slate-700 outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-all">
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1">

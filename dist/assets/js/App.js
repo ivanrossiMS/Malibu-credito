@@ -285,20 +285,13 @@ class App {
                                         </div>
                                     </div>
                                     <div class="space-y-1">
-                                        <label class="block text-[10px] font-black text-slate-400 uppercase ml-1">RG / Órgão</label>
-                                        <div class="relative">
-                                            <i data-lucide="contact" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                                            <input type="text" id="reg-rg" required placeholder="Nº RG e Órgão" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm font-bold text-slate-700">
-                                        </div>
-                                    </div>
-                                    <div class="space-y-1">
                                         <label class="block text-[10px] font-black text-slate-400 uppercase ml-1">Data Nascimento</label>
                                         <div class="relative">
                                             <i data-lucide="calendar" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
                                             <input type="date" id="reg-birth" required class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm font-bold text-slate-700">
                                         </div>
                                     </div>
-                                    <div class="space-y-1 lg:col-span-2">
+                                    <div class="space-y-1 md:col-span-2">
                                         <label class="block text-[10px] font-black text-slate-400 uppercase ml-1">Estado Civil</label>
                                         <div class="relative">
                                             <i data-lucide="users" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
@@ -492,7 +485,6 @@ class App {
                     email: document.getElementById('reg-email').value.trim(),
                     password: document.getElementById('reg-password').value,
                     cpf_cnpj: document.getElementById('reg-cpf').value.trim(),
-                    rg: document.getElementById('reg-rg').value.trim(),
                     birth_date: document.getElementById('reg-birth').value,
                     marital_status: document.getElementById('reg-marital').value,
                     phone: document.getElementById('reg-phone').value.trim(),
