@@ -86,6 +86,9 @@
                 <div class="space-y-3">
                     <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Data da 1ª Parcela</label>
                     <input type="date" id="loan-start-date" required class="w-full px-6 py-5 rounded-2xl border border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all shadow-inner text-slate-700 font-bold font-mono">
+                    <p class="text-[10px] text-slate-400 font-medium mt-2 px-1 italic">
+                        * Mensal/Diário: Juros total diluído. Semanal: Juros fixo por parcela.
+                    </p>
                 </div>
 
                 <!-- Description: Minimalist Input -->

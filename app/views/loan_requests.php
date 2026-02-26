@@ -155,6 +155,12 @@
                         <option value="semanal">Semanal</option>
                         <option value="diario">Diário</option>
                     </select>
+                    <div class="mt-1 p-2 bg-blue-50 border border-blue-100 rounded-xl">
+                        <p class="text-[9px] text-blue-600 font-medium leading-relaxed">
+                            <strong>Mensal/Diário:</strong> Valor + Juros / N<br>
+                            <strong>Semanal:</strong> Valor / N + Juros
+                        </p>
+                    </div>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-bold text-slate-500 uppercase tracking-tight mb-1">Data da 1ª Parcela</label>

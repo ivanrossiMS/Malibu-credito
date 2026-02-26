@@ -207,6 +207,13 @@
                         <option value="semanal">Semanal</option>
                         <option value="diario">Diário</option>
                     </select>
+                    <div class="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                        <p class="text-[10px] text-blue-600 font-medium leading-relaxed">
+                            <i data-lucide="info" class="w-3 h-3 inline-block mr-1"></i>
+                            <strong>Mensal/Diário:</strong> Juros somados ao total e divididos.<br>
+                            <strong>Semanal:</strong> Valor dividido + Juros em cada parcela.
+                        </p>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Data da 1ª Parcela</label>
