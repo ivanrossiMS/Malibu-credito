@@ -110,12 +110,16 @@ class App {
             const initials = (names[0][0] + (names[names.length - 1][0] || '')).toUpperCase();
 
             document.querySelectorAll('.user-initials').forEach(el => {
+                const isClientDashboard = el.classList.contains('bg-gradient-to-br'); // Flex mode identifier
                 if (avatarHtml) {
-                    el.innerHTML = avatarHtml;
-                    el.classList.remove('bg-primary');
+                    el.innerHTML = avatarHtml.replace('rounded-full', isClientDashboard ? 'rounded-2xl' : 'rounded-full');
+                    el.classList.remove('bg-primary', 'bg-gradient-to-br', 'from-primary', 'to-primary-light');
+                    el.classList.add('bg-transparent');
                 } else {
-                    el.textContent = initials;
-                    el.classList.add('bg-primary');
+                    el.innerHTML = initials;
+                    if (!isClientDashboard) {
+                        el.classList.add('bg-primary');
+                    }
                 }
             });
             document.querySelectorAll('.user-name').forEach(el => el.textContent = displayName);
