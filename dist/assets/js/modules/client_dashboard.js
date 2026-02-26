@@ -45,8 +45,8 @@ export default class ClientDashboardModule {
 
         // Calculate Totals
         const totalLoaned = loans.reduce((sum, l) => sum + (parseFloat(l.installmentValue || 0) * parseInt(l.numInstallments || 0)), 0);
-        const totalPaid = installments.filter(i => i.status === 'paga').reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
-        const balanceDue = installments.filter(i => i.status !== 'paga').reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+        const totalPaid = installments.filter(i => i.status === 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.amount || 0), 0);
+        const balanceDue = installments.filter(i => i.status !== 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.amount || 0), 0);
 
         // Update UI Cards
         if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
@@ -132,7 +132,7 @@ export default class ClientDashboardModule {
                         <td class="px-8 py-5 text-sm font-black text-slate-900 border-l-2 border-transparent group-hover:border-primary">${inst.loan ? inst.loan.loanCode : '---'}</td>
                         <td class="px-8 py-5 text-sm font-medium text-slate-700 text-center">#${inst.number}</td>
                         <td class="px-8 py-5 text-[11px] font-bold text-slate-500 uppercase tracking-widest">${this.formatDate(inst.dueDate)}</td>
-                        <td class="px-8 py-5 text-sm font-black text-emerald-600">${this.formatCurrency(inst.amount)}</td>
+                        <td class="px-8 py-5 text-sm font-black text-emerald-600">${this.formatCurrency(inst.installmentValue || inst.amount)}</td>
                         <td class="px-8 py-5">
                             <span class="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${statusClass}">
                                 ${displayStatus}
