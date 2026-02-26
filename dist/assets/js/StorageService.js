@@ -81,6 +81,11 @@ class StorageService {
         // Precisamos prevenir envios excedentes e reverter as formatações não mapeadas pelo banco.
         const payload = this.toSnakeCase(data);
 
+        // [RESILIÊNCIA DE ID] - Prevent sending null ID on inserts (causes 23502 error)
+        if (data.id === null || data.id === undefined || data.id === '') {
+            delete payload.id;
+        }
+
         // [RESILIÊNCIA DE BANCO] - Injetar duplicatas para colunas legadas
         // O banco possui colunas como `clientid` e `client_id`. O Supabase FK depende de `clientid`.
         if (payload.client_id) payload.clientid = payload.client_id;
