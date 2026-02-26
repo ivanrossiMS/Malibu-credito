@@ -102,9 +102,9 @@ export default class InstallmentsModule {
         // Calculate counts for status buttons based on current filters 1-3
         const counts = {
             todas: allItems.length,
-            pendente: allItems.filter(i => i.status === 'pendente').length,
+            pendente: allItems.filter(i => i.status === 'pendente' && i.dueDate === today).length,
             atrasada: allItems.filter(i => i.status === 'atrasada').length,
-            avencer: allItems.filter(i => i.status === 'pendente' && i.dueDate >= today).length,
+            avencer: allItems.filter(i => i.status === 'pendente' && i.dueDate > today).length,
             paga: allItems.filter(i => i.status === 'paga').length
         };
 
@@ -119,9 +119,9 @@ export default class InstallmentsModule {
         // 4. Finally Filter by status
         let installments = allItems;
         if (this.currentStatus === 'avencer') {
-            installments = installments.filter(i => i.status === 'pendente' && i.dueDate >= today);
+            installments = installments.filter(i => i.status === 'pendente' && i.dueDate > today);
         } else if (this.currentStatus === 'pendente') {
-            installments = installments.filter(i => i.status === 'pendente');
+            installments = installments.filter(i => i.status === 'pendente' && i.dueDate === today);
         } else if (this.currentStatus !== 'todas') {
             installments = installments.filter(i => i.status === this.currentStatus);
         }
@@ -218,8 +218,8 @@ export default class InstallmentsModule {
                     ${item.paidAt ? new Date(item.paidAt).toLocaleDateString('pt-BR') : '<span class="text-slate-300">-</span>'}
                 </td>
                 <td class="px-6 py-4">
-                    <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusBadgeClass(item.status)}">
-                        ${item.status.toUpperCase()}
+                    <span class="px-3 py-1 rounded-full text-xs font-bold ${this.getStatusBadgeClass(item.status, item.dueDate)}">
+                        ${this.getDisplayStatus(item.status, item.dueDate)}
                     </span>
                 </td>
                 <td class="px-6 py-4 text-right flex justify-end gap-2">
@@ -254,7 +254,16 @@ export default class InstallmentsModule {
         return 'text-slate-600';
     }
 
-    getStatusBadgeClass(status) {
+    getDisplayStatus(status, dueDate) {
+        const today = new Date().toISOString().split('T')[0];
+        if (status === 'pendente' && dueDate === today) return 'VENCE HOJE';
+        return status.toUpperCase();
+    }
+
+    getStatusBadgeClass(status, dueDate) {
+        const today = new Date().toISOString().split('T')[0];
+        if (status === 'pendente' && dueDate === today) return 'bg-amber-100/50 text-amber-600 border border-amber-200 shadow-sm';
+
         switch (status) {
             case 'pendente': return 'bg-slate-100 text-slate-500';
             case 'atrasada': return 'bg-rose-50 text-rose-600';
