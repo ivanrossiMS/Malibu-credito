@@ -386,7 +386,12 @@ export default class DashboardModule {
             return data;
         }
 
-        const getISODate = (d) => d.toISOString().split('T')[0];
+        const getISODate = (d) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
         const todayStr = getISODate(new Date());
 
         const todayObj = new Date();
