@@ -25,6 +25,7 @@ export default class ClientLoanRequestModule {
         const instInput = document.getElementById('loan-installments');
         const freqInputs = document.querySelectorAll('input[name="loan-frequency"]');
         const submitBtn = document.getElementById('submit-loan-request');
+        const startDateInput = document.getElementById('loan-start-date');
 
         amountInput.oninput = () => {
             document.getElementById('amount-display').textContent = this.formatCurrency(amountInput.value);
@@ -40,6 +41,10 @@ export default class ClientLoanRequestModule {
             input.onchange = () => this.updateSummary();
         });
 
+        if (startDateInput) {
+            startDateInput.onchange = () => this.updateSummary();
+        }
+
         submitBtn.onclick = () => this.submitRequest();
     }
 
@@ -47,10 +52,19 @@ export default class ClientLoanRequestModule {
         const amount = parseFloat(document.getElementById('loan-amount').value);
         const installmentsValue = parseInt(document.getElementById('loan-installments').value);
         const frequencyValue = document.querySelector('input[name="loan-frequency"]:checked').value;
+        const startDateInput = document.getElementById('loan-start-date');
 
         document.getElementById('sum-amount').textContent = this.formatCurrency(amount);
         document.getElementById('sum-installments').textContent = installmentsValue + 'x';
         document.getElementById('sum-frequency').textContent = frequencyValue === 'diaria' ? 'Diário' : 'Mensal';
+
+        const sumDate = document.getElementById('sum-start-date');
+        if (startDateInput && startDateInput.value && sumDate) {
+            const dt = startDateInput.value.split('-');
+            sumDate.textContent = `${dt[2]}/${dt[1]}/${dt[0]}`;
+        } else if (sumDate) {
+            sumDate.textContent = '--/--/----';
+        }
     }
 
     async submitRequest() {
@@ -63,14 +77,27 @@ export default class ClientLoanRequestModule {
             const amount = parseFloat(document.getElementById('loan-amount').value);
             const installments = parseInt(document.getElementById('loan-installments').value);
             const frequency = document.querySelector('input[name="loan-frequency"]:checked').value;
+            const startDate = document.getElementById('loan-start-date').value;
             const description = document.getElementById('loan-desc').value;
+
+            if (!startDate) {
+                alert("Por favor, escolha uma Data da 1ª Parcela para a simulação.");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Lançar Solicitação</span><i data-lucide="send" class="w-5 h-5"></i>';
+                lucide.createIcons();
+                return;
+            }
+
+            const dt = startDate.split('-');
+            const formattedDate = `${dt[2]}/${dt[1]}/${dt[0]}`;
+            const finalDescription = `Data da 1ª Parcela: ${formattedDate}\n\nObservações Adicionais:\n${description}`;
 
             const loanRequest = {
                 clientid: this.client.id,
                 amount: amount,
                 installments: installments,
                 frequency: frequency,
-                description: description,
+                description: finalDescription,
                 status: 'pendente'
             };
 
@@ -82,6 +109,7 @@ export default class ClientLoanRequestModule {
             // Atualizar UI sem recarregar a página (PWA mode)
             document.getElementById('loan-amount').value = 1500;
             document.getElementById('loan-installments').value = 6;
+            document.getElementById('loan-start-date').value = '';
             document.getElementById('loan-desc').value = '';
             this.updateSummary();
 

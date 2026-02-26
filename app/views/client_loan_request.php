@@ -75,6 +75,12 @@
                     </div>
                 </div>
 
+                <!-- First Installment Date: Modern Input -->
+                <div class="space-y-3">
+                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Data da 1ª Parcela</label>
+                    <input type="date" id="loan-start-date" required class="w-full px-6 py-5 rounded-2xl border border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all shadow-inner text-slate-700 font-bold font-mono">
+                </div>
+
                 <!-- Description: Minimalist Input -->
                 <div class="space-y-3">
                     <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Observações Adicionais</label>
@@ -110,6 +116,10 @@
                         <div class="flex justify-between items-center py-5 border-b border-white/5 group/row">
                             <span class="text-slate-400 font-medium group-hover/row:text-white transition-colors">Nº de Parcelas</span>
                             <span class="text-xl font-black text-white tracking-tight" id="sum-installments">12x</span>
+                        </div>
+                        <div class="flex justify-between items-center py-5 border-b border-white/5 group/row">
+                            <span class="text-slate-400 font-medium group-hover/row:text-white transition-colors">1ª Parcela</span>
+                            <span class="text-xl font-black text-white tracking-tight" id="sum-start-date">--/--/----</span>
                         </div>
                     </div>
 

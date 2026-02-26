@@ -101,6 +101,7 @@
                 <div class="flex flex-wrap items-center gap-3">
                     <div class="flex flex-wrap items-center gap-2 bg-slate-50/80 p-1.5 rounded-2xl border border-slate-200">
                         <button class="filter-period bg-white text-primary shadow-sm px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all" data-period="hoje" onclick="selectPeriod('hoje', this)">Hoje</button>
+                        <button class="filter-period text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all" data-period="ontem" onclick="selectPeriod('ontem', this)">Ontem</button>
                         <button class="filter-period text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all" data-period="amanha" onclick="selectPeriod('amanha', this)">Amanhã</button>
                         <button class="filter-period text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all" data-period="7dias" onclick="selectPeriod('7dias', this)">7 Dias</button>
                         <button class="filter-period text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all" data-period="mes" onclick="selectPeriod('mes', this)">Mês</button>
@@ -184,7 +185,7 @@
                     <div class="bg-emerald-400 text-emerald-900 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">Ação Necessária</div>
                 </div>
                 <div class="relative z-10">
-                    <p class="text-white/70 text-xs font-black uppercase tracking-widest mb-1">Novas Solicitações</p>
+                    <p class="text-white/70 text-xs font-black uppercase tracking-widest mb-1">Novas Solicitações de Empréstimos</p>
                     <h3 id="stat-pending-requests" class="text-4xl font-black text-white tracking-tight">0</h3>
                 </div>
             </div>

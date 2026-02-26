@@ -354,22 +354,65 @@ export default class InstallmentsModule {
         });
 
         window.markAsPaid = async (id) => {
-            if (confirm("Confirmar recebimento desta parcela?")) {
-                const installments = await installmentService.getAll();
-                const inst = installments.find(i => String(i.id) === String(id));
-
-                if (inst) {
-                    await paymentService.registerPayment({
-                        installmentId: inst.id,
-                        amount: inst.installmentValue || inst.amount || 0,
-                        method: 'pix', // Padrão para baixa manual admin
-                        notes: 'Baixa manual pelo administrador'
-                    });
-                    this.renderInstallments();
-                    alert("Parcela baixada e pagamento registrado!");
-                }
-            }
+            const modal = document.getElementById('pay-installment-modal');
+            if (!modal) return;
+            document.getElementById('pay-inst-id').value = id;
+            document.getElementById('pay-inst-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('pay-inst-notes').value = '';
+            modal.classList.remove('hidden');
         };
+
+        // Handle the pay modal submit
+        const payForm = document.getElementById('pay-installment-form');
+        if (payForm) {
+            payForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('pay-inst-id').value;
+                const date = document.getElementById('pay-inst-date').value;
+                const notes = document.getElementById('pay-inst-notes').value;
+
+                const btn = e.target.querySelector('button[type="submit"]');
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Processando...';
+                btn.disabled = true;
+                lucide.createIcons();
+
+                try {
+                    const installments = await installmentService.getAll();
+                    const inst = installments.find(i => String(i.id) === String(id));
+
+                    if (inst) {
+                        await paymentService.registerPayment({
+                            installmentId: inst.id,
+                            amount: inst.installmentValue || inst.amount || 0,
+                            method: 'pix',
+                            notes: notes || 'Baixa manual pelo administrador',
+                            createdAt: new Date(date + 'T12:00:00Z').toISOString() // force the selected date
+                        });
+
+                        document.getElementById('pay-installment-modal').classList.add('hidden');
+                        this.renderInstallments();
+                        alert("Parcela baixada e pagamento registrado!");
+                    }
+                } catch (error) {
+                    alert("Erro ao baixar parcela: " + error.message);
+                } finally {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                    lucide.createIcons();
+                }
+            });
+        }
+
+        // Close pay modal
+        document.querySelectorAll('.close-pay-installment').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modal = document.getElementById('pay-installment-modal');
+                if (modal) modal.classList.add('hidden');
+            });
+        });
+
+
 
         window.viewProof = async (id) => {
             const installments = await installmentService.getAll();

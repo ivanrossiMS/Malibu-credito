@@ -7,7 +7,7 @@ import loanService from '../LoanService.js';
 export default class DashboardModule {
     async init() {
         this.currentMetric = 'receivable';
-        this.currentPeriod = 'mes';
+        this.currentPeriod = 'hoje';
         this.customDateFrom = '';
         this.customDateTo = '';
 
@@ -49,8 +49,8 @@ export default class DashboardModule {
         const firstCard = document.querySelector('[data-metric="receivable"]');
         if (firstCard) this.selectMetric('receivable', firstCard);
 
-        const defaultPeriodBtn = document.querySelector('[data-period="mes"]');
-        if (defaultPeriodBtn) this.selectPeriod('mes', defaultPeriodBtn);
+        const defaultPeriodBtn = document.querySelector('[data-period="hoje"]');
+        if (defaultPeriodBtn) this.selectPeriod('hoje', defaultPeriodBtn);
 
         this.bindEvents();
     }
@@ -121,7 +121,6 @@ export default class DashboardModule {
         }
 
         this.renderPendingRequests();
-        this.renderAIInsights(overdue);
         this.updateCards();
     }
 
@@ -133,34 +132,33 @@ export default class DashboardModule {
         }
     }
 
-    renderAIInsights(overdue) {
+    renderAIInsights() {
         // Encontrar parágrafo do insight
         const insightCard = document.querySelector('.bg-slate-900.shadow-2xl');
         if (!insightCard) return;
         const msgEl = insightCard.querySelector('p.italic');
         if (!msgEl) return;
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayStr = today.toISOString().split('T')[0];
+        const receivableVars = this.getFilteredData('receivable');
+        const overdueVars = this.getFilteredData('overdue');
 
-        // Vencimentos de hoje
-        const todayInstallments = this.installments.filter(i => {
-            if (i.status === 'paga' || i.status === 'cancelada') return false;
-            if (!i.dueDate) return false;
-            return i.dueDate.startsWith(todayStr); // localizou vencimento hoje
-        });
+        const overdueCount = overdueVars.length;
+        const overdueValue = overdueVars.reduce((sum, i) => sum + (parseFloat(i.installmentValue || i.amount) || 0), 0);
+        const recCount = receivableVars.length;
 
-        const overdueCount = overdue.length;
-        const overdueValue = overdue.reduce((sum, i) => sum + (parseFloat(i.installmentValue || i.amount) || 0), 0);
+        let periodName = "neste período";
+        if (this.currentPeriod === 'hoje') periodName = "de hoje";
+        if (this.currentPeriod === 'amanha') periodName = "de amanhã";
+        if (this.currentPeriod === 'ontem') periodName = "de ontem";
+        if (this.currentPeriod === 'mes') periodName = "deste mês";
 
         let insightText = '';
-        if (todayInstallments.length > 0) {
-            insightText = `"Otimize seu dia focando nas cobranças de hoje. Há ${todayInstallments.length} parcela(s) com vencimento para o dia de hoje aguardando liquidação."`;
-        } else if (overdueCount > 0) {
-            insightText = `"Atenção: Você tem ${overdueCount} parcelas em atraso totalizando R$ ${overdueValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Priorize a renegociação para manter a saúde do caixa."`;
+        if (overdueCount > 0) {
+            insightText = `"Atenção: Você tem ${overdueCount} parcelas filtradas em atraso totalizando R$ ${overdueValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Priorize a renegociação para manter a saúde do caixa."`;
+        } else if (recCount > 0) {
+            insightText = `"Otimize seu fluxo focando nas cobranças ${periodName}. Há ${recCount} parcela(s) aguardando liquidação neste intervalo."`;
         } else {
-            insightText = `"Excelente cenário! Todas as parcelas estão em dia. É um ótimo momento para analisar novos limites e simulações para sua base de clientes."`;
+            insightText = `"Excelente cenário! O filtro ${periodName} não possui pendências ou atrasos críticos. É um ótimo momento para prospectar novos clientes."`;
         }
 
         msgEl.textContent = insightText;
@@ -169,10 +167,10 @@ export default class DashboardModule {
         const actionBtn = document.getElementById('action-plan-btn');
         if (actionBtn) {
             actionBtn.onclick = () => {
-                if (todayInstallments.length > 0) {
-                    window.location.href = '?page=installments&status=pendente';
-                } else if (overdueCount > 0) {
+                if (overdueCount > 0) {
                     window.location.href = '?page=installments&status=atrasada';
+                } else if (recCount > 0) {
+                    window.location.href = '?page=installments&status=pendente';
                 } else {
                     window.location.href = '?page=clients';
                 }
@@ -220,23 +218,36 @@ export default class DashboardModule {
         element.classList.remove('ring-transparent');
         element.classList.add('ring-primary/50');
 
-        // Ocultar períodos que não são permitidos para Total Recebido
-        const hideForReceived = ['amanha', '7dias', 'mes', 'ano'];
+        // Ocultar Div global de Períodos para a Base de Clientes (onde só a Cidade importa)
+        const periodFiltersGroup = document.querySelector('.filter-period')?.closest('div');
+        if (metric === 'clients') {
+            if (periodFiltersGroup) periodFiltersGroup.style.display = 'none';
+        } else {
+            if (periodFiltersGroup) periodFiltersGroup.style.display = 'flex';
+        }
+
+        // Lógicas detalhadas de Filtros de Períodos
+        const showForOverdue = ['hoje', 'ontem', 'personalizado'];
+
         document.querySelectorAll('.filter-period').forEach(btn => {
             const period = btn.dataset.period;
-            if (metric === 'received' && hideForReceived.includes(period)) {
-                btn.style.display = 'none';
+            if (metric === 'overdue') {
+                btn.style.display = showForOverdue.includes(period) ? '' : 'none';
             } else {
-                btn.style.display = '';
+                // receivable ou received (liberados)
+                btn.style.display = period === 'ontem' && metric !== 'received' ? 'none' : '';
             }
         });
 
-        // Forçar "Hoje" se estiver transitando para Received vindo de um período proibido
-        if (metric === 'received' && hideForReceived.includes(this.currentPeriod)) {
+        // Forçar "Hoje" se estiver transitando para um período proibido pela métrica
+        let forceToday = false;
+        if (metric === 'overdue' && !showForOverdue.includes(this.currentPeriod)) forceToday = true;
+        if (metric === 'receivable' && this.currentPeriod === 'ontem') forceToday = true;
+
+        if (forceToday) {
             const hojeBtn = document.querySelector('.filter-period[data-period="hoje"]');
             if (hojeBtn) {
                 this.selectPeriod('hoje', hojeBtn);
-                // selectPeriod já chamará os renders complementares.
                 return;
             }
         }
@@ -350,17 +361,15 @@ export default class DashboardModule {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+        const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
 
         let startFilter, endFilter;
         let actualPeriod = this.currentPeriod;
 
-        // O card de Total Recebido é estritamente DIÁRIO ou PERSONALIZADO
-        if (metric === 'received' && actualPeriod !== 'personalizado') {
-            actualPeriod = 'hoje';
-        }
-
         if (actualPeriod === 'hoje') {
             startFilter = today; endFilter = today;
+        } else if (actualPeriod === 'ontem') {
+            startFilter = yesterday; endFilter = yesterday;
         } else if (actualPeriod === 'amanha') {
             startFilter = tomorrow; endFilter = tomorrow;
         } else if (actualPeriod === '7dias') {
@@ -414,6 +423,7 @@ export default class DashboardModule {
 
         let periodLabel = 'ESTE MÊS';
         if (this.currentPeriod === 'hoje') periodLabel = 'HOJE';
+        else if (this.currentPeriod === 'ontem') periodLabel = 'ONTEM';
         else if (this.currentPeriod === 'amanha') periodLabel = 'AMANHÃ';
         else if (this.currentPeriod === '7dias') periodLabel = '7 DIAS';
         else if (this.currentPeriod === 'mes') periodLabel = 'ESTE MÊS';
@@ -427,8 +437,11 @@ export default class DashboardModule {
         if (badgeReceivable) badgeReceivable.textContent = periodLabel;
         if (badgeOverdue) badgeOverdue.textContent = periodLabel;
         if (badgeReceived) {
-            badgeReceived.textContent = (this.currentPeriod === 'personalizado') ? 'CUSTOM' : 'HOJE';
+            badgeReceived.textContent = (this.currentPeriod === 'personalizado') ? 'CUSTOM' : periodLabel;
         }
+
+        // Executar Insight IA Baseado no array Filtrado
+        this.renderAIInsights();
     }
 
     /* Render Logic engine */

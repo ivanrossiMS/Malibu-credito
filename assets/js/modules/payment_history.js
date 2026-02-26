@@ -15,7 +15,7 @@ export default class PaymentHistoryModule {
         this.itemsPerPage = 15;
 
         // Filters
-        this.currentPeriod = 'mes';
+        this.currentPeriod = 'hoje';
         this.customDateFrom = '';
         this.customDateTo = '';
         this.currentCity = 'all';
@@ -28,10 +28,10 @@ export default class PaymentHistoryModule {
         this.populateComboboxes();
         this.bindEvents();
 
-        // Auto select period "mes" visually
-        const mesBtn = document.querySelector('.filter-period[data-period="mes"]');
-        if (mesBtn) {
-            this.selectPeriod('mes', mesBtn);
+        // Auto select period "hoje" visually
+        const hojeBtn = document.querySelector('.filter-period[data-period="hoje"]');
+        if (hojeBtn) {
+            this.selectPeriod('hoje', hojeBtn);
         } else {
             this.applyFilters();
         }
