@@ -162,6 +162,23 @@
 
         <!-- Sidebar Activity/Alerts -->
         <div class="space-y-8">
+            <!-- Pending Proofs Card -->
+            <div id="pending-proofs-card" class="premium-card p-8 border-amber-100/30 hidden">
+                <div class="mb-8 flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                            <h2 class="text-xl font-black text-slate-900 tracking-tight">Comprovantes</h2>
+                        </div>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 ml-5">Aguardando Aprovação</p>
+                    </div>
+                    <span id="pending-proofs-count" class="bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-100">0</span>
+                </div>
+                <div id="pending-proofs-list" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                    <!-- Dynamic Items -->
+                </div>
+            </div>
+
             <div class="premium-card p-8 border-rose-100/30">
                 <div class="mb-8">
                     <div class="flex items-center gap-3">
