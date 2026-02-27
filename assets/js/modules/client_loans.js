@@ -29,9 +29,25 @@ export default class ClientLoansModule {
 
     async loadData() {
         const allLoans = await loanService.getAll();
-        const clientActiveLoans = allLoans.filter(loan => String(loan.clientId) === String(this.currentClient.id));
+        const clientActiveLoans = allLoans.filter(loan => String(loan.clientId || loan.clientid) === String(this.currentClient.id));
 
+        const allRequests = await loanRequestService.getAll();
+        const clientRequests = allRequests.filter(req =>
+            String(req.clientId || req.clientid) === String(this.currentClient.id) &&
+            req.status === 'pendente'
+        );
 
+        const combined = [...clientActiveLoans, ...clientRequests.map(r => ({
+            id: 'req_' + r.id,
+            isRequest: true,
+            status: 'pendente',
+            createdAt: r.createdAt || r.created_at,
+            amount: r.amount,
+            numInstallments: r.installments,
+            loanCode: 'PENDENTE',
+            frequency: r.frequency,
+            ...r
+        }))];
 
         this.clientLoans = combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
