@@ -122,7 +122,16 @@ export default class ClientLoansModule {
             if (loan.isRequest) {
                 totalDisplay = `<span class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Calculado na aprovação</span>`;
                 installmentDisplay = `${numInstallments}x (${loan.frequency === 'diaria' ? 'Diário' : 'Mensal'})`;
-                actionHtml = `<span class="text-[10px] font-black uppercase text-slate-400 tracking-widest bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">${loan.status}</span>`;
+                actionHtml = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">${loan.status}</span>
+                        ${loan.status === 'pendente' ? `
+                            <button data-id="${loan.id.replace('req_', '')}" class="cancel-loan-request w-10 h-10 bg-rose-50 text-rose-500 border border-rose-100 rounded-2xl flex items-center justify-center hover:bg-rose-500 hover:text-white hover:border-rose-500 hover:scale-110 active:scale-90 transition-all shadow-sm" title="Cancelar Solicitação">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
             } else {
                 const installmentValue = parseFloat(loan.installmentValue || loan.installmentAmount || 0);
                 const totalComJuros = installmentValue * numInstallments;
@@ -242,7 +251,30 @@ export default class ClientLoansModule {
         }
     }
 
+    async cancelRequest(requestId) {
+        if (!confirm("Deseja realmente cancelar esta solicitação de empréstimo? Esta ação não pode ser desfeita.")) {
+            return;
+        }
+
+        try {
+            await loanRequestService.delete(requestId);
+            alert("Solicitação cancelada com sucesso.");
+            await this.init(); // Refresh data and view
+        } catch (error) {
+            alert("Erro ao cancelar solicitação: " + error.message);
+        }
+    }
+
     bindEvents() {
+        // Cancelar Solicitação
+        document.querySelectorAll('.cancel-loan-request').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const reqId = btn.getAttribute('data-id');
+                this.cancelRequest(reqId);
+            };
+        });
+
         // Abrir Modal de Parcelas
         document.querySelectorAll('.view-loan-installments').forEach(btn => {
             btn.addEventListener('click', () => {
