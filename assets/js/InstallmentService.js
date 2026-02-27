@@ -24,8 +24,7 @@ class InstallmentService {
     }
 
     async updateStatus(id, status) {
-        const numericId = typeof id === 'string' ? parseInt(id) : id;
-        const item = await storage.getById('installments', numericId);
+        const item = await storage.getById('installments', id);
         if (!item) throw new Error("Parcela não encontrada.");
         item.status = status;
 
@@ -39,8 +38,7 @@ class InstallmentService {
     }
 
     async update(id, data) {
-        const numericId = typeof id === 'string' ? parseInt(id) : id;
-        const item = await storage.getById('installments', numericId);
+        const item = await storage.getById('installments', id);
         if (!item) throw new Error("Parcela não encontrada.");
 
         if (data.dueDate !== undefined) item.dueDate = data.dueDate;
@@ -57,8 +55,7 @@ class InstallmentService {
     }
 
     async updateProof(id, proof) {
-        const numericId = typeof id === 'string' ? parseInt(id) : id;
-        const item = await storage.getById('installments', numericId);
+        const item = await storage.getById('installments', id);
         if (!item) throw new Error("Parcela não encontrada.");
         item.proof = proof;
         return await storage.put('installments', item);
