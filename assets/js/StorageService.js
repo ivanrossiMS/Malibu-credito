@@ -86,29 +86,55 @@ class StorageService {
             delete payload.id;
         }
 
-        // [RESILIÊNCIA DE BANCO] - Injetar duplicatas para colunas legadas
-        // O banco possui colunas como `clientid` e `client_id`. O Supabase FK depende de `clientid`.
-        // Aplicamos apenas a tabelas conhecidas por usarem este padrão legado para evitar PGRST204 em outras (ex: payments)
+        // [RESILIÊNCIA DE BANCO] - Injetar duplicatas para colunas legadas e modernas
+        // O banco possui colunas redundantes como `clientid` e `client_id`. 
+        // Para evitar erros de RLS e FK, garantimos que ambas as versões existam onde aplicável.
         const legacyTables = ['loans', 'installments', 'loan_requests'];
         if (legacyTables.includes(storeName)) {
-            if (payload.client_id) {
-                payload.clientid = payload.client_id;
-                delete payload.client_id;
+            // Normalize Client ID
+            const targetClientId = data.clientid || data.clientId || data.client_id;
+            if (targetClientId) {
+                payload.clientid = targetClientId;
+                payload.client_id = targetClientId;
             }
-            if (payload.loan_id) {
-                payload.loanid = payload.loan_id;
-                delete payload.loan_id;
+
+            // Normalize Loan ID
+            const targetLoanId = data.loanid || data.loanId || data.loan_id;
+            if (targetLoanId) {
+                payload.loanid = targetLoanId;
+                payload.loan_id = targetLoanId;
             }
-            if (payload.installment_id) {
-                payload.installmentid = payload.installment_id;
-                delete payload.installment_id;
+
+            // Normalize Installment ID
+            const targetInstallmentId = data.installmentid || data.installmentId || data.installment_id;
+            if (targetInstallmentId) {
+                payload.installmentid = targetInstallmentId;
+                payload.installment_id = targetInstallmentId;
+            }
+
+            // Normalize Installment Value / Amount
+            const targetVal = data.installmentValue || data.installment_value || data.amount;
+            if (targetVal) {
+                payload.installment_value = targetVal;
+                // If installments table use 'amount' for value, keep it too
+                if (storeName === 'installments') {
+                    payload.amount = targetVal;
+                }
+            }
+
+            // Normalize Due Date
+            const targetDueDate = data.dueDate || data.due_date || data.duedate;
+            if (targetDueDate) {
+                payload.due_date = targetDueDate;
+                payload.duedate = targetDueDate;
             }
         }
 
+        // Clean up relation objects that should not be sent to the database
         delete payload.client;
         delete payload.loan;
         delete payload.installment;
-        delete payload.type; // Request frontend prop
+        delete payload.type;
 
         // Se a tabela é estritamente loan_requests (Schema Rígido de 4 Colunas), limitamos o payload.
         if (storeName === 'loan_requests') {
