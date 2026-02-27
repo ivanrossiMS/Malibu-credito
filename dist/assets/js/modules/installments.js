@@ -426,7 +426,8 @@ export default class InstallmentsModule {
                             amount: inst.installmentValue || inst.amount || 0,
                             method: 'pix',
                             notes: notes || 'Baixa manual pelo administrador',
-                            createdAt: new Date(date + 'T12:00:00Z').toISOString() // force the selected date
+                            createdAt: new Date(date + 'T12:00:00Z').toISOString(), // force the selected date
+                            paymentDate: date
                         });
 
                         document.getElementById('pay-installment-modal').classList.add('hidden');

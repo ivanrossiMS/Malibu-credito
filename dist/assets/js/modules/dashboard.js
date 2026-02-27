@@ -256,30 +256,12 @@ export default class DashboardModule {
         const limitToOverdue = ['hoje', '3dias', 'ontem', 'personalizado'];
 
         document.querySelectorAll('.filter-period').forEach(btn => {
-            const period = btn.dataset.period;
-            if (metric === 'overdue') {
-                btn.style.display = limitToOverdue.includes(period) ? '' : 'none';
-            } else if (metric === 'received') {
-                btn.style.display = limitToShortTerm.includes(period) ? '' : 'none';
-            } else {
-                // receivable
-                btn.style.display = (period === 'ontem' || period === '3dias') ? 'none' : '';
-            }
+            btn.style.display = '';
         });
 
-        // Forçar "Hoje" se estiver transitando para um período proibido pela métrica
+        // Forçar "Hoje" se estiver transitando para um período proibido (apenas casos extremos)
         let forceToday = false;
-        if (metric === 'overdue' && !limitToOverdue.includes(this.currentPeriod)) forceToday = true;
-        if (metric === 'received' && !limitToShortTerm.includes(this.currentPeriod)) forceToday = true;
-        if (metric === 'receivable' && (this.currentPeriod === 'ontem' || this.currentPeriod === '3dias')) forceToday = true;
-
-        if (forceToday) {
-            const hojeBtn = document.querySelector('.filter-period[data-period="hoje"]');
-            if (hojeBtn) {
-                this.selectPeriod('hoje', hojeBtn);
-                return;
-            }
-        }
+        // Removida restrição agressiva para permitir visão do MÊS em todos os cards.
 
         // Update titles
         const titles = {
@@ -424,7 +406,7 @@ export default class DashboardModule {
         }
 
         return data.filter(item => {
-            let itemDateStr = metric === 'received' ? item.createdAt : item.dueDate;
+            let itemDateStr = metric === 'received' ? (item.paymentDate || item.createdAt) : item.dueDate;
             if (!itemDateStr) return false;
             const itemDateLocal = DateHelper.toLocalYYYYMMDD(itemDateStr);
 
@@ -514,8 +496,8 @@ export default class DashboardModule {
         // Sort Data
         if (this.currentMetric !== 'clients') {
             data.sort((a, b) => {
-                const dA = DateHelper.toLocalYYYYMMDD(a.createdAt || a.dueDate);
-                const dB = DateHelper.toLocalYYYYMMDD(b.createdAt || b.dueDate);
+                const dA = DateHelper.toLocalYYYYMMDD(a.paymentDate || a.createdAt || a.dueDate);
+                const dB = DateHelper.toLocalYYYYMMDD(b.paymentDate || b.createdAt || b.dueDate);
                 return this.currentMetric === 'received' ? (dB < dA ? -1 : 1) : (dA < dB ? -1 : 1);
             });
         }
@@ -577,7 +559,7 @@ export default class DashboardModule {
                 const instNumber = inst ? inst.number : '?';
                 const instTotal = loan ? loan.numInstallments : '?';
 
-                const dtPaid = DateHelper.formatLocal(item.createdAt);
+                const dtPaid = DateHelper.formatLocal(item.paymentDate || item.createdAt);
                 const dtDue = DateHelper.formatLocal(inst?.dueDate);
                 const cityDisplay = c.city ? ` - ${c.city}` : '';
 

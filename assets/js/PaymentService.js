@@ -1,5 +1,6 @@
 import storage from './StorageService.js';
 import installmentService from './InstallmentService.js';
+import DateHelper from './DateHelper.js';
 
 class PaymentService {
     async getAll() {
@@ -21,7 +22,8 @@ class PaymentService {
     }
 
     async registerPayment(paymentData) {
-        paymentData.createdAt = new Date().toISOString();
+        paymentData.createdAt = paymentData.createdAt || new Date().toISOString();
+        paymentData.paymentDate = paymentData.paymentDate || DateHelper.toLocalYYYYMMDD(paymentData.createdAt);
 
         // Ensure clientId is present for easy filtering in client view
         if (!paymentData.clientId && paymentData.installmentId) {

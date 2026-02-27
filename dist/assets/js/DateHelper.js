@@ -15,7 +15,7 @@ const DateHelper = {
             d = val;
         } else if (typeof val === 'string') {
             // Se já for YYYY-MM-DD purinho (vindo do DB ou input date)
-            const match = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            const match = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
             if (match) {
                 // Retorna a string pura sem passar pelo constructor Date
                 // Isso evita deslocamentos de timezone
