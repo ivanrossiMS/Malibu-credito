@@ -255,17 +255,31 @@ export default class DashboardModule {
             if (periodFiltersGroup) periodFiltersGroup.style.display = 'flex';
         }
 
-        // Lógicas detalhadas de Filtros de Períodos
-        const limitToShortTerm = ['hoje', 'ontem', 'personalizado'];
-        const limitToOverdue = ['hoje', '3dias', 'ontem', 'personalizado'];
+        // Detail Filter Visibility Logic
+        const filterSets = {
+            'receivable': ['hoje', 'amanha', '7dias', 'mes', 'ano', 'personalizado'],
+            'overdue': ['hoje', 'ontem', 'mes', 'ano', 'personalizado'],
+            'received': ['hoje', 'ontem', 'mes', 'ano', 'personalizado'],
+            'clients': []
+        };
+
+        const allowedPeriods = filterSets[metric] || [];
 
         document.querySelectorAll('.filter-period').forEach(btn => {
-            btn.style.display = '';
+            const period = btn.getAttribute('data-period');
+            if (allowedPeriods.includes(period)) {
+                btn.style.display = 'flex';
+            } else {
+                btn.style.display = 'none';
+            }
         });
 
-        // Forçar "Hoje" se estiver transitando para um período proibido (apenas casos extremos)
-        let forceToday = false;
-        // Removida restrição agressiva para permitir visão do MÊS em todos os cards.
+        // Ensure a valid period is selected if the current one becomes hidden
+        if (metric !== 'clients' && !allowedPeriods.includes(this.currentPeriod)) {
+            const defaultPeriod = allowedPeriods[0] || 'hoje';
+            const defaultBtn = document.querySelector(`.filter-period[data-period="${defaultPeriod}"]`);
+            this.selectPeriod(defaultPeriod, defaultBtn);
+        }
 
         // Update titles
         const titles = {
