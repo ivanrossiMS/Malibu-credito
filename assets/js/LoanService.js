@@ -23,6 +23,8 @@ class LoanService {
 
         // Explicit fallback for common naming variations
         loanData.clientid = loanData.clientid || loanData.clientId || loanData.client_id;
+        delete loanData.clientId;
+        delete loanData.client_id;
 
         const loanId = await storage.add('loans', loanData);
 
@@ -92,7 +94,6 @@ class LoanService {
 
             installments.push({
                 loanid: loanId,
-                loan_id: loanId, // Duplicate for safety
                 number: i,
                 amount: data.installmentValue || data.amount,
                 due_date: DateHelper.toLocalYYYYMMDD(dueDate),
