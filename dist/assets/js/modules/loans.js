@@ -141,7 +141,7 @@ export default class LoansModule {
             portfolioLoans = this.allLoans.filter(l => l.status === 'ativo');
         }
         const totalPortfolio = portfolioLoans.reduce((sum, l) => {
-            const val = parseFloat(l.installmentValue || l.installmentAmount) || 0;
+            const val = parseFloat(l.amount || l.installmentValue || l.installmentAmount) || 0;
             const count = parseInt(l.numInstallments || l.installmentsCount) || 0;
             return sum + (val * count);
         }, 0);

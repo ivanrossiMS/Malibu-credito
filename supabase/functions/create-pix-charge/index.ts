@@ -39,20 +39,18 @@ serve(async (req) => {
         if (instError) throw new Error(`Banco (Parcela): ${instError.message}`);
         if (!inst) throw new Error(`Parcela ${installment_id} não encontrada.`);
 
-        // EXPLORATORY LOGGING - Find common amount fields if 'amount' is empty
-        console.log("DEBUG Parcela:", JSON.stringify(inst));
-
-        // We try common names for the amount field
-        const rawAmount = inst.amount ?? inst.valor ?? inst.valor_parcela ?? inst.value ?? inst.total;
+        // Robust value extraction to handle naming variations in the DB
+        console.log("DEBUG Parcela Content:", JSON.stringify(inst));
+        const rawAmount = inst.amount ?? inst.installment_amount ?? inst.installment_value ?? inst.valor ?? inst.value;
         const paymentValue = parseFloat(rawAmount?.toString() || "0");
 
         if (paymentValue <= 0) {
-            throw new Error(`O valor da parcela estah zerado ou nulo (${paymentValue}). Verifique o campo 'amount' no banco de dados.`);
+            throw new Error(`O valor da parcela estah zerado ou nulo (${paymentValue}). Isso ocorre se o emprestimo foi gerado sem valor. Verifique a coluna 'amount' da parcela ${installment_id} no Banco de Dados.`);
         }
 
         const client = inst.loan?.client;
         if (!client) throw new Error("Cliente nao vinculado a esta parcela.");
-        if (!client.cpf_cnpj) throw new Error(`O cliente ${client.name} nao possui CPF/CNPJ cadastrado.`);
+        if (!client.cpf_cnpj) throw new Error(`O cliente ${client.name || 'Desconhecido'} nao possui CPF/CNPJ cadastrado no Malibu.`);
 
         // 2. Check existing charge
         const { data: existingCharge } = await supabase
@@ -70,7 +68,7 @@ serve(async (req) => {
         }
 
         // 3. Asaas Integration: Customer
-        const searchRes = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${client.cpf_cnpj}`, {
+        const searchRes = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${client.cpf_cnpj.replace(/\D/g, '')}`, {
             headers: { 'access_token': ASAAS_API_KEY }
         });
         const searchData = await searchRes.json();
@@ -79,14 +77,16 @@ serve(async (req) => {
         if (searchData.data && searchData.data.length > 0) {
             asaasCustomerId = searchData.data[0].id;
         } else {
+            console.log(`Criando novo cliente no Asaas: ${client.name}`);
             const createRes = await fetch(`${ASAAS_URL}/customers`, {
                 method: 'POST',
                 headers: { 'access_token': ASAAS_API_KEY, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: client.name,
-                    cpfCnpj: client.cpf_cnpj,
+                    cpfCnpj: client.cpf_cnpj.replace(/\D/g, ''),
                     email: client.email || undefined,
-                    mobilePhone: client.phone || undefined
+                    mobilePhone: client.phone || undefined,
+                    externalReference: client.id.toString()
                 })
             });
             const newCust = await createRes.json();
@@ -95,7 +95,7 @@ serve(async (req) => {
         }
 
         // 4. Create Payment
-        const dueDate = inst.due_date || inst.data_vencimento || new Date().toISOString().split('T')[0];
+        const dueDate = inst.due_date || new Date().toISOString().split('T')[0];
 
         const payRes = await fetch(`${ASAAS_URL}/payments`, {
             method: 'POST',
@@ -105,7 +105,7 @@ serve(async (req) => {
                 billingType: "PIX",
                 value: paymentValue,
                 dueDate: dueDate,
-                description: `Parcela ${inst.number} - Emprestimo ${inst.loan.loan_code || inst.loan.id}`,
+                description: `Parcela ${inst.number} - Emprestimo ${inst.loan?.loan_code || inst.loan?.id || 'MAL'}`,
                 externalReference: inst.id.toString()
             })
         });
@@ -119,7 +119,7 @@ serve(async (req) => {
         });
         const qrData = await qrRes.json();
 
-        // 6. Save
+        // 6. Save locally
         const chargeData = {
             installment_id: inst.id,
             txid: payData.id,

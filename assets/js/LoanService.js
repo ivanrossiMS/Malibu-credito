@@ -94,7 +94,7 @@ class LoanService {
                 loanid: loanId,
                 loan_id: loanId, // Duplicate for safety
                 number: i,
-                installment_value: data.installmentValue,
+                amount: data.installmentValue || data.amount,
                 due_date: DateHelper.toLocalYYYYMMDD(dueDate),
                 status: 'PENDING'
             });

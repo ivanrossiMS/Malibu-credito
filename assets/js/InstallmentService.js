@@ -44,7 +44,7 @@ class InstallmentService {
         if (!item) throw new Error("Parcela não encontrada.");
 
         if (data.dueDate !== undefined) item.dueDate = data.dueDate;
-        if (data.amount !== undefined) item.installmentValue = data.amount;
+        if (data.amount !== undefined) item.amount = data.amount;
         if (data.status !== undefined) item.status = data.status;
 
         // Strip paidAt as it's not a real column in installments (it belongs to payments) to prevent PGRST204
