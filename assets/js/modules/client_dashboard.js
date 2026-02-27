@@ -26,6 +26,9 @@ export default class ClientDashboardModule {
         this.currentPage = 1;
         this.itemsPerPage = 15;
 
+        // Global Handlers
+        window.sendReceiptToWhatsApp = (id) => this.sendReceiptToWhatsApp(id);
+
         await this.renderDashboard();
         this.bindGlobalEvents();
     }
