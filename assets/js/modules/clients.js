@@ -169,6 +169,19 @@ export default class ClientsModule {
                     company: document.getElementById('company').value
                 };
 
+                // CLIENT-SIDE VALIDATION
+                if (!clientService.constructor.validateEmail(data.email)) {
+                    alert("Formato de e-mail inválido.");
+                    return;
+                }
+
+                if (data.cpf_cnpj && data.cpf_cnpj.length <= 14) {
+                    if (!clientService.constructor.validateCPF(data.cpf_cnpj)) {
+                        alert("CPF inválido.");
+                        return;
+                    }
+                }
+
                 try {
                     if (data.id) {
                         // UPDATE CLIENT

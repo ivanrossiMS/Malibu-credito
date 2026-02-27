@@ -1,4 +1,5 @@
 import storage from './StorageService.js';
+import clientService from './ClientService.js';
 
 class AuthService {
     constructor() {
@@ -147,6 +148,16 @@ class AuthService {
         const users = await storage.getAll('users');
         if (users.find(u => u.email === userData.email)) {
             throw new Error("Email já cadastrado.");
+        }
+
+        if (!clientService.constructor.validateEmail(userData.email)) {
+            throw new Error("Formato de e-mail inválido.");
+        }
+
+        if (userData.cpf_cnpj && userData.cpf_cnpj.length <= 14) { // Basic check for CPF vs CNPJ
+            if (!clientService.constructor.validateCPF(userData.cpf_cnpj)) {
+                throw new Error("CPF inválido.");
+            }
         }
 
         const newUser = {
