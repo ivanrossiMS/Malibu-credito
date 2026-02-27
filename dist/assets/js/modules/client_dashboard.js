@@ -11,7 +11,12 @@ export default class ClientDashboardModule {
     async init() {
         if (!auth.isAuthenticated()) return;
 
-        this.client = await this.getCurrentClient();
+        this.client = await clientService.getByUserId(auth.currentUser.id);
+        if (!this.client) {
+            // Fallback for extreme cases (email search)
+            this.client = await this.getCurrentClient();
+        }
+
         if (!this.client) {
             console.error("Client record not found for user.");
             return;
@@ -32,22 +37,23 @@ export default class ClientDashboardModule {
     }
 
     async renderDashboard() {
-        const loans = (await loanService.getAll()).filter(l => String(l.clientId) === String(this.client.id));
-        const installments = (await installmentService.getAll()).filter(i => i.loan && String(i.loan.clientId) === String(this.client.id));
+        const allLoans = await loanService.getAll();
+        const loans = allLoans.filter(l => String(l.clientId || l.clientid) === String(this.client.id));
+
+        const allInstallments = await installmentService.getAll();
+        const installments = allInstallments.filter(i => i.loan && String(i.loan.clientId || i.loan.clientid) === String(this.client.id));
 
         // Also fetch payments to cross-reference proofs
         const allPayments = await paymentService.getAll();
         this.clientPayments = allPayments.filter(p => {
-            if (String(p.clientId) === String(this.client.id)) return true;
-            if (p.client && String(p.client.id) === String(this.client.id)) return true;
-            if (p.loan && String(p.loan.clientId) === String(this.client.id)) return true;
-            return false;
+            const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
+            return String(pClientId) === String(this.client.id);
         });
 
         // Calculate Totals
-        const totalLoaned = loans.reduce((sum, l) => sum + (parseFloat(l.installmentValue || 0) * parseInt(l.numInstallments || 0)), 0);
-        const totalPaid = installments.filter(i => i.status === 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.amount || 0), 0);
-        const balanceDue = installments.filter(i => i.status !== 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.amount || 0), 0);
+        const totalLoaned = loans.reduce((sum, l) => sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0)), 0);
+        const totalPaid = installments.filter(i => i.status === 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+        const balanceDue = installments.filter(i => i.status !== 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
         // Update UI Cards
         if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
@@ -424,8 +430,9 @@ export default class ClientDashboardModule {
 
         // WhatsApp Receipt
         window.sendReceiptToWhatsApp = async (id) => {
-            const installments = (await installmentService.getAll()).filter(i => i.loan && i.loan.clientId === this.client.id);
-            const inst = installments.find(i => i.id == id);
+            const allInst = await installmentService.getAll();
+            const installments = allInst.filter(i => i.loan && String(i.loan.clientId || i.loan.clientid) === String(this.client.id));
+            const inst = installments.find(i => String(i.id) === String(id));
             if (!inst) return;
 
             const phone = "5511999999999"; // Exemplo
