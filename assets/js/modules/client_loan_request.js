@@ -97,6 +97,7 @@ export default class ClientLoanRequestModule {
                 amount: amount,
                 installments: installments,
                 frequency: frequency,
+                startDate: startDate,
                 description: finalDescription,
                 status: 'pendente'
             };
