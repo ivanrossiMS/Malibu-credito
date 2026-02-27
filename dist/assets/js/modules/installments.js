@@ -145,6 +145,9 @@ export default class InstallmentsModule {
             installments = installments.filter(i => (i.status || '').toLowerCase() === this.currentStatus.toLowerCase());
         }
 
+        // 3.5 Update Summary Card
+        this.updateSummaryCard(installments);
+
         // 4. Sort
         installments.sort((a, b) => {
             let valA = a[this.sortConfig.field];
@@ -650,6 +653,68 @@ export default class InstallmentsModule {
         }
 
         modal.classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    updateSummaryCard(installments) {
+        const container = document.getElementById('installments-summary-container');
+        const titleEl = document.getElementById('summary-title');
+        const amountEl = document.getElementById('summary-amount');
+        const periodEl = document.getElementById('summary-period');
+        const iconContainer = document.getElementById('summary-icon-container');
+
+        if (!container || !titleEl || !amountEl || !periodEl || !iconContainer) return;
+
+        if (installments.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+
+        const total = installments.reduce((sum, i) => sum + (parseFloat(i.installmentValue || i.amount || 0)), 0);
+        amountEl.textContent = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        let title = 'Total Geral';
+        let icon = 'calculator';
+        let colorClass = 'primary';
+
+        const status = (this.currentStatus || 'todas').toLowerCase();
+        if (status === 'paga') {
+            title = 'Total Recebido';
+            icon = 'check-circle';
+            colorClass = 'emerald';
+        } else if (status === 'atrasada') {
+            title = 'Total em Atraso';
+            icon = 'alert-triangle';
+            colorClass = 'rose';
+        } else if (status === 'pendente') {
+            title = 'Total Vencendo Hoje';
+            icon = 'clock';
+            colorClass = 'amber';
+        } else if (status === 'avencer') {
+            title = 'Total a Vencer';
+            icon = 'calendar-clock';
+            colorClass = 'blue';
+        }
+
+        titleEl.textContent = title;
+
+        // Update icon and colors
+        iconContainer.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6"></i>`;
+        iconContainer.className = `w-12 h-12 rounded-2xl bg-${colorClass}-100 flex items-center justify-center text-${colorClass}-600 shadow-inner shrink-0`;
+
+        let periodLabel = 'Qualquer data';
+        if (this.currentDateType === 'hoje') periodLabel = 'Hoje';
+        else if (this.currentDateType === 'amanha') periodLabel = 'Amanhã';
+        else if (this.currentDateType === '7dias') periodLabel = 'Próximos 7 dias';
+        else if (this.currentDateType === 'mes') periodLabel = 'Neste Mês';
+        else if (this.currentDateType === 'ano') periodLabel = 'Neste Ano';
+        else if (this.currentDateType === 'personalizado') periodLabel = 'Data Customizada';
+
+        periodEl.textContent = periodLabel;
+        periodEl.className = `bg-${colorClass}-50 text-${colorClass}-600 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-${colorClass}-100`;
+
         lucide.createIcons();
     }
 }

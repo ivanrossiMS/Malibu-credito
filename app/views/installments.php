@@ -11,6 +11,26 @@
         </div>
     </div>
 
+    <!-- Summary Card -->
+    <div id="installments-summary-container" class="mb-6 hidden">
+        <div class="premium-card p-6 border-primary/10 bg-gradient-to-br from-white to-slate-50/50">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div id="summary-icon-container" class="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner shrink-0">
+                        <i data-lucide="calculator" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p id="summary-title" class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Geral</p>
+                        <h3 id="summary-amount" class="text-2xl font-black text-slate-900 tracking-tight">R$ 0,00</h3>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span id="summary-period" class="bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-primary/10">Qualquer data</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Filters -->
     <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap gap-4 items-center">
         <button class="filter-status px-4 py-2 rounded-xl text-sm font-bold bg-primary text-white flex items-center justify-center gap-1" data-status="todas">
