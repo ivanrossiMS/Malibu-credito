@@ -138,18 +138,7 @@
     </div>
 </div>
 
-<!-- Proof Viewer Modal -->
-<div id="proof-viewer-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[250] hidden flex items-center justify-center p-4 md:p-10">
-    <div class="relative w-full max-w-5xl h-full flex flex-col items-center justify-center">
-        <button class="close-proof-modal absolute -top-12 right-0 text-white hover:text-rose-400 transition-all flex items-center gap-2 font-bold uppercase tracking-widest text-xs">
-            <span>Fechar Visualização</span>
-            <i data-lucide="x" class="w-8 h-8"></i>
-        </button>
-        <div id="proof-display" class="w-full h-full rounded-2xl overflow-hidden bg-white/5 flex items-center justify-center">
-            <!-- Content injected via JS (img or iframe) -->
-        </div>
-    </div>
-</div>
+
 
 <!-- Edit Installment Modal -->
 <div id="edit-installment-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[250] hidden flex items-center justify-center p-4 md:p-10">

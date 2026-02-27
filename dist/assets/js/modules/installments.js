@@ -483,7 +483,7 @@ export default class InstallmentsModule {
             const proof = inst?.proof || payment?.proof || payment?.installment?.proof;
 
             if (proof) {
-                this.showProofModal(proof);
+                window.viewProof(proof);
             } else {
                 alert("Nenhum comprovante encontrado no sistema para esta parcela.");
             }
@@ -645,28 +645,6 @@ export default class InstallmentsModule {
                 }
             };
         }
-    }
-
-    showProofModal(proof) {
-        const modal = document.getElementById('proof-viewer-modal');
-        const display = document.getElementById('proof-display');
-        if (!modal || !display) return;
-
-        display.innerHTML = '';
-        if (proof.startsWith('data:image/') || (typeof proof === 'string' && (proof.match(/\.(jpeg|jpg|gif|png)$/) != null))) {
-            const img = document.createElement('img');
-            img.src = proof;
-            img.className = 'max-w-full max-h-full object-contain rounded-xl shadow-2xl';
-            display.appendChild(img);
-        } else {
-            const iframe = document.createElement('iframe');
-            iframe.src = proof;
-            iframe.className = 'w-full h-full border-none rounded-xl bg-white';
-            display.appendChild(iframe);
-        }
-
-        modal.classList.remove('hidden');
-        lucide.createIcons();
     }
 
     updateSummaryCard(installments) {

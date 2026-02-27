@@ -297,7 +297,7 @@ export default class ClientPaymentsModule {
                 const payment = this.filteredPayments.find(p => String(p.id) === String(id));
                 const proof = payment?.installment?.proof || payment?.proof;
                 if (proof) {
-                    this.showProofModal(proof);
+                    window.viewProof(proof);
                 } else {
                     alert("Comprovante não encontrado para este pagamento.");
                 }
@@ -313,7 +313,6 @@ export default class ClientPaymentsModule {
         const totalPaid = this.payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
         const periodAmount = this.filteredPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-        const periodCount = this.filteredPayments.length;
 
         // Update Label
         const labelEl = document.getElementById('client-stat-period-label');
@@ -348,38 +347,6 @@ export default class ClientPaymentsModule {
         }
     }
 
-    showProofModal(proof) {
-        const modal = document.getElementById('proof-viewer-modal');
-        const display = document.getElementById('proof-display');
-        if (!modal || !display) return;
-
-        display.innerHTML = '<div class="text-white flex flex-col items-center gap-4"><i data-lucide="loader-2" class="w-12 h-12 animate-spin opacity-20"></i><p>Carregando arquivo...</p></div>';
-        lucide.createIcons();
-
-        setTimeout(() => {
-            display.innerHTML = '';
-
-            // Robust check for base64 or URL
-            const isBase64 = typeof proof === 'string' && proof.startsWith('data:');
-            const isImage = isBase64 ? proof.startsWith('data:image/') : (typeof proof === 'string' && proof.match(/\.(jpeg|jpg|gif|png)$/i) != null);
-
-            if (isImage) {
-                const img = document.createElement('img');
-                img.src = proof;
-                img.className = 'max-w-full max-h-full object-contain rounded-xl shadow-2xl animate-fade-in';
-                display.appendChild(img);
-            } else {
-                const iframe = document.createElement('iframe');
-                iframe.src = proof;
-                iframe.className = 'w-full h-full border-none rounded-xl bg-white animate-fade-in';
-                display.appendChild(iframe);
-            }
-        }, 300);
-
-        modal.classList.remove('hidden');
-        lucide.createIcons();
-    }
-
     exportCSV() {
         if (this.filteredPayments.length === 0) return alert("Sem dados.");
         const headers = ["Data", "Contrato", "Parcela", "Metodo", "Valor"];
@@ -398,4 +365,3 @@ export default class ClientPaymentsModule {
         link.click();
     }
 }
-

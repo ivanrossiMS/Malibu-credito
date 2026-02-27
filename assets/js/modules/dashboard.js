@@ -33,7 +33,6 @@ export default class DashboardModule {
 
         window.approvePendingProof = (id) => this.approvePendingProof(id);
         window.rejectPendingProof = (id) => this.rejectPendingProof(id);
-        window.viewProof = (url) => window.open(url, '_blank');
 
         window.prevDetailedPage = () => {
             if (this.listCurrentPage > 1) {
@@ -700,7 +699,7 @@ export default class DashboardModule {
                     </div>
                     
                     <div class="grid grid-cols-2 gap-2">
-                        <button onclick="viewProof('${i.proof}')" class="bg-white border border-slate-200 text-slate-600 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+                        <button data-id="${i.id}" class="view-pending-proof bg-white border border-slate-200 text-slate-600 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
                             <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver
                         </button>
                         <button onclick="approvePendingProof(${i.id})" class="bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2">
@@ -712,6 +711,15 @@ export default class DashboardModule {
                 </div>
             `;
         }).join('');
+
+        // Bind view events safely
+        listContainer.querySelectorAll('.view-pending-proof').forEach(btn => {
+            btn.onclick = () => {
+                const id = btn.getAttribute('data-id');
+                const inst = this.installments.find(x => String(x.id) === String(id));
+                if (inst && inst.proof) window.viewProof(inst.proof);
+            };
+        });
 
         lucide.createIcons();
     }

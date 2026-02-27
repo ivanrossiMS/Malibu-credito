@@ -193,7 +193,7 @@ export default class ClientDashboardModule {
                         const pay = this.clientPayments.find(p => String(p.installmentId) === String(id));
                         proof = pay?.proof;
                     }
-                    if (proof) this.showProofModal(proof);
+                    if (proof) window.viewProof(proof);
                     else alert("Comprovante ausente.");
                 };
             });
@@ -355,7 +355,7 @@ export default class ClientDashboardModule {
                 const id = btn.getAttribute('data-id');
                 const payment = this.clientPayments.find(p => String(p.id) === String(id));
                 const proof = payment?.installment?.proof || payment?.proof;
-                if (proof) this.showProofModal(proof);
+                if (proof) window.viewProof(proof);
             };
         });
 
@@ -427,70 +427,6 @@ export default class ClientDashboardModule {
                 alert("Chave PIX copiada!");
             };
         }
-
-        // WhatsApp Receipt
-        window.sendReceiptToWhatsApp = async (id) => {
-            const allInst = await installmentService.getAll();
-            const installments = allInst.filter(i => i.loan && String(i.loan.clientId || i.loan.clientid) === String(this.client.id));
-            const inst = installments.find(i => String(i.id) === String(id));
-            if (!inst) return;
-
-            const phone = "5511999999999"; // Exemplo
-            const msg = encodeURIComponent(
-                `Olá, aqui é o cliente *${this.client.name}*.\n\n` +
-                `Estou enviando o comprovante de pagamento da parcela:\n` +
-                `📌 *ID Contrato:* ${inst.loan.loanCode}\n` +
-                `📌 *Parcela:* #${inst.number}\n` +
-                `📌 *Vencimento:* ${this.formatDate(inst.dueDate)}\n` +
-                `📌 *Valor:* ${this.formatCurrency(inst.amount)}\n\n` +
-                `Segue em anexo o comprovante.`
-            );
-            window.open(`https://wa.me/${phone}?text=${msg}`);
-        };
-
-        // Navigation for Extrato is handled purely by HTML <a> href -> ?page=client_payments
-
-        // Proof Viewer Close
-        document.querySelectorAll('.close-proof-modal').forEach(btn => {
-            btn.onclick = () => {
-                const modal = document.getElementById('proof-viewer-modal');
-                if (modal) modal.classList.add('hidden');
-            };
-        });
-
-        window.showProofModal = (proof) => this.showProofModal(proof);
-    }
-
-    showProofModal(proof) {
-        const modal = document.getElementById('proof-viewer-modal');
-        const display = document.getElementById('proof-display');
-        if (!modal || !display) return;
-
-        // Reset and show loader
-        display.innerHTML = '<div class="text-white flex flex-col items-center gap-4"><i data-lucide="loader-2" class="w-12 h-12 animate-spin opacity-20"></i><p class="text-xs font-semibold uppercase tracking-widest">Carregando visualização...</p></div>';
-        lucide.createIcons();
-
-        setTimeout(() => {
-            display.innerHTML = '';
-
-            const isBase64 = typeof proof === 'string' && proof.startsWith('data:');
-            const isImage = isBase64 ? proof.startsWith('data:image/') : (typeof proof === 'string' && proof.match(/\.(jpeg|jpg|gif|png)$/i) != null);
-
-            if (isImage) {
-                const img = document.createElement('img');
-                img.src = proof;
-                img.className = 'max-w-full max-h-full object-contain rounded-2xl shadow-2xl animate-fade-in ring-1 ring-white/10';
-                display.appendChild(img);
-            } else {
-                const iframe = document.createElement('iframe');
-                iframe.src = proof;
-                iframe.className = 'w-full h-full border-none rounded-2xl bg-white animate-fade-in shadow-2xl';
-                display.appendChild(iframe);
-            }
-        }, 400);
-
-        modal.classList.remove('hidden');
-        lucide.createIcons();
     }
 
     formatDateTime(dateStr) {

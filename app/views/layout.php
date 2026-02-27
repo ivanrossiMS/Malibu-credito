@@ -185,3 +185,20 @@
         </nav>
     </main>
 </div>
+
+<!-- Global Proof Viewer Modal -->
+<div id="proof-viewer-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[250] hidden flex items-center justify-center p-4 md:p-10">
+    <div class="relative w-full max-w-5xl h-full flex flex-col items-center justify-center">
+        <button id="close-proof-modal" class="absolute -top-12 right-0 text-white hover:text-rose-400 transition-all flex items-center gap-2 font-bold uppercase tracking-widest text-xs">
+            <span>Fechar Visualização</span>
+            <i data-lucide="x" class="w-8 h-8"></i>
+        </button>
+        <div id="proof-display" class="w-full h-full rounded-2xl overflow-hidden bg-white/5 flex items-center justify-center text-center p-4">
+            <!-- Content injected via JS -->
+            <div class="text-white text-center">
+                <i data-lucide="loader-2" class="w-12 h-12 animate-spin mx-auto mb-4 opacity-20"></i>
+                <p class="text-slate-400 text-sm font-medium">Carregando arquivo...</p>
+            </div>
+        </div>
+    </div>
+</div>

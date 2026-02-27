@@ -62,6 +62,7 @@ class App {
                 await this.setupUI();
                 this.handleAuthVisibility();
                 this.bindEvents();
+                this.bindGlobalModals();
 
                 if (modules[this.config.currentPage]) {
                     try {
@@ -537,6 +538,65 @@ class App {
         }
 
         // Handle all internal links to prevent full reloads if possible (future enhancement)
+    }
+
+    bindGlobalModals() {
+        // Global Proof Viewer Modal Close Logic
+        const closeBtn = document.getElementById('close-proof-modal');
+        const modal = document.getElementById('proof-viewer-modal');
+
+        if (closeBtn && modal) {
+            const close = () => modal.classList.add('hidden');
+            closeBtn.onclick = close;
+            modal.onclick = (e) => {
+                if (e.target === modal) close();
+            };
+        }
+
+        // Expose global viewer function
+        window.viewProof = (url) => this.showGlobalProofModal(url);
+    }
+
+    showGlobalProofModal(proof) {
+        if (!proof) return;
+
+        const modal = document.getElementById('proof-viewer-modal');
+        const display = document.getElementById('proof-display');
+        if (!modal || !display) return;
+
+        display.innerHTML = '';
+
+        // Show loading state first
+        display.innerHTML = `
+            <div class="text-white text-center">
+                <i data-lucide="loader-2" class="w-12 h-12 animate-spin mx-auto mb-4 opacity-20"></i>
+                <p class="text-slate-400 text-sm font-medium">Carregando arquivo...</p>
+            </div>
+        `;
+
+        const isImage = proof.startsWith('data:image/') || (typeof proof === 'string' && (proof.match(/\.(jpeg|jpg|gif|png|webp|bmp)$/i) != null));
+
+        if (isImage) {
+            const img = new Image();
+            img.onload = () => {
+                display.innerHTML = '';
+                img.className = 'max-w-full max-h-full object-contain rounded-xl shadow-2xl';
+                display.appendChild(img);
+            };
+            img.onerror = () => {
+                display.innerHTML = '<div class="text-rose-400 font-bold">Erro ao carregar imagem.</div>';
+            };
+            img.src = proof;
+        } else {
+            const iframe = document.createElement('iframe');
+            iframe.src = proof;
+            iframe.className = 'w-full h-full border-none rounded-xl bg-white shadow-2xl';
+            display.innerHTML = '';
+            display.appendChild(iframe);
+        }
+
+        modal.classList.remove('hidden');
+        lucide.createIcons();
     }
 }
 
