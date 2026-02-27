@@ -110,7 +110,6 @@ class StorageService {
                 installments: data.installments || 1,
                 frequency: data.frequency || '',
                 description: data.description || '',
-                start_date: data.startDate || data.start_date || null,
                 created_at: data.created_at || data.createdAt || new Date().toISOString()
             };
 
