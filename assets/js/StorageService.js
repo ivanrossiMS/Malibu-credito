@@ -126,7 +126,7 @@ class StorageService {
             const targetDueDate = data.dueDate || data.due_date || data.duedate;
             if (targetDueDate) {
                 payload.due_date = targetDueDate;
-                payload.duedate = targetDueDate;
+                // 'duedate' removed as it doesn't exist in schema cache
             }
         }
 

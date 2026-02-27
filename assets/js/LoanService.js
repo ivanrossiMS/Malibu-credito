@@ -99,7 +99,6 @@ class LoanService {
                 amount: data.installmentValue || data.amount,
                 installment_value: data.installmentValue || data.amount,
                 due_date: DateHelper.toLocalYYYYMMDD(dueDate),
-                duedate: DateHelper.toLocalYYYYMMDD(dueDate),
                 status: 'PENDING'
             });
         }
