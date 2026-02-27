@@ -94,10 +94,8 @@ class LoanService {
 
             installments.push({
                 loanid: loanId,
-                loan_id: loanId,
                 number: i,
                 amount: data.installmentValue || data.amount,
-                installment_value: data.installmentValue || data.amount,
                 due_date: DateHelper.toLocalYYYYMMDD(dueDate),
                 status: 'PENDING'
             });

@@ -87,46 +87,39 @@ class StorageService {
         }
 
         // [RESILIÊNCIA DE BANCO] - Injetar duplicatas para colunas legadas e modernas
-        // O banco possui colunas redundantes como `clientid` e `client_id`. 
-        // Para evitar erros de RLS e FK, garantimos que ambas as versões existam onde aplicável.
-        const legacyTables = ['loans', 'installments', 'loan_requests'];
-        if (legacyTables.includes(storeName)) {
-            // Normalize Client ID
+        // O banco possui colunas redundantes em algumas tabelas, mas não em todas.
+        // Mapeamos especificamente o que cada tabela suporta para evitar PGRST204.
+
+        if (storeName === 'loans') {
             const targetClientId = data.clientid || data.clientId || data.client_id;
             if (targetClientId) {
                 payload.clientid = targetClientId;
                 payload.client_id = targetClientId;
             }
+        }
 
-            // Normalize Loan ID
+        if (storeName === 'installments') {
+            // Installments só aceita 'loanid' (sem underline), 'amount' (valor da parcela) e 'due_date'
             const targetLoanId = data.loanid || data.loanId || data.loan_id;
             if (targetLoanId) {
                 payload.loanid = targetLoanId;
-                payload.loan_id = targetLoanId;
             }
 
-            // Normalize Installment ID
-            const targetInstallmentId = data.installmentid || data.installmentId || data.installment_id;
-            if (targetInstallmentId) {
-                payload.installmentid = targetInstallmentId;
-                payload.installment_id = targetInstallmentId;
-            }
-
-            // Normalize Installment Value / Amount
             const targetVal = data.installmentValue || data.installment_value || data.amount;
             if (targetVal) {
-                payload.installment_value = targetVal;
-                // If installments table use 'amount' for value, keep it too
-                if (storeName === 'installments') {
-                    payload.amount = targetVal;
-                }
+                payload.amount = targetVal;
             }
 
-            // Normalize Due Date
-            const targetDueDate = data.dueDate || data.due_date || data.duedate;
+            const targetDueDate = data.due_date || data.dueDate || data.duedate;
             if (targetDueDate) {
                 payload.due_date = targetDueDate;
-                // 'duedate' removed as it doesn't exist in schema cache
+            }
+        }
+
+        if (storeName === 'loan_requests') {
+            const targetClientId = data.clientid || data.clientId || data.client_id;
+            if (targetClientId) {
+                payload.clientid = targetClientId;
             }
         }
 
