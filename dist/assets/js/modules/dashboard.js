@@ -690,7 +690,15 @@ export default class DashboardModule {
                             </div>
                             <div>
                                 <p class="text-sm font-black text-slate-900 truncate max-w-[150px]">${client.name}</p>
-                                <p class="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Parcela ${i.number} • R$ ${amount}</p>
+                                <p class="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Parcela ${i.number} • R$ ${amount}</p>
+                                <div class="flex flex-col gap-0.5">
+                                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
+                                        <i data-lucide="calendar" class="w-2.5 h-2.5"></i> Vencimento: ${DateHelper.formatLocal(i.dueDate)}
+                                    </p>
+                                    <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-tighter flex items-center gap-1">
+                                        <i data-lucide="clock" class="w-2.5 h-2.5"></i> Envio: ${DateHelper.formatLocal(i.updatedAt || i.createdAt)}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         <a href="${whatsappLink}" target="_blank" class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all shadow-sm" title="Falar no WhatsApp">
