@@ -327,6 +327,22 @@ export default class ClientDashboardModule {
         `;
     }
 
+    sendReceiptToWhatsApp(id) {
+        const inst = this.installments.find(i => String(i.id) === String(id));
+        if (!inst) return;
+
+        const userName = document.querySelector('.user-name')?.textContent || 'Cliente';
+        const amount = parseFloat(inst.installmentValue || inst.amount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const date = this.formatDate(inst.dueDate);
+        const contract = inst.loan?.loanCode || '---';
+
+        const msg = `Olá! Sou o(a) *${userName}*.\n\nEnviei o comprovante da *parcela #${inst.number}* do contrato *${contract}*.\n\n*Valor:* ${amount}\n*Vencimento:* ${date}\n\nFavor confirmar o recebimento!`;
+
+        // Using a generic link since admin phone is not configured
+        const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
+    }
+
     async renderExtrato() {
         const list = document.getElementById('extrato-list');
         if (!list) return;
