@@ -35,10 +35,17 @@ export default class ClientLoansModule {
         const clientRequests = allRequests.filter(req =>
             String(req.clientId || req.clientid) === String(this.currentClient.id) &&
             req.status === 'pendente'
-        );
-
-
-
+        ); const combined = [...clientActiveLoans, ...clientRequests.map(r => ({
+            ...r,
+            id: 'req_' + r.id,
+            isRequest: true,
+            status: 'pendente',
+            createdAt: r.createdAt || r.created_at,
+            amount: r.amount,
+            numInstallments: r.installments,
+            loanCode: 'PENDENTE',
+            frequency: r.frequency
+        }))];
         this.clientLoans = combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
 
@@ -116,7 +123,7 @@ export default class ClientLoansModule {
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">${loan.status}</span>
                         ${loan.status === 'pendente' ? `
-
+                            <button data-id="${String(loan.id).replace('req_', '')}" class="cancel-loan-request w-10 h-10 bg-rose-50 text-rose-500 border border-rose-100 rounded-2xl flex items-center justify-center hover:bg-rose-500 hover:text-white hover:border-rose-500 hover:scale-110 active:scale-90 transition-all shadow-sm" title="Cancelar Solicitação">
                                 <i data-lucide="trash-2" class="w-5 h-5"></i>
                             </button>
                         ` : ''}
