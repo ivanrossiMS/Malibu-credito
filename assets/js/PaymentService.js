@@ -46,7 +46,7 @@ class PaymentService {
 
         // Update installment status
         if (paymentData.installmentId) {
-            await installmentService.updateStatus(paymentData.installmentId, 'paga');
+            await installmentService.updateStatus(paymentData.installmentId, 'PAID');
         }
 
         return id;

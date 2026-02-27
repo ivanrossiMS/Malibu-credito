@@ -18,7 +18,7 @@ class LoanService {
 
     async createLoan(loanData) {
         loanData.createdAt = new Date().toISOString();
-        loanData.status = 'ativo';
+        loanData.status = 'ATIVO';
         loanData.loanCode = await this.generateLoanCode();
 
         // Explicit fallback for common naming variations
