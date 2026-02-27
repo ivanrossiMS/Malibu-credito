@@ -57,6 +57,7 @@ export default class DashboardModule {
         if (defaultPeriodBtn) this.selectPeriod('hoje', defaultPeriodBtn);
 
         this.bindEvents();
+        this.setupRealtime();
     }
 
     async loadData() {
@@ -359,11 +360,11 @@ export default class DashboardModule {
     getFilteredData(metric) {
         let baseData = [];
         if (metric === 'receivable') {
-            baseData = this.installments.filter(i => i.status === 'pendente');
+            baseData = this.installments.filter(i => i.status === 'PENDING');
         } else if (metric === 'overdue') {
             baseData = this.installments.filter(i => {
-                const status = (i.status || '').toLowerCase();
-                return status === 'atrasada' || (status === 'pendente' && DateHelper.isPast(i.dueDate));
+                const status = (i.status || '').toUpperCase(); // Ensure status is uppercase for comparison
+                return status === 'OVERDUE' || (status === 'PENDING' && DateHelper.isPast(i.dueDate));
             });
         } else if (metric === 'received') {
             baseData = this.payments;
@@ -592,7 +593,7 @@ export default class DashboardModule {
                                     <span class="bg-white/60 px-2 py-0.5 rounded text-[10px] font-bold text-emerald-600 tracking-widest uppercase border border-emerald-200 shadow-sm">
                                         PARCELA ${instNumber} / ${instTotal}
                                     </span>
-                                </div>
+                                }
                                 
                                 <div class="flex items-center text-[10px] font-bold text-emerald-600/80 uppercase tracking-widest gap-3">
                                     <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-3 h-3"></i> PAGO: ${dtPaid}</span>
@@ -612,8 +613,8 @@ export default class DashboardModule {
                 const c = item.client || this.clients.find(x => String(x.id) === String(item.clientId)) || { name: 'Desconhecido', city: '' };
                 const dt = DateHelper.formatLocal(item.dueDate);
                 const status = (item.status || '').toLowerCase();
-                const isLate = status === 'atrasada' || ((status === 'pendente' || status === 'vendedora_pendente') && DateHelper.isPast(item.dueDate));
-                const isToday = !isLate && (status === 'pendente' || status === 'vencendo') && DateHelper.isToday(item.dueDate);
+                const isLate = status === 'overdue' || ((status === 'pending' || status === 'vendedora_pendente') && DateHelper.isPast(item.dueDate));
+                const isToday = !isLate && (status === 'pending' || status === 'vencendo') && DateHelper.isToday(item.dueDate);
 
                 const color = isLate ? 'rose' : (isToday ? 'amber' : 'blue');
                 const icon = isLate ? 'alert-circle' : (isToday ? 'clock' : 'calendar-clock');
@@ -679,7 +680,7 @@ export default class DashboardModule {
         // Filter installments that have proof and are not paid
         const pending = this.installments.filter(i => {
             const status = (i.status || '').toLowerCase();
-            return i.proof && status !== 'paga' && status !== 'pago';
+            return i.proof && status !== 'paid'; // Changed 'paga' to 'paid'
         });
 
         if (pending.length === 0) {

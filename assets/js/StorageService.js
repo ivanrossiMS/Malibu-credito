@@ -236,6 +236,48 @@ class StorageService {
         return this.toCamelCase(data);
     }
 
+    // Realtime Support
+    subscribe(table, event, callback, filter = null) {
+        if (!this.supabase) return null;
+
+        let channelName = `public:${table}`;
+        if (filter) channelName += `:${filter.column}=eq.${filter.value}`;
+
+        const channel = this.supabase
+            .channel(channelName)
+            .on(
+                'postgres_changes',
+                {
+                    event: event, // '*', 'INSERT', 'UPDATE', 'DELETE'
+                    schema: 'public',
+                    table: table,
+                    filter: filter ? `${filter.column}=eq.${filter.value}` : undefined
+                },
+                (payload) => {
+                    callback(this.toCamelCase(payload.new || payload.old));
+                }
+            )
+            .subscribe();
+
+        return channel;
+    }
+
+    async unsubscribe(channel) {
+        if (channel) {
+            await this.supabase.removeChannel(channel);
+        }
+    }
+
+    // Edge Functions Support
+    async invoke(functionName, body = {}) {
+        if (!this.supabase) throw new Error("Supabase client not initialized.");
+        const { data, error } = await this.supabase.functions.invoke(functionName, {
+            body: body
+        });
+        if (error) throw error;
+        return data;
+    }
+
     // Métodos legados mantidos apenas para evitar quebra de código que ainda os chame
     async syncStoreToSupabase() { return Promise.resolve(); }
     async syncSupabaseToLocal() { return Promise.resolve(); }

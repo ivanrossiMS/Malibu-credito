@@ -269,7 +269,7 @@ export default class InstallmentsModule {
                     <button onclick="sendWarning(${item.id})" class="p-2 text-primary hover:bg-primary/10 rounded-xl transition-colors" title="Enviar Cobrança">
                         <i data-lucide="message-circle" class="w-5 h-5"></i>
                     </button>
-                    ${item.status !== 'paga' ? `
+                    ${item.status !== 'PAID' ? `
                         <button onclick="markAsPaid(${item.id})" class="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl transition-colors" title="Marcar como Paga">
                             <i data-lucide="check-circle" class="w-5 h-5"></i>
                         </button>
@@ -289,8 +289,8 @@ export default class InstallmentsModule {
     }
 
     getDisplayStatus(status, dueDate) {
-        status = String(status || '').toLowerCase();
-        if (status === 'paga' || status === 'pago') return 'PAGA';
+        status = String(status || '').toUpperCase();
+        if (status === 'PAID') return 'PAGA';
 
         if (DateHelper.isPast(dueDate)) return 'ATRASADA';
         if (DateHelper.isToday(dueDate)) return 'VENCE HOJE';
@@ -299,9 +299,9 @@ export default class InstallmentsModule {
     }
 
     getStatusBadgeClass(status, dueDate) {
-        status = String(status || '').toLowerCase();
+        status = String(status || '').toUpperCase();
 
-        if (status === 'paga' || status === 'pago') return 'bg-emerald-50 text-emerald-600';
+        if (status === 'PAID') return 'bg-emerald-50 text-emerald-600';
 
         if (DateHelper.isPast(dueDate)) return 'bg-rose-50 text-rose-600 border border-rose-100';
         if (DateHelper.isToday(dueDate)) return 'bg-amber-100/50 text-amber-600 border border-amber-200 shadow-sm';
