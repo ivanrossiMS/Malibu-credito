@@ -196,6 +196,7 @@ export default class LoanRequestsModule {
         this.calculateApprovalPreview = () => {
             const amount = parseFloat(document.getElementById('req-amount').value) || 0;
             const interest = parseFloat(document.getElementById('req-interest').value) || 0;
+            const installments = parseInt(document.getElementById('req-installments').value) || 0;
             const interestType = document.getElementById('req-interest-type').value;
             const frequency = document.getElementById('req-frequency').value;
 
