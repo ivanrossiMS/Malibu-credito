@@ -98,7 +98,8 @@
                 <h2 class="text-2xl font-black text-slate-900 font-heading">Minhas Parcelas</h2>
                 <div class="relative w-full sm:w-auto">
                     <select id="client-dashboard-filter" class="w-full sm:w-auto pl-5 pr-12 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-black uppercase tracking-widest text-slate-600 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none appearance-none cursor-pointer hover:bg-slate-100 transition-all shadow-sm">
-                        <option value="pendente" selected>Pendentes</option>
+                        <option value="todas" selected>Todas</option>
+                        <option value="pendente">Pendentes</option>
                         <option value="paga">Pagas</option>
                         <option value="vencida">Vencidas / Em Atraso</option>
                     </select>

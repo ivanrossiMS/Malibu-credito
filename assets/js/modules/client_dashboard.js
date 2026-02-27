@@ -22,7 +22,7 @@ export default class ClientDashboardModule {
             return;
         }
 
-        this.currentFilter = 'pendente';
+        this.currentFilter = 'todas';
         this.currentPage = 1;
         this.itemsPerPage = 15;
 
@@ -92,6 +92,7 @@ export default class ClientDashboardModule {
             const isPaga = inst.status === 'paga' || inst.status === 'pago';
             const isLate = !isPaga && DateHelper.isPast(inst.dueDate);
 
+            if (this.currentFilter === 'todas') return true;
             if (this.currentFilter === 'paga') return isPaga;
             if (this.currentFilter === 'vencida') return isLate;
             if (this.currentFilter === 'pendente') return !isPaga && !isLate;
