@@ -303,7 +303,7 @@ class StorageService {
             body: body
         });
         if (error) throw error;
-        return data;
+        return this.toCamelCase(data);
     }
 
     // Métodos legados mantidos apenas para evitar quebra de código que ainda os chame
