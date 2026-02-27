@@ -22,9 +22,12 @@ export default class ClientDashboardModule {
             return;
         }
 
-        this.currentFilter = 'pendente';
+        this.currentFilter = 'todas';
         this.currentPage = 1;
         this.itemsPerPage = 15;
+
+        // Global Handlers
+        window.sendReceiptToWhatsApp = (id) => this.sendReceiptToWhatsApp(id);
 
         await this.renderDashboard();
         this.bindGlobalEvents();
@@ -80,6 +83,49 @@ export default class ClientDashboardModule {
         lucide.createIcons();
     }
 
+    setupRealtime() {
+        // Subscribe to changes to refresh dashboard automatically
+        this.realtimeChannel = installmentService.subscribe(this.client.id, async (payload) => {
+            console.log("Dashboard Realtime Sync:", payload);
+            await this.loadData();
+            this.renderStats();
+            this.renderInstallments();
+        });
+    }
+
+    async renderInstallments() {
+        // This method is called by setupRealtime, it should re-render the installments table
+        // For now, we can just call renderDashboard to refresh everything.
+        // In a more optimized scenario, we would only re-render the specific components affected.
+        await this.renderDashboard();
+    }
+
+    async loadData() {
+        // This method is called by setupRealtime, it should reload all necessary data
+        const allLoans = await loanService.getAll();
+        this.loans = allLoans.filter(l => String(l.clientId || l.clientid) === String(this.client.id));
+
+        const allInstallments = await installmentService.getAll();
+        this.installments = allInstallments.filter(i => i.loan && String(i.loan.clientId || i.loan.clientid) === String(this.client.id));
+
+        const allPayments = await paymentService.getAll();
+        this.clientPayments = allPayments.filter(p => {
+            const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
+            return String(pClientId) === String(this.client.id);
+        });
+    }
+
+    renderStats() {
+        // Recalculate and update UI Cards
+        const totalLoaned = this.loans.reduce((sum, l) => sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0)), 0);
+        const totalPaid = this.installments.filter(i => i.status === 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+        const balanceDue = this.installments.filter(i => i.status !== 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+
+        if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
+        if (document.getElementById('total-paid')) document.getElementById('total-paid').textContent = this.formatCurrency(totalPaid);
+        if (document.getElementById('balance-due')) document.getElementById('balance-due').textContent = this.formatCurrency(balanceDue);
+    }
+
     renderInstallmentsTable() {
         const listBody = document.getElementById('client-installments');
         if (!listBody) return;
@@ -92,6 +138,7 @@ export default class ClientDashboardModule {
             const isPaga = inst.status === 'paga' || inst.status === 'pago';
             const isLate = !isPaga && DateHelper.isPast(inst.dueDate);
 
+            if (this.currentFilter === 'todas') return true;
             if (this.currentFilter === 'paga') return isPaga;
             if (this.currentFilter === 'vencida') return isLate;
             if (this.currentFilter === 'pendente') return !isPaga && !isLate;
@@ -127,13 +174,6 @@ export default class ClientDashboardModule {
             listBody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Nenhuma parcela encontrada nesta categoria.</td></tr>`;
         } else {
             listBody.innerHTML = pageItems.map(inst => {
-                const isPaga = inst.status === 'paga' || inst.status === 'pago';
-                const isLateVisual = !isPaga && DateHelper.isPast(inst.dueDate);
-                const isTodayVisual = !isPaga && DateHelper.isToday(inst.dueDate);
-
-                const displayStatus = isPaga ? 'PAGA' : (isLateVisual ? 'VENCIDA' : (isTodayVisual ? 'VENCE HOJE' : 'PENDENTE'));
-                const statusClass = isPaga ? 'bg-emerald-50 text-emerald-600' : (isLateVisual ? 'bg-rose-50 text-rose-600 border border-rose-100' : (isTodayVisual ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-slate-50 text-slate-500'));
-
                 return `
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
                         <td class="px-8 py-5 text-sm font-black text-slate-900 border-l-2 border-transparent group-hover:border-primary">${inst.loan ? inst.loan.loanCode : '---'}</td>
@@ -141,62 +181,27 @@ export default class ClientDashboardModule {
                         <td class="px-8 py-5 text-[11px] font-bold text-slate-500 uppercase tracking-widest">${this.formatDate(inst.dueDate)}</td>
                         <td class="px-8 py-5 text-sm font-black text-emerald-600">${this.formatCurrency(inst.installmentValue || inst.amount)}</td>
                         <td class="px-8 py-5">
-                            <span class="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${statusClass}">
-                                ${displayStatus}
-                            </span>
-                        </td>
-                        <td class="px-8 py-5 text-right flex justify-end">
-                            <div class="flex items-center gap-2">
-                                <label class="cursor-pointer p-2 rounded-xl bg-slate-50 text-slate-400 border border-slate-100 hover:bg-primary/10 hover:text-primary hover:border-primary/20 transition-all relative shadow-sm hover:shadow-md" title="Anexar Comprovante">
-                                    <i data-lucide="${inst.proof ? 'check-circle' : 'paperclip'}" class="w-4 h-4 ${inst.proof ? 'text-emerald-500' : ''}"></i>
-                                    <input type="file" class="hidden proof-upload" data-id="${inst.id}" accept="image/*,application/pdf" />
-                                </label>
-                                <button onclick="sendReceiptToWhatsApp('${inst.id}')" class="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 hover:scale-110 active:scale-95 transition-transform shadow-sm" title="Enviar via WhatsApp">
-                                    <i data-lucide="message-circle" class="w-4 h-4"></i>
-                                </button>
-                                ${inst.proof ? `
-                                    <button class="p-2 rounded-xl bg-slate-50 text-slate-400 border border-slate-100 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-100 hover:scale-110 active:scale-95 transition-all view-proof shadow-sm" data-id="${inst.id}" title="Ver Comprovante">
-                                        <i data-lucide="eye" class="w-4 h-4"></i>
-                                    </button>
-                                ` : ''}
-                            </div>
-                        </td>
-                    </tr>
-                `;
+                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${this.getStatusClass(inst.status)}">
+                            ${this.translateStatus(inst.status)}
+                        </span>
+                    </td>
+                    <td class="px-8 py-5 text-right">
+                        ${inst.status === 'PAID' ? `
+                            <button onclick="window.sendReceiptToWhatsApp(${inst.id})" class="p-2.5 bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all group" title="Enviar comprovante">
+                                <i data-lucide="share-2" class="w-4 h-4"></i>
+                            </button>
+                        ` : `
+                            <button onclick="window.location.href='?page=client_payments'" class="px-4 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                Pagar
+                            </button>
+                        `}
+                    </td>
+                </tr>
+            `;
             }).join('');
 
-            // Bind upload proof events
-            listBody.querySelectorAll('.proof-upload').forEach(input => {
-                input.onchange = async (e) => {
-                    const file = e.target.files[0];
-                    const id = e.target.getAttribute('data-id');
-                    if (file) {
-                        try {
-                            const b64 = await this.fileToBase64(file);
-                            await installmentService.updateProof(id, b64);
-                            alert("Comprovante anexado!");
-                            await this.renderDashboard();
-                        } catch (err) {
-                            alert("Erro: " + err.message);
-                        }
-                    }
-                };
-            });
-
-            // Bind view proof events
-            listBody.querySelectorAll('.view-proof').forEach(btn => {
-                btn.onclick = () => {
-                    const id = btn.getAttribute('data-id');
-                    const inst = this.installments.find(i => String(i.id) === String(id));
-                    let proof = inst?.proof;
-                    if (!proof && this.clientPayments) {
-                        const pay = this.clientPayments.find(p => String(p.installmentId) === String(id));
-                        proof = pay?.proof;
-                    }
-                    if (proof) window.viewProof(proof);
-                    else alert("Comprovante ausente.");
-                };
-            });
+            // Bind upload proof events (removed as per instruction)
+            // Bind view proof events (removed as per instruction)
         }
     }
 
@@ -308,7 +313,8 @@ export default class ClientDashboardModule {
         // Next Info
         if (upcoming.length > 0) {
             const next = upcoming[0];
-            lines.push(`<span class="text-indigo-300 font-bold">📅 PRÓXIMA PARCELA:</span> ${this.formatDate(next.dueDate)} (${this.formatCurrency(next.amount)})`);
+            const nextVal = parseFloat(next.installmentValue || next.installment_value || next.amount || 0);
+            lines.push(`<span class="text-indigo-300 font-bold">📅 PRÓXIMA PARCELA:</span> ${this.formatDate(next.dueDate)} (${this.formatCurrency(nextVal)})`);
         }
 
         // Render with breaks and phrase
@@ -320,6 +326,22 @@ export default class ClientDashboardModule {
                 </p>
             </div>
         `;
+    }
+
+    sendReceiptToWhatsApp(id) {
+        const inst = this.installments.find(i => String(i.id) === String(id));
+        if (!inst) return;
+
+        const userName = document.querySelector('.user-name')?.textContent || 'Cliente';
+        const amount = parseFloat(inst.installmentValue || inst.amount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const date = this.formatDate(inst.dueDate);
+        const contract = inst.loan?.loanCode || '---';
+
+        const msg = `Olá! Sou o(a) *${userName}*.\n\nEnviei o comprovante da *parcela #${inst.number}* do contrato *${contract}*.\n\n*Valor:* ${amount}\n*Vencimento:* ${date}\n\nFavor confirmar o recebimento!`;
+
+        // Using a generic link since admin phone is not configured
+        const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
     }
 
     async renderExtrato() {
@@ -362,7 +384,7 @@ export default class ClientDashboardModule {
         lucide.createIcons();
     }
 
-    bindGlobalEvents() {
+    bindEvents() {
         // Dropdown Filter
         const filterEl = document.getElementById('client-dashboard-filter');
         if (filterEl) {
@@ -441,12 +463,18 @@ export default class ClientDashboardModule {
         return DateHelper.formatLocal(dateStr);
     }
 
+    translateStatus(status) {
+        switch (status) {
+            case 'PAID': return 'Paga';
+            case 'OVERDUE': return 'Atrasada';
+            default: return 'Pendente';
+        }
+    }
+
     getStatusClass(status) {
         switch (status) {
-            case 'paga':
-            case 'pago': return 'bg-emerald-50 text-emerald-600';
-            case 'atrasada':
-            case 'atrasado': return 'bg-rose-50 text-rose-600';
+            case 'PAID': return 'bg-emerald-50 text-emerald-600';
+            case 'OVERDUE': return 'bg-rose-50 text-rose-600';
             default: return 'bg-amber-50 text-amber-600';
         }
     }

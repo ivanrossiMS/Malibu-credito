@@ -180,8 +180,18 @@ export default class LoanRequestsModule {
             document.getElementById('req-installments').value = req.installments;
             document.getElementById('req-frequency').value = req.frequency === 'diaria' ? 'diario' : 'mensal';
 
-            // Set default start date to tomorrow
-            document.getElementById('req-startDate').value = DateHelper.addDays(DateHelper.getTodayStr(), 1);
+            // Set start date: Stored field > Parse from description > Default tomorrow
+            let startDate = req.startDate || req.start_date;
+
+            if (!startDate && req.description) {
+                // Tenta extrair da descrição: "Data da 1ª Parcela: DD/MM/AAAA"
+                const match = req.description.match(/Data da 1ª Parcela:\s*(\d{2})\/(\d{2})\/(\d{4})/);
+                if (match) {
+                    startDate = `${match[3]}-${match[2]}-${match[1]}`;
+                }
+            }
+
+            document.getElementById('req-startDate').value = startDate || DateHelper.addDays(DateHelper.getTodayStr(), 1);
 
             modal.classList.remove('hidden');
             this.calculateApprovalPreview();

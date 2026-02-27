@@ -82,7 +82,7 @@ export default class ClientPaymentsModule {
                         </div>
                     </td>
                     <td class="px-8 py-5 text-xs text-slate-500 font-medium">${DateHelper.formatLocal(inst.dueDate)}</td>
-                    <td class="px-8 py-5 text-sm font-black text-slate-900">R$ ${parseFloat(inst.installmentValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td class="px-8 py-5 text-sm font-black text-slate-900">R$ ${parseFloat(inst.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                     <td class="px-8 py-5">
                         <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${statusClass}">
                             ${this.translateStatus(inst.status)}
@@ -140,7 +140,7 @@ export default class ClientPaymentsModule {
             const qrContainer = document.getElementById('pix-qr-container');
             const copyBtn = document.getElementById('pix-copy-btn');
 
-            amountEl.textContent = `R$ ${parseFloat(inst.installmentValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+            amountEl.textContent = `R$ ${parseFloat(inst.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
             modal.classList.remove('hidden');
 
             try {
@@ -154,8 +154,27 @@ export default class ClientPaymentsModule {
                     alert("Código PIX copiado!");
                 };
             } catch (err) {
-                console.error("Error creating PIX charge:", err);
-                qrContainer.innerHTML = `<div class="text-rose-500 text-xs font-bold text-center p-4">Erro ao gerar cobrança. Tente novamente.</div>`;
+                console.error("Error creating PIX charge details:", err);
+
+                let errorMsg = "Erro ao conectar com o servidor de pagamento.";
+
+                // Try to extract real error message from Supabase FunctionsHttpError
+                if (err.context && typeof err.context.json === 'function') {
+                    try {
+                        const errorData = await err.context.json();
+                        errorMsg = errorData.error || errorMsg;
+                    } catch (e) {
+                        errorMsg = err.message || errorMsg;
+                    }
+                } else {
+                    errorMsg = err.message || errorMsg;
+                }
+
+                qrContainer.innerHTML = `<div class="text-rose-500 text-xs font-bold text-center p-4">
+                    <p class="mb-2">❌ Falha na Cobrança</p>
+                    <p class="text-[10px] opacity-70 leading-relaxed">${errorMsg}</p>
+                    <button onclick="location.reload()" class="mt-3 px-3 py-1 bg-rose-500 text-white rounded-lg text-[9px] hover:bg-rose-600 transition-colors">Tentar Novamente</button>
+                </div>`;
             }
         };
 

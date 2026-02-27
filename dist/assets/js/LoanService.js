@@ -96,7 +96,7 @@ class LoanService {
                 number: i,
                 installment_value: data.installmentValue,
                 due_date: DateHelper.toLocalYYYYMMDD(dueDate),
-                status: 'pendente'
+                status: 'PENDING'
             });
         }
 
@@ -121,8 +121,8 @@ class LoanService {
 
         // Auto-detect overdue installments
         for (let inst of installments) {
-            if (inst.status === 'pendente' && DateHelper.isPast(inst.dueDate)) {
-                inst.status = 'atrasada';
+            if (inst.status === 'PENDING' && DateHelper.isPast(inst.dueDate)) {
+                inst.status = 'OVERDUE';
                 await storage.put('installments', inst);
             }
         }
@@ -131,18 +131,18 @@ class LoanService {
         let hasOverdue = false;
 
         for (let inst of installments) {
-            if (inst.status !== 'paga') allPaid = false;
-            if (inst.status === 'atrasada') hasOverdue = true;
+            if (inst.status !== 'PAID') allPaid = false;
+            if (inst.status === 'OVERDUE') hasOverdue = true;
         }
 
         let newStatus = loan.status;
         if (allPaid) {
-            newStatus = 'quitado';
+            newStatus = 'PAID';
         } else if (hasOverdue) {
-            newStatus = 'atrasado';
+            newStatus = 'OVERDUE';
         } else {
-            if (loan.status === 'quitado' || loan.status === 'atrasado') {
-                newStatus = 'ativo';
+            if (loan.status === 'PAID' || loan.status === 'OVERDUE') {
+                newStatus = 'ACTIVE';
             }
         }
 

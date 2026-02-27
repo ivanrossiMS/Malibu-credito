@@ -226,11 +226,16 @@ export default class LoansModule {
     }
 
     getStatusClass(status) {
+        status = String(status || '').toUpperCase();
         switch (status) {
-            case 'ativo': return 'bg-amber-50 text-amber-600';
-            case 'quitado': return 'bg-emerald-50 text-emerald-600';
-            case 'atrasado': return 'bg-rose-50 text-rose-600';
-            case 'cancelado': return 'bg-slate-100 text-slate-500';
+            case 'ACTIVE':
+            case 'ATIVO': return 'bg-amber-50 text-amber-600';
+            case 'PAID':
+            case 'QUITADO': return 'bg-emerald-50 text-emerald-600';
+            case 'OVERDUE':
+            case 'ATRASADO': return 'bg-rose-50 text-rose-600';
+            case 'CANCELLED':
+            case 'CANCELADO': return 'bg-slate-100 text-slate-500';
             default: return 'bg-slate-50 text-slate-500';
         }
     }

@@ -67,6 +67,15 @@ class InstallmentService {
     async queryByStatus(status) {
         return await storage.query('installments', 'status', status);
     }
+
+    subscribe(clientId, callback) {
+        // Subscribe to installments of the client's loans
+        // Note: Supabase RLS will handle the filtering if configured.
+        // For now we subscribe to the table and the UI filters.
+        return storage.subscribe('installments', '*', (payload) => {
+            callback(payload);
+        });
+    }
 }
 
 const installmentService = new InstallmentService();
