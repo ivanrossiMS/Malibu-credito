@@ -308,7 +308,8 @@ export default class ClientDashboardModule {
         // Next Info
         if (upcoming.length > 0) {
             const next = upcoming[0];
-            lines.push(`<span class="text-indigo-300 font-bold">📅 PRÓXIMA PARCELA:</span> ${this.formatDate(next.dueDate)} (${this.formatCurrency(next.amount)})`);
+            const nextVal = parseFloat(next.installmentValue || next.installment_value || next.amount || 0);
+            lines.push(`<span class="text-indigo-300 font-bold">📅 PRÓXIMA PARCELA:</span> ${this.formatDate(next.dueDate)} (${this.formatCurrency(nextVal)})`);
         }
 
         // Render with breaks and phrase
