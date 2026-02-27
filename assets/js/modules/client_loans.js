@@ -198,7 +198,7 @@ export default class ClientLoansModule {
                 const date = new Date(inst.dueDate);
                 let statusClass = 'bg-slate-100 text-slate-500';
                 let statusText = inst.status;
-                const amountValue = parseFloat(inst.amount);
+                const amountValue = parseFloat(inst.installmentValue);
 
                 if (inst.status === 'pendente' || inst.status === 'em atraso' || inst.status === 'atrasada') {
                     totalAberto += amountValue;
