@@ -61,6 +61,18 @@ export default class InstallmentsModule {
         if (!listContainer) return;
 
         let allItems = await installmentService.getAll();
+        const payments = await paymentService.getAll();
+
+        // Map payment data to all items immediately
+        allItems.forEach(item => {
+            const payment = payments.find(p => String(p.installmentId) === String(item.id));
+            if (payment) {
+                item.paymentDate = payment.paymentDate;
+                item.paidAt = payment.createdAt;
+                item.proof = payment.proof;
+            }
+        });
+
         const today = DateHelper.getTodayStr();
 
         // 1. Filter by client
@@ -73,30 +85,39 @@ export default class InstallmentsModule {
             allItems = allItems.filter(i => i.client?.city === this.currentCity);
         }
 
-        // 3. Filter by date
+        // 3. Filter by date (Context Aware: uses paymentDate for paid items, dueDate for others)
         if (this.currentDateType) {
             const dateType = this.currentDateType;
-            if (dateType === 'hoje') {
-                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) === today);
-            } else if (dateType === 'amanha') {
-                const tStr = DateHelper.addDays(today, 1);
-                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) === tStr);
-            } else if (dateType === '7dias') {
-                const nwStr = DateHelper.addDays(today, 7);
-                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) >= today && DateHelper.toLocalYYYYMMDD(i.dueDate) <= nwStr);
-            } else if (dateType === 'mes') {
-                const now = new Date();
-                const startMonth = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
-                const endMonth = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) >= startMonth && DateHelper.toLocalYYYYMMDD(i.dueDate) <= endMonth);
-            } else if (dateType === 'ano') {
-                const now = new Date();
-                const startYear = `${now.getFullYear()}-01-01`;
-                const endYear = `${now.getFullYear()}-12-31`;
-                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) >= startYear && DateHelper.toLocalYYYYMMDD(i.dueDate) <= endYear);
-            } else if (dateType === 'personalizado' && this.currentDateCustom) {
-                allItems = allItems.filter(i => i.dueDate && DateHelper.toLocalYYYYMMDD(i.dueDate) === this.currentDateCustom);
-            }
+            allItems = allItems.filter(i => {
+                const isPaid = (i.status || '').toLowerCase() === 'paga' || (i.status === 'pago');
+                const targetDate = isPaid ? (i.paymentDate || i.paidAt || i.dueDate) : i.dueDate;
+
+                if (!targetDate) return false;
+                const targetDateLocal = DateHelper.toLocalYYYYMMDD(targetDate);
+
+                if (dateType === 'hoje') {
+                    return targetDateLocal === today;
+                } else if (dateType === 'amanha') {
+                    const tStr = DateHelper.addDays(today, 1);
+                    return targetDateLocal === tStr;
+                } else if (dateType === '7dias') {
+                    const nwStr = DateHelper.addDays(today, 7);
+                    return targetDateLocal >= today && targetDateLocal <= nwStr;
+                } else if (dateType === 'mes') {
+                    const now = new Date();
+                    const startMonth = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
+                    const endMonth = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+                    return targetDateLocal >= startMonth && targetDateLocal <= endMonth;
+                } else if (dateType === 'ano') {
+                    const now = new Date();
+                    const startYear = `${now.getFullYear()}-01-01`;
+                    const endYear = `${now.getFullYear()}-12-31`;
+                    return targetDateLocal >= startYear && targetDateLocal <= endYear;
+                } else if (dateType === 'personalizado' && this.currentDateCustom) {
+                    return targetDateLocal === this.currentDateCustom;
+                }
+                return true;
+            });
         }
 
         // Calculate counts for status buttons based on current filters 1-3
@@ -171,14 +192,6 @@ export default class InstallmentsModule {
 
         const startIndex = (this.currentPage - 1) * this.itemsPerPage;
         const paginatedInstallments = installments.slice(startIndex, startIndex + this.itemsPerPage);
-
-        // Map proofs from payments for paginated items securely
-        const payments = await paymentService.getAll();
-        paginatedInstallments.forEach(item => {
-            const payment = payments.find(p => String(p.installmentId) === String(item.id));
-            if (payment && payment.proof) item.proof = payment.proof;
-            if (payment && payment.createdAt) item.paidAt = payment.createdAt; // Herança visual da data do pagamento legítimo
-        });
 
         // Update pagination UI
         const controls = document.getElementById('pagination-controls');
