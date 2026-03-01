@@ -476,7 +476,8 @@ class App {
 
                 try {
                     const user = await auth.login(email, password);
-                    if (user.role === 'admin') {
+                    const isAdmin = user.role === 'admin' || user.role === 'ADMIN' || user.role === 'MASTER';
+                    if (isAdmin) {
                         window.location.href = '?page=dashboard';
                     } else {
                         window.location.href = '?page=client_dashboard';

@@ -132,7 +132,9 @@ class AuthService {
         localStorage.setItem('malibu_session', JSON.stringify({ id: user.id, email: user.email }));
 
         // Garantir que o admin tenha um perfil se ele não tiver (correção para base existente)
-        if (user.role === 'admin') {
+        // Garantir que o admin/master tenha um perfil se ele não tiver (correção para base existente)
+        const isAdminOrMaster = user.role === 'admin' || user.role === 'ADMIN' || user.role === 'MASTER';
+        if (isAdminOrMaster) {
             const profile = await this.fetchProfile(user.id);
             if (!profile) {
                 await storage.add('clients', {

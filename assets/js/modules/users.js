@@ -18,10 +18,11 @@ export default class UsersModule {
         const allUsers = await storage.getAll('users');
 
         let users;
+        const adminRoles = ['admin', 'ADMIN', 'MASTER'];
         if (this.currentTab === 'admin') {
-            users = allUsers.filter(u => u.role === 'admin');
+            users = allUsers.filter(u => adminRoles.includes(u.role));
         } else {
-            users = allUsers.filter(u => u.status === this.currentTab && u.role !== 'admin');
+            users = allUsers.filter(u => u.status === this.currentTab && !adminRoles.includes(u.role));
         }
 
         if (users.length === 0) {
@@ -64,7 +65,11 @@ export default class UsersModule {
     }
 
     getActionButtons(user) {
-        if (user.role === 'admin') {
+        const isAdmin = user.role === 'admin' || user.role === 'ADMIN' || user.role === 'MASTER';
+        if (isAdmin) {
+            // Impedir que o MASTER seja removido ou que um admin remova a si mesmo (se não for master)
+            if (user.role === 'MASTER') return ''; // Master é intocável neste painel
+
             return `
                 <button onclick="demoteUser(${user.id})" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Remover Admin</button>
             `;
