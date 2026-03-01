@@ -26,6 +26,7 @@ ALTER TABLE billing_installments ENABLE ROW LEVEL SECURITY;
 
 -- MASTER sees everything
 -- Logic: Check if the email in the Supabase Auth JWT belongs to a MASTER user or the specific master email
+DROP POLICY IF EXISTS master_manage_all_billing ON billing_installments;
 CREATE POLICY master_manage_all_billing ON billing_installments
     FOR ALL
     TO authenticated
@@ -40,6 +41,7 @@ CREATE POLICY master_manage_all_billing ON billing_installments
 
 -- ADMIN sees their own installments
 -- Logic: Map the user_id (integer) to the authenticated user's email in the users table
+DROP POLICY IF EXISTS admin_view_own_billing ON billing_installments;
 CREATE POLICY admin_view_own_billing ON billing_installments
     FOR SELECT
     TO authenticated
