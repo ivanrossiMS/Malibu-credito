@@ -3,11 +3,18 @@ import auth from '../AuthService.js';
 import clientService from '../ClientService.js';
 import loanService from '../LoanService.js';
 import DateHelper from '../DateHelper.js';
+import billingService from '../BillingService.js';
 
 export default class UsersModule {
     async init() {
         this.currentTab = 'ativo';
-        this.bindEvents(); // Bind events FIRST so they are available
+        this.isMaster = auth.isMaster();
+        this.bindEvents();
+
+        if (this.isMaster) {
+            this.injectBillingModal();
+        }
+
         this.renderUsers();
     }
 
@@ -19,8 +26,14 @@ export default class UsersModule {
 
         let users;
         const adminRoles = ['admin', 'ADMIN', 'MASTER'];
+        const isLoggedMaster = auth.isMaster();
+
         if (this.currentTab === 'admin') {
+            // Filtrar MASTER se o logado não for MASTER
             users = allUsers.filter(u => adminRoles.includes(u.role));
+            if (!isLoggedMaster) {
+                users = users.filter(u => u.role !== 'MASTER');
+            }
         } else {
             users = allUsers.filter(u => u.status === this.currentTab && !adminRoles.includes(u.role));
         }
@@ -36,13 +49,35 @@ export default class UsersModule {
             return;
         }
 
-        listContainer.innerHTML = users.map(user => {
+        const rows = [];
+        for (const user of users) {
             const initials = user.name ? user.name.substring(0, 2).toUpperCase() : 'U';
             const avatarHtml = user.avatar
                 ? `<img src="${user.avatar}" alt="${user.name}" class="w-10 h-10 rounded-xl object-cover shadow-sm">`
                 : `<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-inner">${initials}</div>`;
 
-            return `
+            let billingCols = '';
+            if (this.isMaster && this.currentTab === 'admin') {
+                const installments = await billingService.getUserInstallments(user.id);
+                const hasOverdue = installments.some(i => i.status === 'VENCIDA');
+
+                billingCols = `
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 rounded-lg text-[10px] font-black uppercase ${user.accessEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}">
+                            ${user.accessEnabled ? 'Liberado' : 'Pendente'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 rounded-lg text-[10px] font-black uppercase ${hasOverdue ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}">
+                            ${hasOverdue ? 'Em Atraso' : 'Em Dia'}
+                        </span>
+                    </td>
+                `;
+            } else if (this.isMaster) {
+                billingCols = `<td class="px-6 py-4">--</td><td class="px-6 py-4">--</td>`;
+            }
+
+            rows.push(`
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-4">
@@ -51,6 +86,7 @@ export default class UsersModule {
                     </div>
                 </td>
                 <td class="px-6 py-4 text-sm text-slate-600">${user.email}</td>
+                ${billingCols}
                 <td class="px-6 py-4 text-sm text-slate-500">${DateHelper.formatLocal(user.createdAt)}</td>
                 <td class="px-6 py-4 text-right">
                     <div class="flex justify-end gap-1">
@@ -58,8 +94,10 @@ export default class UsersModule {
                     </div>
                 </td>
             </tr>
-            `;
-        }).join('');
+            `);
+        }
+
+        listContainer.innerHTML = rows.join('');
 
         lucide.createIcons();
     }
@@ -67,11 +105,19 @@ export default class UsersModule {
     getActionButtons(user) {
         const isAdmin = user.role === 'admin' || user.role === 'ADMIN' || user.role === 'MASTER';
         if (isAdmin) {
-            // Impedir que o MASTER seja removido ou que um admin remova a si mesmo (se não for master)
-            if (user.role === 'MASTER') return ''; // Master é intocável neste painel
+            if (user.role === 'MASTER') return '';
+
+            let masterActions = '';
+            if (this.isMaster) {
+                masterActions = `
+                    <button onclick="openAccessControl(${user.id})" class="text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all">Financeiro/Acesso</button>
+                    <button onclick="deleteUserPermanently(${user.id})" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Excluir</button>
+                `;
+            }
 
             return `
-                <button onclick="demoteUser(${user.id})" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Remover Admin</button>
+                ${masterActions}
+                <button onclick="demoteUser(${user.id})" class="text-slate-400 hover:text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Remover Admin</button>
             `;
         } else if (user.status === 'pendente') {
             return `
@@ -187,5 +233,195 @@ export default class UsersModule {
                 }
             }
         };
+
+        window.openAccessControl = async (id) => {
+            const user = await storage.getById('users', id);
+            this.openUserDetail(user);
+        };
+    }
+
+    injectBillingModal() {
+        const container = document.getElementById('user-billing-modal-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div id="user-detail-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4">
+                <div class="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-fade-in">
+                    <div class="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                        <div class="flex items-center gap-5">
+                            <div class="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-200" id="modal-user-initials">--</div>
+                            <div>
+                                <h2 class="text-2xl font-black text-slate-800 font-heading" id="modal-user-name">Carregando...</h2>
+                                <p class="text-slate-500 font-medium text-sm" id="modal-user-email">email@exemplo.com</p>
+                            </div>
+                        </div>
+                        <button id="close-modal" class="p-3 hover:bg-slate-200 rounded-2xl transition-all">
+                            <i data-lucide="x" class="w-6 h-6 text-slate-500"></i>
+                        </button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                                <h3 class="font-black text-slate-800 flex items-center gap-2"><i data-lucide="shield-check" class="w-5 h-5 text-primary"></i> Status de Acesso</h3>
+                                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                                    <div><p class="text-xs font-bold text-slate-500 uppercase">Acesso Geral</p><p class="text-sm font-black" id="modal-access-text">BLOQUEADO</p></div>
+                                    <button id="toggle-access-enabled" class="px-6 py-2 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-105 transition-all text-xs">LIBERAR</button>
+                                </div>
+                                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                                    <div><p class="text-xs font-bold text-slate-500 uppercase">Override Manual</p><p class="text-xs text-slate-400">Permite acesso mesmo c/ dívida</p></div>
+                                    <button id="toggle-access-override" class="px-6 py-2 bg-slate-300 text-slate-600 font-bold rounded-xl hover:scale-105 transition-all text-xs">ATIVAR</button>
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                                <h3 class="font-black text-slate-800 flex items-center gap-2"><i data-lucide="credit-card" class="w-5 h-5 text-indigo-500"></i> Resumo Financeiro</h3>
+                                <div class="grid grid-cols-2 gap-4 h-full">
+                                    <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                        <p class="text-[10px] font-black text-emerald-600 uppercase">Total Pago</p>
+                                        <p class="text-xl font-black text-emerald-700" id="modal-total-paid">R$ 0,00</p>
+                                    </div>
+                                    <div class="p-4 bg-rose-50 rounded-2xl border border-rose-100">
+                                        <p class="text-[10px] font-black text-rose-600 uppercase">Em Aberto</p>
+                                        <p class="text-xl font-black text-rose-700" id="modal-total-pending">R$ 0,00</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-black text-slate-800 flex items-center gap-2 text-lg"><i data-lucide="calendar" class="w-6 h-6 text-slate-400"></i> Histórico de Mensalidades</h3>
+                                <button id="generate-installments" class="text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4"></i> Gerar Faltantes</button>
+                            </div>
+                            <div class="border border-slate-100 rounded-3xl overflow-hidden">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        <tr><th class="px-6 py-4">Competência</th><th class="px-6 py-4">Vencimento</th><th class="px-6 py-4">Valor</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Ação</th></tr>
+                                    </thead>
+                                    <tbody id="modal-installments-body" class="divide-y divide-slate-50 text-sm"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('close-modal').onclick = () => document.getElementById('user-detail-modal').classList.add('hidden');
+        document.getElementById('toggle-access-enabled').onclick = () => this.toggleAccessEnabled();
+        document.getElementById('toggle-access-override').onclick = () => this.toggleAccessOverride();
+        document.getElementById('generate-installments').onclick = async () => {
+            await billingService.generateMissingInstallments(this.currentUser);
+            await this.renderInstallments();
+            await this.renderUsers();
+        };
+
+        lucide.createIcons();
+    }
+
+    async openUserDetail(user) {
+        this.currentUser = user;
+        const modal = document.getElementById('user-detail-modal');
+
+        document.getElementById('modal-user-name').textContent = user.name;
+        document.getElementById('modal-user-email').textContent = user.email;
+        document.getElementById('modal-user-initials').textContent = (user.name?.[0] || 'A').toUpperCase();
+
+        this.updateAccessButtons();
+        await this.renderInstallments();
+
+        modal.classList.remove('hidden');
+    }
+
+    updateAccessButtons() {
+        const user = this.currentUser;
+        const btnEnabled = document.getElementById('toggle-access-enabled');
+        const btnOverride = document.getElementById('toggle-access-override');
+        const statusText = document.getElementById('modal-access-text');
+
+        if (user.accessEnabled) {
+            btnEnabled.textContent = 'REVOGAR ACESSO';
+            btnEnabled.className = "px-6 py-2 bg-rose-500 text-white font-bold rounded-xl shadow-lg shadow-rose-200 hover:scale-105 transition-all text-xs";
+            statusText.textContent = 'LIBERADO';
+            statusText.className = 'text-sm font-black text-emerald-600';
+        } else {
+            btnEnabled.textContent = 'LIBERAR ACESSO';
+            btnEnabled.className = "px-6 py-2 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-105 transition-all text-xs";
+            statusText.textContent = 'BLOQUEADO';
+            statusText.className = 'text-sm font-black text-rose-600';
+        }
+
+        if (user.accessOverride) {
+            btnOverride.textContent = 'DESATIVAR OVERRIDE';
+            btnOverride.className = "px-6 py-2 bg-amber-400 text-amber-900 font-bold rounded-xl hover:scale-105 transition-all text-xs";
+        } else {
+            btnOverride.textContent = 'ATIVAR OVERRIDE';
+            btnOverride.className = "px-6 py-2 bg-slate-300 text-slate-600 font-bold rounded-xl hover:scale-105 transition-all text-xs";
+        }
+    }
+
+    async renderInstallments() {
+        const installments = await billingService.getUserInstallments(this.currentUser.id);
+        const tbody = document.getElementById('modal-installments-body');
+        tbody.innerHTML = '';
+
+        let paidTotal = 0;
+        let pendingTotal = 0;
+
+        installments.forEach(inst => {
+            const tr = document.createElement('tr');
+            const isPaid = inst.status === 'PAGA';
+            const isOverdue = inst.status === 'VENCIDA';
+
+            if (isPaid) paidTotal += inst.amount;
+            else pendingTotal += inst.amount;
+
+            tr.innerHTML = `
+                <td class="px-6 py-4 font-bold text-slate-700">${inst.competenceMonth}</td>
+                <td class="px-6 py-4 text-slate-500">${DateHelper.formatLocal(inst.dueDate)}</td>
+                <td class="px-6 py-4 font-black">R$ ${inst.amount.toFixed(2)}</td>
+                <td class="px-6 py-4">
+                    <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isPaid ? 'bg-emerald-100 text-emerald-600' : (isOverdue ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500')}">
+                        ${inst.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <button class="toggle-pay-btn text-indigo-600 hover:text-indigo-800 font-bold text-xs" data-id="${inst.id}">
+                        ${isPaid ? 'Desfazer' : 'Marcar Paga'}
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('modal-total-paid').textContent = `R$ ${paidTotal.toFixed(2)}`;
+        document.getElementById('modal-total-pending').textContent = `R$ ${pendingTotal.toFixed(2)}`;
+
+        tbody.querySelectorAll('.toggle-pay-btn').forEach(btn => {
+            btn.onclick = async () => {
+                const id = btn.dataset.id;
+                const inst = installments.find(i => String(i.id) === String(id));
+                if (inst.status === 'PAGA') await billingService.undoPayment(id);
+                else await billingService.markAsPaid(id);
+                await this.renderInstallments();
+                await this.renderUsers();
+            };
+        });
+    }
+
+    async toggleAccessEnabled() {
+        this.currentUser.accessEnabled = !this.currentUser.accessEnabled;
+        if (this.currentUser.accessEnabled && !this.currentUser.firstAccessAt) {
+            this.currentUser.firstAccessAt = new Date().toISOString();
+            await billingService.generateMissingInstallments(this.currentUser);
+        }
+        await storage.put('users', this.currentUser);
+        this.updateAccessButtons();
+        await this.renderUsers();
+    }
+
+    async toggleAccessOverride() {
+        this.currentUser.accessOverride = !this.currentUser.accessOverride;
+        await storage.put('users', this.currentUser);
+        this.updateAccessButtons();
+        await this.renderUsers();
     }
 }

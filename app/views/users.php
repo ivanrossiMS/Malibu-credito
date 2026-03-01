@@ -16,7 +16,10 @@
         <button class="user-tab px-4 py-2 font-bold text-slate-400 hover:text-slate-600" data-tab="rejeitado">Excluídos</button>
         <button class="user-tab px-4 py-2 font-bold text-primary border-b-2 border-primary" data-tab="ativo">Ativos</button>
         <button class="user-tab px-4 py-2 font-bold text-slate-400 hover:text-slate-600" data-tab="bloqueado">Bloqueados</button>
-        <button class="user-tab px-4 py-2 font-bold text-indigo-400 hover:text-indigo-600" data-tab="admin">Administradores</button>
+        <button class="user-tab px-4 py-2 font-bold text-indigo-500 hover:text-indigo-600 flex items-center gap-2" data-tab="admin">
+            Administradores
+            <span class="master-only hidden bg-indigo-100 text-indigo-600 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest">Master View</span>
+        </button>
     </div>
 
     <!-- Users Table -->
@@ -27,6 +30,8 @@
                     <tr>
                         <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Usuário</th>
                         <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Email</th>
+                        <th class="master-only hidden px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Acesso</th>
+                        <th class="master-only hidden px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Mensalidade</th>
                         <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Cadastro</th>
                         <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Ações</th>
                     </tr>
@@ -38,3 +43,6 @@
         </div>
     </div>
 </div>
+
+<!-- Reusable User Detail Modal (Shared from Master Billing or Integrated Here) -->
+<div id="user-billing-modal-container"></div>
