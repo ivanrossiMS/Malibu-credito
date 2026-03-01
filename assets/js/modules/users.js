@@ -8,11 +8,13 @@ import billingService from '../BillingService.js';
 export default class UsersModule {
     async init() {
         this.currentTab = 'ativo';
+        this.adminFilter = 'all';
         this.isMaster = auth.isMaster();
         this.bindEvents();
 
         if (this.isMaster) {
             this.injectBillingModal();
+            this.bindEditModal();
         }
 
         this.renderUsers();
@@ -24,15 +26,36 @@ export default class UsersModule {
 
         const allUsers = await storage.getAll('users');
 
-        let users;
         const adminRoles = ['admin', 'ADMIN', 'MASTER'];
         const isLoggedMaster = auth.isMaster();
 
+        // Master UI Toggles
+        if (isLoggedMaster && this.currentTab === 'admin') {
+            document.getElementById('master-stats-row')?.classList.remove('hidden');
+            document.getElementById('admin-mini-filters')?.classList.remove('hidden');
+            await this.renderMasterStats();
+        } else {
+            document.getElementById('master-stats-row')?.classList.add('hidden');
+            document.getElementById('admin-mini-filters')?.classList.add('hidden');
+        }
+
         if (this.currentTab === 'admin') {
-            // Filtrar MASTER se o logado não for MASTER
             users = allUsers.filter(u => adminRoles.includes(u.role));
             if (!isLoggedMaster) {
                 users = users.filter(u => u.role !== 'MASTER');
+            }
+
+            // Aplicar sub-filtros de admin para MASTER
+            if (isLoggedMaster && this.adminFilter !== 'all') {
+                const results = [];
+                for (const u of users) {
+                    const installments = await billingService.getUserInstallments(u.id);
+                    const hasOverdue = installments.some(i => i.status === 'VENCIDA');
+
+                    if (this.adminFilter === 'pending' && !u.accessEnabled) results.push(u);
+                    if (this.adminFilter === 'overdue' && hasOverdue) results.push(u);
+                }
+                users = results;
             }
         } else {
             users = allUsers.filter(u => u.status === this.currentTab && !adminRoles.includes(u.role));
@@ -110,14 +133,17 @@ export default class UsersModule {
             let masterActions = '';
             if (this.isMaster) {
                 masterActions = `
-                    <button onclick="openAccessControl(${user.id})" class="text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all">Financeiro/Acesso</button>
-                    <button onclick="deleteUserPermanently(${user.id})" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Excluir</button>
+                    <button onclick="openEditUser(${user.id})" class="text-slate-500 hover:bg-slate-100 p-1.5 rounded-lg transition-all" title="Editar"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                    <button onclick="openAccessControl(${user.id})" class="text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all">Acesso</button>
+                    <button onclick="deleteUserPermanently(${user.id})" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 `;
             }
 
             return `
-                ${masterActions}
-                <button onclick="demoteUser(${user.id})" class="text-slate-400 hover:text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Remover Admin</button>
+                <div class="flex items-center gap-1">
+                    ${masterActions}
+                    <button onclick="demoteUser(${user.id})" class="text-slate-400 hover:text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Remover Admin</button>
+                </div>
             `;
         } else if (user.status === 'pendente') {
             return `
@@ -238,6 +264,73 @@ export default class UsersModule {
             const user = await storage.getById('users', id);
             this.openUserDetail(user);
         };
+
+        window.openEditUser = async (id) => {
+            const user = await storage.getById('users', id);
+            this.openEditModal(user);
+        };
+
+        // Admin Filters Bind
+        document.querySelectorAll('.admin-filter-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.admin-filter-btn').forEach(b => b.classList.remove('active', 'ring-2', 'ring-primary/20'));
+                btn.classList.add('active', 'ring-2', 'ring-primary/20');
+                this.adminFilter = btn.dataset.filter;
+                this.renderUsers();
+            };
+        });
+    }
+
+    async renderMasterStats() {
+        const allUsers = await storage.getAll('users');
+        const admins = allUsers.filter(u => ['admin', 'ADMIN', 'MASTER'].includes(u.role));
+
+        let active = 0;
+        let overdue = 0;
+        let totalRevenue = 0;
+
+        for (const admin of admins) {
+            if (admin.accessEnabled) active++;
+            const installments = await billingService.getUserInstallments(admin.id);
+            if (installments.some(i => i.status === 'VENCIDA')) overdue++;
+
+            totalRevenue += installments.filter(i => i.status === 'PAGA').reduce((sum, i) => sum + i.amount, 0);
+        }
+
+        document.getElementById('stat-total').textContent = admins.length;
+        document.getElementById('stat-active').textContent = active;
+        document.getElementById('stat-overdue').textContent = overdue;
+        document.getElementById('stat-revenue').textContent = `R$ ${totalRevenue.toFixed(2)}`;
+    }
+
+    bindEditModal() {
+        const modal = document.getElementById('edit-user-modal');
+        const form = document.getElementById('edit-user-form');
+        const close = document.getElementById('close-edit-modal');
+
+        if (!form) return;
+
+        close.onclick = () => modal.classList.add('hidden');
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-user-id').value;
+            const user = await storage.getById('users', id);
+
+            user.name = document.getElementById('edit-user-name').value;
+            user.email = document.getElementById('edit-user-email').value;
+
+            await storage.put('users', user);
+            modal.classList.add('hidden');
+            this.renderUsers();
+            alert('Dados do administrador atualizados!');
+        };
+    }
+
+    openEditModal(user) {
+        document.getElementById('edit-user-id').value = user.id;
+        document.getElementById('edit-user-name').value = user.name;
+        document.getElementById('edit-user-email').value = user.email;
+        document.getElementById('edit-user-modal').classList.remove('hidden');
     }
 
     injectBillingModal() {
