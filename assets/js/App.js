@@ -23,7 +23,8 @@ const modules = {
     payment_history: () => import('./modules/payment_history.js'),
     client_payments: () => import('./modules/client_payments.js'),
     client_loans: () => import('./modules/client_loans.js'),
-    client_profile: () => import('./modules/client_profile.js')
+    client_profile: () => import('./modules/client_profile.js'),
+    master_billing: () => import('./modules/master_billing.js')
 };
 
 class App {
@@ -48,10 +49,16 @@ class App {
             await auth.init();
             await templateService.init();
 
-            // Register PWA
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').then(() => console.log("SW Registered")).catch(e => console.error("SW Erro:", e));
+            // Check Access Status for ADMINS
+            if (auth.isAuthenticated()) {
+                const access = await auth.checkAccessStatus();
+                if (!access.allowed) {
+                    this.config.currentReason = access.reason;
+                    this.config.currentPage = 'blocked';
+                }
             }
+
+            // Register PWA
 
             // Load specific module if authenticated e injeta HTML
             if (auth.isAuthenticated()) {
@@ -141,6 +148,10 @@ class App {
                 }
 
                 // Visibility based on roles
+                if (auth.isMaster()) {
+                    document.querySelectorAll('.master-only').forEach(el => el.classList.remove('hidden'));
+                }
+
                 if (auth.isAdmin()) {
                     document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
                 } else {

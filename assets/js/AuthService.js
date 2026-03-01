@@ -66,16 +66,16 @@ class AuthService {
     async init() {
         console.log("AUTH LOADING:", this.authLoading);
 
-        // Check for admin user presence
         const users = await storage.getAll('users');
-        const adminExists = users.find(u => u.email === 'ivanrossi@outlook.com');
+        const masterEmail = 'ivanrossi@outlook.com';
+        const adminExists = users.find(u => u.email === masterEmail);
 
         if (!adminExists) {
             const adminId = await storage.add('users', {
                 name: 'Ivan Rossi',
-                email: 'ivanrossi@outlook.com',
+                email: masterEmail,
                 password: 'admin',
-                role: 'admin',
+                role: 'MASTER',
                 status: 'ativo',
                 createdAt: new Date().toISOString()
             });
@@ -84,11 +84,16 @@ class AuthService {
             await storage.add('clients', {
                 userId: adminId,
                 name: 'Ivan Rossi',
-                email: 'ivanrossi@outlook.com',
+                email: masterEmail,
                 status: 'ativo',
                 createdAt: new Date().toISOString()
             });
-            console.log("Admin user and profile created.");
+            console.log("Master Admin user and profile created.");
+        } else if (adminExists.role !== 'MASTER') {
+            // Garantir que ele seja MASTER se já existir mas com outro role
+            adminExists.role = 'MASTER';
+            await storage.put('users', adminExists);
+            console.log("Existing user promoted to MASTER.");
         }
 
         // Check for active session
@@ -207,7 +212,42 @@ class AuthService {
     }
 
     isAdmin() {
-        return this.currentUser && this.currentUser.role === 'admin';
+        return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'ADMIN' || this.currentUser.role === 'MASTER');
+    }
+
+    isMaster() {
+        return this.currentUser && this.currentUser.role === 'MASTER';
+    }
+
+    /**
+     * Verifica se o acesso está liberado para o usuário atual.
+     * Retorna { allowed: boolean, reason: string|null }
+     */
+    async checkAccessStatus() {
+        if (!this.currentUser) return { allowed: false, reason: 'not_logged_in' };
+
+        // MASTER sempre tem acesso
+        if (this.isMaster()) return { allowed: true };
+
+        // Somente ADMINS normais passam pela regra de mensalidade
+        // (Usuarios comuns/clientes entram no painel de cliente)
+        if (this.currentUser.role !== 'admin' && this.currentUser.role !== 'ADMIN') {
+            return { allowed: true };
+        }
+
+        // Se o MASTER deu override, entra sempre
+        if (this.currentUser.accessOverride) return { allowed: true };
+
+        // Se o acesso ainda não foi habilitado pelo MASTER (primeira vez)
+        if (!this.currentUser.accessEnabled) return { allowed: false, reason: 'pending_master' };
+
+        // Verificar mensalidades
+        const billingService = (await import('./BillingService.js')).default;
+        const hasOverdue = await billingService.hasOverdueInstallment(this.currentUser.id);
+
+        if (hasOverdue) return { allowed: false, reason: 'overdue_billing' };
+
+        return { allowed: true };
     }
 
     async impersonate(targetUserId) {
