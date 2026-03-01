@@ -81,6 +81,7 @@
                     <tr class="bg-slate-50/50 border-b border-slate-100">
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data Solicitação</th>
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Proponente</th>
+                        <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Chave PIX</th>
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Cidade</th>
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Valor Base</th>
                         <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Valor C/ Juros</th>
@@ -92,7 +93,7 @@
                 <tbody id="requests-list" class="divide-y divide-slate-50">
                     <!-- Row templates in JS should also be updated if found -->
                     <tr>
-                        <td colspan="6" class="px-8 py-32 text-center">
+                        <td colspan="9" class="px-8 py-32 text-center">
                             <div class="flex flex-col items-center gap-4 opacity-30">
                                 <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center animate-spin">
                                     <i data-lucide="loader-2" class="w-8 h-8 text-primary"></i>
@@ -119,14 +120,20 @@
         <form id="approval-form" class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
             <input type="hidden" id="req-id">
             
-            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
-                <div>
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente</p>
-                    <p class="text-base font-bold text-slate-900" id="req-client-name">---</p>
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-2 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente</p>
+                        <p class="text-base font-bold text-slate-900" id="req-client-name">---</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total com Juros</p>
+                        <p class="text-xl font-black text-primary" id="req-total-preview-display">R$ 0,00</p>
+                    </div>
                 </div>
-                <div class="text-right">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total com Juros</p>
-                    <p class="text-xl font-black text-primary" id="req-total-preview-display">R$ 0,00</p>
+                <div class="pt-2 border-t border-slate-200">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chave PIX Informada</p>
+                    <p class="text-sm font-black text-emerald-600 break-all" id="req-pix-display">---</p>
                 </div>
             </div>
 
@@ -138,7 +145,7 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase tracking-tight mb-1">Juros</label>
                     <div class="flex gap-1">
-                        <input type="number" step="0.01" id="req-interest" required value="3.5" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-bold">
+                        <input type="number" step="0.01" id="req-interest" required class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-bold">
                         <select id="req-interest-type" class="w-14 px-1 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-600 outline-none text-xs">
                             <option value="fixed" selected>R$</option>
                         </select>

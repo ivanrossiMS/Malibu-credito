@@ -78,7 +78,16 @@ export default class ClientLoanRequestModule {
             const installments = parseInt(document.getElementById('loan-installments').value);
             const frequency = document.querySelector('input[name="loan-frequency"]:checked').value;
             const startDate = document.getElementById('loan-start-date').value;
+            const pixKey = document.getElementById('loan-pix-key').value;
             const description = document.getElementById('loan-desc').value;
+
+            if (!pixKey) {
+                alert("Por favor, informe uma Chave PIX para receber o valor.");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Lançar Solicitação</span><i data-lucide="send" class="w-5 h-5"></i>';
+                lucide.createIcons();
+                return;
+            }
 
             if (!startDate) {
                 alert("Por favor, escolha uma Data da 1ª Parcela para a simulação.");
@@ -90,7 +99,7 @@ export default class ClientLoanRequestModule {
 
             const dt = startDate.split('-');
             const formattedDate = `${dt[2]}/${dt[1]}/${dt[0]}`;
-            const finalDescription = `Data da 1ª Parcela: ${formattedDate}\n\nObservações Adicionais:\n${description}`;
+            const finalDescription = `CHAVE PIX: ${pixKey}\nData da 1ª Parcela: ${formattedDate}\n\nObservações Adicionais:\n${description}`;
 
             const loanRequest = {
                 clientid: this.client.id,
@@ -110,6 +119,7 @@ export default class ClientLoanRequestModule {
             document.getElementById('loan-amount').value = 1500;
             document.getElementById('loan-installments').value = 6;
             document.getElementById('loan-start-date').value = '';
+            document.getElementById('loan-pix-key').value = '';
             document.getElementById('loan-desc').value = '';
             this.updateSummary();
 

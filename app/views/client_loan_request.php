@@ -82,6 +82,12 @@
                     </div>
                 </div>
 
+                <!-- PIX Key: New Mandatory Field -->
+                <div class="space-y-3">
+                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Chave PIX para Receber</label>
+                    <input type="text" id="loan-pix-key" required placeholder="Sua chave PIX (CPF, E-mail, Telefone ou Aleatória)" class="w-full px-6 py-5 rounded-2xl border border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all shadow-inner text-slate-700 font-bold">
+                </div>
+
                 <!-- First Installment Date: Modern Input -->
                 <div class="space-y-3">
                     <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Data da 1ª Parcela</label>
