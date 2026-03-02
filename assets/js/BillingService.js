@@ -167,6 +167,51 @@ class BillingService {
     }
 
     /**
+     * Gera mensalidades para uma empresa inteira.
+     */
+    async generateCompanyInstallments(companyId, count = 1, amount = null, firstDueDate = null) {
+        if (!companyId) return;
+
+        const finalAmount = amount !== null ? parseFloat(amount) : this.INSTALLMENT_AMOUNT;
+        let startDate;
+
+        if (firstDueDate) {
+            startDate = new Date(firstDueDate + 'T12:00:00');
+        } else {
+            const installments = await storage.getAdvanced('billing_installments', {
+                eq: { company_id: companyId },
+                order: { column: 'dueDate', ascending: false },
+                limit: 1
+            });
+
+            if (installments.length > 0) {
+                const latest = installments[0];
+                const [year, month] = latest.competenceMonth.split('-').map(Number);
+                startDate = new Date(year, month, this.DUE_DAY);
+            } else {
+                const now = new Date();
+                startDate = new Date(now.getFullYear(), now.getMonth(), this.DUE_DAY);
+            }
+        }
+
+        for (let i = 0; i < count; i++) {
+            const currentIter = new Date(startDate.getFullYear(), startDate.getMonth() + i, startDate.getDate());
+            const competenceMonth = `${currentIter.getFullYear()}-${String(currentIter.getMonth() + 1).padStart(2, '0')}`;
+            const dueDate = currentIter.toISOString().split('T')[0];
+
+            await storage.add('billing_installments', {
+                company_id: companyId,
+                competenceMonth: competenceMonth,
+                dueDate: dueDate,
+                amount: finalAmount,
+                status: 'A_VENCER',
+                createdAt: new Date().toISOString()
+            });
+            console.log(`Billing: Created company installment for ${competenceMonth} (ID: ${companyId})`);
+        }
+    }
+
+    /**
      * Desfaz um pagamento.
      */
     async undoPayment(installmentId) {
