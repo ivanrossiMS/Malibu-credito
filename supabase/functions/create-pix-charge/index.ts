@@ -39,9 +39,13 @@ serve(async (req) => {
         if (instError) throw new Error(`Banco (Parcela): ${instError.message}`);
         if (!inst) throw new Error(`Parcela ${installment_id} não encontrada.`);
 
-        // 2. Identify and Validate Asaas API Key for this specific company
+        // 2. Identify and Validate Asaas API Key and Environment
         const company = inst.company;
         const dynamicApiKey = company?.asaas_api_key;
+        const environment = company?.asaas_environment || 'sandbox';
+        const dynamicAsaasUrl = environment === 'production'
+            ? "https://www.asaas.com/api/v3"
+            : "https://sandbox.asaas.com/api/v3";
 
         if (!dynamicApiKey) {
             throw new Error(`A empresa "${company?.name || 'Desconhecida'}" nao possui chave de API asaas_api_key configurada. Operacao cancelada para evitar uso de conta mestre.`);
