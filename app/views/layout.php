@@ -195,7 +195,7 @@
             <a href="?page=client_payments" class="flex flex-col items-center gap-1 <?php echo $page === 'client_payments' ? 'text-primary' : 'text-slate-500'; ?>">
                 <i data-lucide="receipt" class="w-5 h-5"></i>
             </a>
-            <a href="?page=profile" class="flex flex-col items-center gap-1 <?php echo $page === 'profile' ? 'text-primary' : 'text-slate-500'; ?>">
+            <a href="?page=client_profile" class="flex flex-col items-center gap-1 <?php echo $page === 'client_profile' ? 'text-primary' : 'text-slate-500'; ?>">
                 <i data-lucide="user" class="w-5 h-5"></i>
             </a>
         </nav>

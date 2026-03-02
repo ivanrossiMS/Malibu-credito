@@ -169,7 +169,7 @@ class AuthService {
             password: userData.password,
             role: 'user',
             status: 'ativo',
-            company_id: userData.company_id || 1, // Default para a empresa criada na migração
+            company_id: userData.company_id || 1, // Fallback para 1 se não vier do form (retrocompatibilidade)
             createdAt: new Date().toISOString()
         };
         if (userData.id) newUser.id = userData.id;

@@ -48,7 +48,11 @@ class App {
         try {
             await storage.init();
             await auth.init();
-            await templateService.init();
+            try {
+                await templateService.init();
+            } catch (e) {
+                console.warn("TemplateService failed to init (likely missing company_id column in templates table):", e);
+            }
 
             // Check Access Status for ADMINS
             if (auth.isAuthenticated()) {
@@ -279,6 +283,21 @@ class App {
                         
                         <form id="register-form" class="space-y-8 text-left">
                             
+                            <!-- Bloco Empresa (Multi-Tenant) -->
+                            <div class="space-y-4">
+                                <h3 class="text-slate-800 font-bold border-b border-slate-100 pb-2 flex items-center gap-2"><i data-lucide="building" class="w-5 h-5 text-primary"></i> Selecione sua Empresa</h3>
+                                <div class="space-y-1">
+                                    <label class="block text-[10px] font-black text-slate-400 uppercase ml-1">Empresa</label>
+                                    <div class="relative">
+                                        <i data-lucide="briefcase" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                        <select id="reg-company-id" required class="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm font-bold text-slate-700 appearance-none cursor-pointer">
+                                            <option value="" disabled selected>Carregando empresas...</option>
+                                        </select>
+                                        <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Bloco Identidade -->
                             <div class="space-y-5">
                                 <h3 class="text-slate-800 font-bold border-b border-slate-100 pb-3 flex items-center gap-2"><i data-lucide="fingerprint" class="w-5 h-5 text-primary"></i> Identidade Pessoal</h3>
@@ -464,7 +483,32 @@ class App {
         }
 
         lucide.createIcons();
+
+        // Populate Companies Select dinamicamente se estiver no registro
+        if (view === 'register') {
+            this.populateRegisterCompanies();
+        }
+
         this.bindAuthEvents();
+    }
+
+    async populateRegisterCompanies() {
+        const select = document.getElementById('reg-company-id');
+        if (!select) return;
+
+        try {
+            const CompanyService = (await import('./CompanyService.js')).default;
+            const companies = await CompanyService.getAll();
+
+            if (companies && companies.length > 0) {
+                select.innerHTML = companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            } else {
+                select.innerHTML = '<option value="1">Malibu Crédito (Padrão)</option>';
+            }
+        } catch (err) {
+            console.error("Erro ao carregar empresas para registro:", err);
+            select.innerHTML = '<option value="1">Malibu Crédito (Padrão)</option>';
+        }
     }
 
     bindAuthEvents() {
@@ -509,6 +553,7 @@ class App {
                     state: document.getElementById('reg-state').value.trim(),
                     occupation: document.getElementById('reg-occupation').value.trim(),
                     company: document.getElementById('reg-company').value.trim(),
+                    company_id: document.getElementById('reg-company-id').value
                 };
 
                 try {

@@ -712,14 +712,16 @@ export default class InstallmentsModule {
         periodEl.className = `bg-${colorClass}-50 text-${colorClass}-600 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-${colorClass}-100`;
 
         lucide.createIcons();
-        repopulateCityFilter(clients) {
-            const citySelect = document.getElementById('city-filter');
-            if (citySelect) {
-                const currentCity = citySelect.value;
-                const cities = [...new Set(clients.map(c => c.city).filter(Boolean))].sort();
-                citySelect.innerHTML = '<option value="">Todas as Cidades</option>' +
-                    cities.map(city => `<option value="${city}" ${city === currentCity ? 'selected' : ''}>${city}</option>`).join('');
-            }
+    }
+
+    repopulateCityFilter(clients) {
+        const citySelect = document.getElementById('city-filter');
+        if (citySelect) {
+            const currentCity = citySelect.value;
+            const cities = [...new Set(clients.map(c => c.city).filter(Boolean))].sort();
+            citySelect.innerHTML = '<option value="">Todas as Cidades</option>' +
+                cities.map(city => `<option value="${city}" ${city === currentCity ? 'selected' : ''}>${city}</option>`).join('');
         }
     }
+}
 
