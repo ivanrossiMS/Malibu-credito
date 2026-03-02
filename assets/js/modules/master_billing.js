@@ -27,6 +27,8 @@ class MasterBilling {
         window.refreshBilling = () => this.loadBilling();
         window.masterMarkAsPaid = (id) => this.markAsPaid(id);
         window.masterUndoPayment = (id) => this.undoPayment(id);
+        window.masterEditInstallment = (id) => this.editInstallment(id);
+        window.masterVoucher = (id) => this.viewVoucher(id);
     }
 
     async loadInitialData() {
@@ -169,14 +171,20 @@ class MasterBilling {
                     <td class="px-8 py-5 text-right">
                         <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             ${inst.status !== 'PAGA' ? `
-                                <button onclick="masterMarkAsPaid(${inst.id})" class="text-emerald-500 hover:bg-emerald-50 p-3 rounded-2xl transition-all" title="Confirmar Pagamento">
+                                <button onclick="masterMarkAsPaid(${inst.id})" class="text-emerald-500 hover:bg-emerald-50 p-2 rounded-xl transition-all" title="Confirmar Pagamento">
                                     <i data-lucide="check" class="w-4 h-4"></i>
                                 </button>
                             ` : `
-                                <button onclick="masterUndoPayment(${inst.id})" class="text-rose-500 hover:bg-rose-50 p-3 rounded-2xl transition-all" title="Estornar / Reabrir">
+                                <button onclick="masterVoucher(${inst.id})" class="text-indigo-500 hover:bg-indigo-50 p-2 rounded-xl transition-all" title="Ver Comprovante">
+                                    <i data-lucide="receipt" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="masterUndoPayment(${inst.id})" class="text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition-all" title="Estornar / Reabrir">
                                     <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                                 </button>
                             `}
+                            <button onclick="masterEditInstallment(${inst.id})" class="text-slate-500 hover:bg-slate-50 p-2 rounded-xl transition-all" title="Editar Parcela">
+                                <i data-lucide="edit-2" class="w-4 h-4"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -204,6 +212,46 @@ class MasterBilling {
         } catch (error) {
             alert("Erro ao estornar: " + error.message);
         }
+    }
+
+    async editInstallment(id) {
+        // Como o modal de edição está no contexto de Companies, 
+        // mas as parcelas são da mesma tabela, podemos usar um prompt simples 
+        // ou redirecionar se necessário. Mas o usuário pediu "opção de editar".
+        // Vamos implementar um prompt simples de Valor e Data para o Master.
+
+        const inst = await storage.getById('billing_installments', id);
+        if (!inst) return;
+
+        const newAmount = prompt("Novo Valor (R$):", inst.amount);
+        if (newAmount === null) return;
+
+        const newDate = prompt("Nova Data de Vencimento (AAAA-MM-DD):", inst.dueDate);
+        if (newDate === null) return;
+
+        try {
+            await storage.put('billing_installments', {
+                ...inst,
+                amount: parseFloat(newAmount),
+                dueDate: newDate,
+                updatedAt: new Date().toISOString()
+            });
+            await this.loadBilling();
+            alert("Parcela atualizada!");
+        } catch (error) {
+            alert("Erro ao editar: " + error.message);
+        }
+    }
+
+    viewVoucher(id) {
+        // Se houver integração de comprovante (URL no banco)
+        storage.getById('billing_installments', id).then(inst => {
+            if (inst && inst.voucherUrl) {
+                window.open(inst.voucherUrl, '_blank');
+            } else {
+                alert("Nenhum comprovante anexado a esta parcela.");
+            }
+        });
     }
 }
 
