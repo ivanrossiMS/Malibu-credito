@@ -69,10 +69,12 @@ class BillingService {
 
     /**
      * Atualiza o status das parcelas (A_VENCER -> VENCIDA) baseado na data atual.
+     * Além disso, bloqueia o acesso se houver parcelas vencidas.
      */
     async syncInstallmentStatuses(userId) {
         const installments = await storage.query('billing_installments', 'userId', userId);
         const todayStr = DateHelper.getTodayStr();
+        let hasOverdue = false;
 
         for (const inst of installments) {
             let newStatus = inst.status;
@@ -80,6 +82,7 @@ class BillingService {
             if (inst.status !== 'PAGA') {
                 if (inst.dueDate < todayStr) {
                     newStatus = 'VENCIDA';
+                    hasOverdue = true;
                 } else {
                     newStatus = 'A_VENCER';
                 }
@@ -93,15 +96,24 @@ class BillingService {
                 });
             }
         }
+
+        // Bloqueio automático por inadimplência
+        if (hasOverdue) {
+            const user = await storage.getById('users', userId);
+            if (user && user.accessEnabled && !user.accessOverride) {
+                await storage.put('users', { ...user, accessEnabled: false });
+                console.log(`Billing: Access REVOKED for ${user.email} (Overdue found)`);
+            }
+        }
     }
 
     /**
      * Verifica se o usuário possui alguma parcela vencida.
      */
     async hasOverdueInstallment(userId) {
-        await this.syncInstallmentStatuses(userId);
         const installments = await storage.query('billing_installments', 'userId', userId);
-        return installments.some(i => i.status === 'VENCIDA');
+        const todayStr = DateHelper.getTodayStr();
+        return installments.some(i => i.status === 'VENCIDA' || (i.status === 'A_VENCER' && i.dueDate < todayStr));
     }
 
     /**
@@ -110,12 +122,13 @@ class BillingService {
     async getUserInstallments(userId) {
         return await storage.getAdvanced('billing_installments', {
             eq: { userId: userId },
-            order: { column: 'dueDate', ascending: false }
+            order: { column: 'dueDate', ascending: true }
         });
     }
 
     /**
      * Marca uma parcela como paga.
+     * Se for a do mês atual ou a última vencida, tenta liberar o acesso.
      */
     async markAsPaid(installmentId) {
         const inst = await storage.getById('billing_installments', installmentId);
@@ -127,6 +140,16 @@ class BillingService {
             paidAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         });
+
+        // Tentar liberar acesso se não houver mais pendências
+        const anyOverdue = await this.hasOverdueInstallment(inst.userId);
+        if (!anyOverdue) {
+            const user = await storage.getById('users', inst.userId);
+            if (user && !user.accessEnabled) {
+                await storage.put('users', { ...user, accessEnabled: true });
+                console.log(`Billing: Access RESTORED for ${user.email} (Payment confirmed)`);
+            }
+        }
     }
 
     /**
@@ -143,6 +166,7 @@ class BillingService {
             updatedAt: new Date().toISOString()
         });
 
+        // Sincroniza status e consequentemente bloqueia se necessário
         await this.syncInstallmentStatuses(inst.userId);
     }
 }

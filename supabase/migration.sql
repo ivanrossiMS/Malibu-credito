@@ -21,36 +21,15 @@ CREATE TABLE IF NOT EXISTS billing_installments (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. RLS Policies (Fixed for Integer ID vs UUID match)
-ALTER TABLE billing_installments ENABLE ROW LEVEL SECURITY;
+-- 3. RLS Policies
+-- NOTE: ROW LEVEL SECURITY is being disabled because the current architecture 
+-- uses a custom authentication system in AuthService.js that is not yet 
+-- integrated with Supabase Auth. To allow the Master Admin to manage 
+-- billing, we will follow the pattern of the other tables in the project.
+ALTER TABLE billing_installments DISABLE ROW LEVEL SECURITY;
 
--- MASTER sees everything
--- Logic: Check if the email in the Supabase Auth JWT belongs to a MASTER user or the specific master email
 DROP POLICY IF EXISTS master_manage_all_billing ON billing_installments;
-CREATE POLICY master_manage_all_billing ON billing_installments
-    FOR ALL
-    TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM users 
-            WHERE email = (auth.jwt() ->> 'email') 
-            AND (role = 'MASTER' OR role = 'master' OR email = 'ivanrossi@outlook.com')
-        )
-        OR (auth.jwt() ->> 'email') = 'ivanrossi@outlook.com'
-    );
-
--- ADMIN sees their own installments
--- Logic: Map the user_id (integer) to the authenticated user's email in the users table
 DROP POLICY IF EXISTS admin_view_own_billing ON billing_installments;
-CREATE POLICY admin_view_own_billing ON billing_installments
-    FOR SELECT
-    TO authenticated
-    USING (
-        user_id IN (
-            SELECT id FROM users 
-            WHERE email = (auth.jwt() ->> 'email')
-        )
-    );
 
 
 -- 4. Initial Master Admin Seed (optional, will also be handled by JS init)
