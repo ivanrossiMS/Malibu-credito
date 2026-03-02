@@ -80,6 +80,12 @@ class App {
                 // SPA Injector - Injeta HTML da pagina ANTES do setupUI ler os seletores CSS
                 this.renderSPAPage(this.config.currentPage);
 
+                // Redirecionamento de segurança para clientes na dashboard administrativa
+                if (!auth.isAdmin() && this.config.currentPage === 'dashboard') {
+                    window.location.href = '?page=client_dashboard';
+                    return;
+                }
+
                 // Agora varre o CSS e substitui nomes e fotos (já cobrindo o conteúdo recém-injetado)
                 await this.setupUI();
                 this.handleAuthVisibility();
