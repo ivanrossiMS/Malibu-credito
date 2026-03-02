@@ -16,7 +16,7 @@ class CompanyService {
             return await storage.put('companies', companyData);
         } else {
             companyData.createdAt = new Date().toISOString();
-            companyData.status = companyData.status || 'ativo';
+            companyData.status = companyData.status || 'bloqueado';
             return await storage.add('companies', companyData);
         }
     }

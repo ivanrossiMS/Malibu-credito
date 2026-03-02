@@ -141,17 +141,29 @@ class Companies {
     }
 
     async handleSave() {
+        const id = document.getElementById('company-id').value || null;
+
         const companyData = {
-            id: document.getElementById('company-id').value || null,
+            id: id,
             name: document.getElementById('company-name').value,
             slug: document.getElementById('company-slug').value,
             cnpj: document.getElementById('company-cnpj').value,
-            status: document.getElementById('company-status').value,
             asaas_api_key: document.getElementById('company-asaas-key').value,
             asaas_environment: document.getElementById('company-asaas-env').value,
             asaas_wallet_id: document.getElementById('company-asaas-wallet').value,
             pix_key: document.getElementById('company-pix-key').value
         };
+
+        // If it's a new company, force "bloqueado" status
+        if (!id) {
+            companyData.status = 'bloqueado';
+        } else {
+            // If it's an update, we should preserve the current status
+            const existing = await companyService.getById(id);
+            if (existing) {
+                companyData.status = existing.status;
+            }
+        }
 
         try {
             await companyService.save(companyData);
