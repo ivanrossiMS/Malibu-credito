@@ -26,6 +26,19 @@
         </div>
 
         <nav class="flex-1 px-4 py-4 overflow-y-auto custom-scrollbar space-y-2">
+            <!-- Company Identifier Badge (Modern Style) -->
+            <div class="px-4 mb-6" id="sidebar-company-badge">
+                <div class="bg-gradient-to-r from-white/10 to-transparent p-4 rounded-3xl border border-white/5 shadow-inner group">
+                    <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 group-hover:text-primary transition-colors">Sua Empresa</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/20">
+                            <i data-lucide="building-2" class="w-4 h-4 text-primary"></i>
+                        </div>
+                        <span id="sidebar-company-name" class="text-xs font-black text-slate-200 uppercase tracking-tighter truncate">Carregando...</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- COMMON / ADMIN SECTION -->
             <!-- ADMIN OPERATIONAL SECTION (Only for non-MASTER admins) -->
             <div class="admin-only hidden space-y-1" id="admin-operational-menu">

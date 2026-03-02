@@ -160,6 +160,19 @@ class App {
                     document.querySelectorAll('.user-email').forEach(el => el.textContent = user.email);
                 }
 
+                // Update company info in sidebar
+                const companyBadge = document.getElementById('sidebar-company-name');
+                if (companyBadge) {
+                    if (auth.isMaster()) {
+                        companyBadge.textContent = 'Malibu Crédito Master';
+                    } else {
+                        const companyId = user.company_id || user.companyId || 1;
+                        const CompanyService = (await import('./CompanyService.js')).default;
+                        const company = await CompanyService.getById(companyId).catch(() => ({ name: 'Empresa Padrão' }));
+                        companyBadge.textContent = company.name || 'Empresa Padrão';
+                    }
+                }
+
                 // Visibility based on roles
                 if (auth.isMaster()) {
                     document.querySelectorAll('.master-only').forEach(el => el.classList.remove('hidden'));
