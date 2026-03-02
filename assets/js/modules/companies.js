@@ -254,31 +254,24 @@ class Companies {
         if (installments.length === 0) {
             this.financeList.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400">Nenhuma mensalidade gerada.</td></tr>`;
         } else {
-            this.financeList.innerHTML = installments.map(inst => {
-                const statusClass = inst.status === 'PAGA' ? 'text-emerald-500' : (inst.status === 'VENCIDA' ? 'text-rose-500' : 'text-amber-500');
-                return `
-                    <tr>
-                        <td class="px-6 py-4">${DateHelper.formatLocal(inst.dueDate)}</td>
-                        <td class="px-6 py-4">R$ ${parseFloat(inst.amount).toFixed(2)}</td>
-                        <td class="px-6 py-4 ${statusClass}">${inst.status}</td>
-                        <td class="px-6 py-4 text-right">
-                            <div class="flex justify-end gap-1">
-                                ${inst.status !== 'PAGA' ? `
-                                    <button onclick="financeMarkAsPaid(${inst.id})" class="text-[10px] font-black text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg uppercase transition-all">Baixar</button>
+            <td class="px-6 py-4 text-right">
+                <div class="flex justify-end gap-2">
+                    ${inst.status !== 'PAGA' ? `
+                                    <button onclick="financeMarkAsPaid(${inst.id})" class="px-3 py-1.5 bg-emerald-600 text-white text-[10px] font-black rounded-xl uppercase hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-200">Baixar</button>
                                 ` : `
-                                    <button onclick="financeVoucher(${inst.id})" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Ver Comprovante">
-                                        <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
+                                    <button onclick="financeVoucher(${inst.id})" class="p-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-xl transition-all" title="Ver Comprovante">
+                                        <i data-lucide="receipt" class="w-4 h-4"></i>
                                     </button>
                                 `}
-                                <button onclick="financeEdit(${inst.id})" class="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg transition-all" title="Editar">
-                                    <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
-                                </button>
-                                <button onclick="financeDelete(${inst.id})" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Excluir">
-                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                    <button onclick="financeEdit(${inst.id})" class="p-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl transition-all" title="Editar">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="financeDelete(${inst.id})" class="p-2 bg-rose-100 text-rose-600 hover:bg-rose-200 rounded-xl transition-all" title="Excluir">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </td>
+                    </tr >
                 `;
             }).join('');
         }
@@ -312,17 +305,17 @@ class Companies {
         const voucherText = `
             COMPROVANTE DE PAGAMENTO - MENSALIDADE
             ------------------------------------
-            EMPRESA: ${company.name}
-            CNPJ: ${company.cnpj || '---'}
-            REF. MÊS: ${inst.competenceMonth}
-            VALOR: R$ ${parseFloat(inst.amount).toFixed(2)}
-            DATA PAGTO: ${new Date(inst.paidAt).toLocaleDateString()}
+                EMPRESA: ${ company.name }
+            CNPJ: ${ company.cnpj || '---' }
+            REF.MÊS: ${ inst.competenceMonth }
+            VALOR: R$ ${ parseFloat(inst.amount).toFixed(2) }
+            DATA PAGTO: ${ new Date(inst.paidAt).toLocaleDateString() }
             ------------------------------------
-            SISTEMA MALIBU CRÉDITO
-        `;
+                SISTEMA MALIBU CRÉDITO
+                    `;
 
         const win = window.open('', '_blank');
-        win.document.write(`<pre>${voucherText}</pre>`);
+        win.document.write(`< pre > ${ voucherText }</pre > `);
         win.document.close();
         win.print();
     }
@@ -336,7 +329,7 @@ class Companies {
         try {
             await billingService.generateCompanyInstallments(this.currentFinanceCompany.id, count, amount, firstDue);
             await this.refreshFinanceInfo();
-            alert(`${count} mensalidade(s) gerada(s) com sucesso!`);
+            alert(`${ count } mensalidade(s) gerada(s) com sucesso!`);
         } catch (error) {
             alert("Erro ao gerar mensalidades: " + error.message);
         }
