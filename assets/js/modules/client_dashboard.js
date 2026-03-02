@@ -449,6 +449,29 @@ export default class ClientDashboardModule {
                 alert("Chave PIX copiada!");
             };
         }
+
+        // Password Reset
+        const resetBtn = document.getElementById('btn-reset-password');
+        if (resetBtn) {
+            resetBtn.onclick = async () => {
+                const newPass = prompt("Digite sua nova senha:");
+                if (!newPass || newPass.trim().length < 4) {
+                    if (newPass !== null) alert("A senha deve ter pelo menos 4 caracteres.");
+                    return;
+                }
+
+                if (confirm("Confirmar alteração de senha?")) {
+                    try {
+                        const user = await storage.getById('users', auth.currentUser.id);
+                        user.password = newPass.trim();
+                        await storage.put('users', user);
+                        alert("Senha atualizada com sucesso! Use a nova senha no próximo login.");
+                    } catch (error) {
+                        alert("Erro ao atualizar senha: " + error.message);
+                    }
+                }
+            };
+        }
     }
 
     formatDateTime(dateStr) {

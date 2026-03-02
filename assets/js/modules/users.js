@@ -111,6 +111,7 @@ export default class UsersModule {
             return `
                 <button onclick="loginAsUser(${user.id})" class="text-emerald-600 border border-emerald-200 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2 flex items-center gap-1"><i data-lucide="log-in" class="w-3 h-3"></i> Acessar Cliente</button>
                 <button onclick="promoteUser(${user.id})" class="text-indigo-600 border border-indigo-200 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2">Promover a Admin</button>
+                <button onclick="resetUserPassword(${user.id})" class="text-slate-500 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2" title="Redefinir Senha"><i data-lucide="key" class="w-3 h-3"></i></button>
                 <button onclick="updateUserStatus(${user.id}, 'bloqueado')" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2">Bloquear</button>
                 <button onclick="deleteUserPermanently(${user.id})" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Excluir</button>
             `;
@@ -206,6 +207,22 @@ export default class UsersModule {
                     await auth.impersonate(id);
                 } catch (error) {
                     alert('Erro ao acessar conta: ' + error.message);
+                }
+            }
+        };
+
+        window.resetUserPassword = async (id) => {
+            const user = await storage.getById('users', id);
+            if (!user) return;
+
+            if (confirm(`Deseja gerar uma nova senha aleatória para ${user.name}?`)) {
+                try {
+                    const newPass = Math.random().toString(36).slice(-8);
+                    user.password = newPass;
+                    await storage.put('users', user);
+                    alert(`Senha redefinida com sucesso!\n\nNova senha: ${newPass}\n\nEnvie esta senha para o cliente.`);
+                } catch (error) {
+                    alert("Erro ao redefinir senha: " + error.message);
                 }
             }
         };

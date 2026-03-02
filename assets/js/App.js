@@ -542,14 +542,19 @@ class App {
             const CompanyService = (await import('./CompanyService.js')).default;
             const companies = await CompanyService.getAll();
 
+            const cleanName = (name) => name.replace(/\s*\(Padrão\)/gi, '').trim();
+
+            let optionsHtml = '<option value="" disabled selected>Selecione sua empresa</option>';
+
             if (companies && companies.length > 0) {
-                select.innerHTML = companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                optionsHtml += companies.map(c => `<option value="${c.id}">${cleanName(c.name)}</option>`).join('');
             } else {
-                select.innerHTML = '<option value="1">Malibu Crédito (Padrão)</option>';
+                optionsHtml += '<option value="1">Malibu Crédito</option>';
             }
+            select.innerHTML = optionsHtml;
         } catch (err) {
             console.error("Erro ao carregar empresas para registro:", err);
-            select.innerHTML = '<option value="1">Malibu Crédito (Padrão)</option>';
+            select.innerHTML = '<option value="" disabled selected>Selecione sua empresa</option><option value="1">Malibu Crédito</option>';
         }
     }
 
