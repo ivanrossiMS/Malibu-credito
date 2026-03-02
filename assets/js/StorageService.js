@@ -102,6 +102,37 @@ class StorageService {
         }
     }
 
+    async logAction(action, module, details = null) {
+        if (!this.supabase) return;
+
+        try {
+            const session = localStorage.getItem('malibu_session');
+            let userId = null;
+            let userEmail = 'Sistema';
+            let companyId = this.getContextCompanyId();
+
+            if (session) {
+                const userData = JSON.parse(session);
+                userId = userData.id || userData.uuid;
+                userEmail = userData.email;
+            }
+
+            const payload = {
+                company_id: companyId,
+                user_id: (userId && userId.length > 20) ? userId : null, // UUID check
+                user_email: userEmail,
+                action: action,
+                module: module,
+                details: details ? JSON.stringify(details) : null,
+                created_at: new Date().toISOString()
+            };
+
+            await this.supabase.from('system_logs').insert([payload]);
+        } catch (e) {
+            console.warn("Silent Log Error:", e);
+        }
+    }
+
     // Helper para obter o companyId do contexto global
     getContextCompanyId() {
         const session = localStorage.getItem('malibu_session');
@@ -166,19 +197,28 @@ class StorageService {
             console.error(`Supabase add error (${storeName}):`, JSON.stringify(error, null, 2));
             throw new Error(`${error.code} - ${error.message}`);
         }
+
+        // AUTO-LOG
+        this.logAction('CREATE', storeName.toUpperCase(), { id: result[0]?.id, data: payload });
+
         return result[0]?.id || result[0];
     }
 
     async put(storeName, data) {
         if (!this.supabase) return null;
+        const payload = this.toSnakeCase(data);
         const { data: result, error } = await this.supabase
             .from(storeName)
-            .upsert([this.toSnakeCase(data)])
+            .upsert([payload])
             .select();
         if (error) {
             console.error(`Supabase put error (${storeName}):`, error);
             throw error;
         }
+
+        // AUTO-LOG
+        this.logAction('UPDATE', storeName.toUpperCase(), { id: data.id, data: payload });
+
         return result[0]?.id || result[0];
     }
 
@@ -192,6 +232,10 @@ class StorageService {
             console.error(`Supabase delete error (${storeName}, ${id}):`, error);
             return false;
         }
+
+        // AUTO-LOG
+        this.logAction('DELETE', storeName.toUpperCase(), { id: id });
+
         return true;
     }
 
