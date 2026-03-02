@@ -16,66 +16,94 @@
     </div>
 
     <!-- Master Global Metrics -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
         <!-- Metric 1: Total Companies -->
-        <div class="premium-card p-8 group overflow-hidden relative border-emerald-100/50">
+        <div class="premium-card p-6 group overflow-hidden relative border-emerald-100/50">
             <div class="absolute inset-0 bg-emerald-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-            <div class="flex justify-between items-start mb-6 relative z-10">
-                <div class="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/10 transition-transform group-hover:scale-110 duration-500">
-                    <i data-lucide="building-2" class="w-7 h-7 text-emerald-600"></i>
+            <div class="flex justify-between items-start mb-4 relative z-10">
+                <div class="bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/10 transition-transform group-hover:scale-110 duration-500">
+                    <i data-lucide="building-2" class="w-6 h-6 text-emerald-600"></i>
                 </div>
             </div>
             <div class="relative z-10">
-                <p class="text-slate-500 text-xs font-black uppercase tracking-widest mb-1 opacity-70">Empresas Ativas</p>
-                <h3 id="master-stat-companies" class="text-3xl font-black text-slate-900 tracking-tight">0</h3>
+                <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 opacity-70">Empresas Ativas</p>
+                <h3 id="master-stat-companies" class="text-xl font-black text-slate-900 tracking-tight">0</h3>
             </div>
         </div>
 
         <!-- Metric 2: Total Admins -->
-        <div class="premium-card p-8 group overflow-hidden relative border-blue-100/50">
+        <div class="premium-card p-6 group overflow-hidden relative border-blue-100/50">
             <div class="absolute inset-0 bg-blue-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-            <div class="flex justify-between items-start mb-6 relative z-10">
-                <div class="bg-blue-500/10 p-4 rounded-2xl border border-blue-500/10 transition-transform group-hover:scale-110 duration-500">
-                    <i data-lucide="users" class="w-7 h-7 text-blue-600"></i>
+            <div class="flex justify-between items-start mb-4 relative z-10">
+                <div class="bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10 transition-transform group-hover:scale-110 duration-500">
+                    <i data-lucide="users" class="w-6 h-6 text-blue-600"></i>
                 </div>
             </div>
             <div class="relative z-10">
-                <p class="text-slate-500 text-xs font-black uppercase tracking-widest mb-1 opacity-70">Administradores</p>
-                <h3 id="master-stat-admins" class="text-3xl font-black text-slate-900 tracking-tight">0</h3>
+                <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 opacity-70">Administradores</p>
+                <h3 id="master-stat-admins" class="text-xl font-black text-slate-900 tracking-tight">0</h3>
             </div>
         </div>
 
         <!-- Metric 3: Monthly Billing -->
-        <div class="premium-card p-8 group overflow-hidden relative border-indigo-100/50">
+        <div class="premium-card p-6 group overflow-hidden relative border-indigo-100/50">
             <div class="absolute inset-0 bg-indigo-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-            <div class="flex justify-between items-start mb-6 relative z-10">
-                <div class="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/10 transition-transform group-hover:scale-110 duration-500">
-                    <i data-lucide="credit-card" class="w-7 h-7 text-indigo-600"></i>
+            <div class="flex justify-between items-start mb-4 relative z-10">
+                <div class="bg-indigo-500/10 p-3 rounded-2xl border border-indigo-500/10 transition-transform group-hover:scale-110 duration-500">
+                    <i data-lucide="credit-card" class="w-6 h-6 text-indigo-600"></i>
                 </div>
             </div>
             <div class="relative z-10">
-                <p class="text-slate-500 text-xs font-black uppercase tracking-widest mb-1 opacity-70">Faturamento Mensal</p>
-                <h3 id="master-stat-billing" class="text-3xl font-black text-slate-900 tracking-tight">R$ 0,00</h3>
+                <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 opacity-70">Faturamento Real (Mês)</p>
+                <h3 id="master-stat-billing" class="text-xl font-black text-slate-900 tracking-tight">R$ 0,00</h3>
             </div>
         </div>
 
         <!-- Metric 4: System Health -->
-        <div class="premium-card p-8 group overflow-hidden relative border-amber-100/50">
+        <div class="premium-card p-6 group overflow-hidden relative border-amber-100/50">
             <div class="absolute inset-0 bg-amber-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-            <div class="flex justify-between items-start mb-6 relative z-10">
-                <div class="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/10 transition-transform group-hover:scale-110 duration-500">
-                    <i data-lucide="activity" class="w-7 h-7 text-amber-600"></i>
+            <div class="flex justify-between items-start mb-4 relative z-10">
+                <div class="bg-amber-500/10 p-3 rounded-2xl border border-amber-500/10 transition-transform group-hover:scale-110 duration-500">
+                    <i data-lucide="activity" class="w-6 h-6 text-amber-600"></i>
                 </div>
             </div>
             <div class="relative z-10">
-                <p class="text-slate-500 text-xs font-black uppercase tracking-widest mb-1 opacity-70">Status do Sistema</p>
-                <h3 class="text-3xl font-black text-emerald-600 tracking-tight flex items-center gap-2">
+                <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 opacity-70">Status do Sistema</p>
+                <h3 class="text-xl font-black text-emerald-600 tracking-tight flex items-center gap-2">
                     Online
-                    <span class="flex h-3 w-3 relative">
+                    <span class="flex h-2 w-2 relative">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
                 </h3>
+            </div>
+        </div>
+
+        <!-- Metric 5: Monthly Forecast (New) -->
+        <div class="premium-card p-6 group overflow-hidden relative border-violet-100/50 bg-gradient-to-br from-white to-violet-50/30">
+            <div class="absolute inset-0 bg-violet-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+            <div class="flex justify-between items-start mb-4 relative z-10">
+                <div class="bg-violet-500/10 p-3 rounded-2xl border border-violet-500/10 transition-transform group-hover:scale-110 duration-500">
+                    <i data-lucide="calendar-check" class="w-6 h-6 text-violet-600"></i>
+                </div>
+            </div>
+            <div class="relative z-10">
+                <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 opacity-70">Previsão Mensal</p>
+                <h3 id="master-stat-forecast" class="text-xl font-black text-slate-900 tracking-tight">R$ 0,00</h3>
+            </div>
+        </div>
+
+        <!-- Metric 6: Monthly Overdue (New) -->
+        <div class="premium-card p-6 group overflow-hidden relative border-rose-100/50 bg-gradient-to-br from-white to-rose-50/30">
+            <div class="absolute inset-0 bg-rose-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+            <div class="flex justify-between items-start mb-4 relative z-10">
+                <div class="bg-rose-500/10 p-3 rounded-2xl border border-rose-500/10 transition-transform group-hover:scale-110 duration-500">
+                    <i data-lucide="alert-circle" class="w-6 h-6 text-rose-600"></i>
+                </div>
+            </div>
+            <div class="relative z-10">
+                <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 opacity-70">Inadimplentes (Mês)</p>
+                <h3 id="master-stat-overdue-month" class="text-xl font-black text-rose-600 tracking-tight">R$ 0,00</h3>
             </div>
         </div>
     </div>

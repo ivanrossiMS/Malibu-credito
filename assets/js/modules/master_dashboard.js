@@ -42,7 +42,21 @@ export default class MasterDashboardModule {
                 })
                 .reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
 
-            document.getElementById('master-stat-billing').textContent = `R$ ${monthlyBilling.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+            // Calculate Forecast (Everything that belongs to this month)
+            const forecast = allInstallments
+                .filter(i => i.competenceMonth === currentMonth)
+                .reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
+
+            // Calculate Overdue (Only what belongs to this month and is OVERDUE)
+            const overdueMonth = allInstallments
+                .filter(i => i.competenceMonth === currentMonth && (i.status || '').toUpperCase() === 'VENCIDA')
+                .reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
+
+            const fmt = (val) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+            document.getElementById('master-stat-billing').textContent = fmt(monthlyBilling);
+            document.getElementById('master-stat-forecast').textContent = fmt(forecast);
+            document.getElementById('master-stat-overdue-month').textContent = fmt(overdueMonth);
 
             this.renderRecentCompanies(companies);
             this.renderPendingActions(allInstallments, companies);

@@ -13,6 +13,9 @@ class MasterBilling {
         this.kpiTotalPending = document.getElementById('kpi-total-pending');
         this.kpiThisMonth = document.getElementById('kpi-this-month');
 
+        this.dateFrom = document.getElementById('master-date-from');
+        this.dateTo = document.getElementById('master-date-to');
+
         this.installments = [];
         this.companies = [];
     }
@@ -76,6 +79,12 @@ class MasterBilling {
         if (this.statusFilter) {
             this.statusFilter.onchange = () => this.applyFilters();
         }
+        if (this.dateFrom) {
+            this.dateFrom.onchange = () => this.applyFilters();
+        }
+        if (this.dateTo) {
+            this.dateTo.onchange = () => this.applyFilters();
+        }
     }
 
     applyFilters() {
@@ -97,6 +106,14 @@ class MasterBilling {
 
         if (status !== 'all') {
             filtered = filtered.filter(i => i.status === status);
+        }
+
+        if (this.dateFrom && this.dateFrom.value) {
+            filtered = filtered.filter(i => i.dueDate >= this.dateFrom.value);
+        }
+
+        if (this.dateTo && this.dateTo.value) {
+            filtered = filtered.filter(i => i.dueDate <= this.dateTo.value);
         }
 
         this.updateKPIs(filtered);

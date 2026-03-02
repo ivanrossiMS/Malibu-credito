@@ -84,15 +84,22 @@
                 </div>
             </div>
 
-            <!-- Global Company Filter -->
-            <div class="flex items-center gap-4 w-full md:w-auto">
-                <div class="relative w-full md:w-64">
+            <!-- Global Company Filter & Date Range -->
+            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-1.5 shadow-sm">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Período:</span>
+                    <input type="date" id="master-date-from" class="bg-transparent border-none outline-none font-bold text-slate-700 text-xs">
+                    <span class="text-slate-300">/</span>
+                    <input type="date" id="master-date-to" class="bg-transparent border-none outline-none font-bold text-slate-700 text-xs">
+                </div>
+
+                <div class="relative w-full md:w-56">
                     <i data-lucide="filter" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
                     <select id="master-company-filter" class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold text-slate-700 appearance-none">
                         <option value="all">Todas as Empresas</option>
                     </select>
                 </div>
-                <div class="relative w-full md:w-48">
+                <div class="relative w-full md:w-44">
                     <i data-lucide="check-circle" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
                     <select id="master-status-filter" class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold text-slate-700 appearance-none">
                         <option value="all">Todos Status</option>
