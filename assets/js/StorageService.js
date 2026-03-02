@@ -54,13 +54,13 @@ class StorageService {
         // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
         const companyId = this.getContextCompanyId();
         if (companyId) {
-            query = query.eq('company_id', companyId);
+            query = this.applyMultiTenancy(query, storeName, companyId);
         }
 
         const { data, error } = await query;
         if (error) {
             // [TRANSITION LOGIC] Se a coluna company_id não existir ainda, fazemos o fallback para a query completa
-            if (error.code === 'PGRST204' && companyId) {
+            if ((error.code === 'PGRST204' || error.code === '42703') && companyId) {
                 console.warn(`Fallback: Tabela ${storeName} ainda não possui a coluna company_id. Retornando todos os registros.`);
                 const fallback = await this.supabase.from(storeName).select('*');
                 return this.toCamelCase(fallback.data || []);
@@ -80,7 +80,7 @@ class StorageService {
         // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
         const companyId = this.getContextCompanyId();
         if (companyId) {
-            query = query.eq('company_id', companyId);
+            query = this.applyMultiTenancy(query, storeName, companyId);
         }
 
         try {
@@ -153,13 +153,21 @@ class StorageService {
         }
     }
 
+    applyMultiTenancy(query, storeName, companyId) {
+        if (!companyId) return query;
+        // Na tabela de empresas, filtramos pelo ID da própria empresa
+        if (storeName === 'companies') return query.eq('id', companyId);
+        // Nas demais, filtramos pela coluna company_id
+        return query.eq('company_id', companyId);
+    }
+
     async add(storeName, data) {
         if (!this.supabase) return null;
 
         const payload = this.toSnakeCase(data);
 
         // [MULTI-TENANCY] Injetar company_id automaticamente se não fornecido
-        if (!payload.company_id) {
+        if (!payload.company_id && storeName !== 'companies') {
             const ctxCompanyId = this.getContextCompanyId();
             if (ctxCompanyId) {
                 payload.company_id = ctxCompanyId;
@@ -262,7 +270,7 @@ class StorageService {
         // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
         const companyId = this.getContextCompanyId();
         if (companyId) {
-            query = query.eq('company_id', companyId);
+            query = this.applyMultiTenancy(query, storeName, companyId);
         }
 
         if (options.eq) {
@@ -306,7 +314,7 @@ class StorageService {
         const { data, error } = await query;
         if (error) {
             // [TRANSITION LOGIC] Se a coluna company_id não existir ainda, fazemos o fallback para a query completa
-            if (error.code === 'PGRST204' && companyId) {
+            if ((error.code === 'PGRST204' || error.code === '42703') && companyId) {
                 console.warn(`Fallback Advanced: Tabela ${storeName} ainda não possui a coluna company_id.`);
                 let retryQuery = this.supabase.from(storeName).select(selectQuery);
                 // Re-aplicar outros filtros exceto company_id

@@ -30,7 +30,7 @@ export default class ClientDashboardModule {
         window.sendReceiptToWhatsApp = (id) => this.sendReceiptToWhatsApp(id);
 
         await this.renderDashboard();
-        this.bindGlobalEvents();
+        this.bindEvents();
     }
 
     async getCurrentClient() {
