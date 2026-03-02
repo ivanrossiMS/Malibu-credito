@@ -162,15 +162,37 @@
                 <div class="flex items-center justify-between">
                     <h3 class="font-black text-slate-800 flex items-center gap-2 text-lg">
                         <i data-lucide="calendar" class="w-6 h-6 text-slate-400"></i>
-                        Histórico de Mensalidades
+                        Gestão de Mensalidades
                     </h3>
-                    <button id="generate-installments" class="text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline flex items-center gap-2">
+                    <button id="btn-show-gen-form" class="text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline flex items-center gap-2 transition-all">
                         <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                        Gerar Faltantes
+                        Geração em Lote
                     </button>
                 </div>
+
+                <!-- Advanced Batch Generation Form (Moved from Users) -->
+                <div id="batch-gen-form-container" class="hidden bg-indigo-50/50 p-6 rounded-[2rem] border border-indigo-100 animate-fade-in space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-2">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantidade</label>
+                            <input type="number" id="gen-count" value="1" min="1" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary outline-none font-bold text-slate-700">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor Unitário</label>
+                            <input type="number" id="gen-amount" value="10.00" step="0.01" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary outline-none font-bold text-slate-700">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">1º Vencimento</label>
+                            <input type="date" id="gen-first-due" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary outline-none font-bold text-slate-700">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button id="btn-cancel-gen" class="px-5 py-2 text-slate-500 font-bold text-xs uppercase transition-all">Cancelar</button>
+                        <button id="btn-confirm-gen" class="px-8 py-2 bg-indigo-600 text-white font-black rounded-xl shadow-lg shadow-indigo-200 hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-widest">GERAR PARCELAS</button>
+                    </div>
+                </div>
                 
-                <div class="border border-slate-100 rounded-3xl overflow-hidden">
+                <div class="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             <tr>
@@ -188,5 +210,31 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Edit Administrator Modal (Moved from Users) -->
+<div id="edit-user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[210] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-fade-in border border-white/20">
+        <div class="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <h2 class="text-2xl font-black text-slate-800 font-heading">Editar Administrador</h2>
+            <button id="close-edit-modal" class="p-3 hover:bg-slate-200 rounded-2xl transition-all">
+                <i data-lucide="x" class="w-6 h-6 text-slate-500"></i>
+            </button>
+        </div>
+        <form id="edit-user-form" class="p-8 space-y-6">
+            <input type="hidden" id="edit-user-id">
+            <div class="space-y-2">
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                <input type="text" id="edit-user-name" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700">
+            </div>
+            <div class="space-y-2">
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email de Acesso</label>
+                <input type="email" id="edit-user-email" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700">
+            </div>
+            <div class="pt-4">
+                <button type="submit" class="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-95 transition-all tracking-widest uppercase text-sm">SALVAR ALTERAÇÕES</button>
+            </div>
+        </form>
     </div>
 </div>

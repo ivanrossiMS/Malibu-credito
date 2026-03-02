@@ -52,6 +52,7 @@ class MasterBilling {
 
     async renderTable() {
         const tbody = document.getElementById('users-table-body');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         if (this.filteredUsers.length === 0) {
@@ -65,13 +66,12 @@ class MasterBilling {
             const hasOverdue = overdue.length > 0;
 
             const tr = document.createElement('tr');
-            tr.className = 'hover:bg-slate-50/50 transition-all cursor-pointer group';
-            tr.onclick = () => this.openUserDetail(user);
+            tr.className = 'hover:bg-slate-50/50 transition-all group';
 
             tr.innerHTML = `
                 <td class="px-8 py-5">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
                             ${user.name?.[0]?.toUpperCase() || 'A'}
                         </div>
                         <div>
@@ -89,25 +89,71 @@ class MasterBilling {
                 <td class="px-8 py-5 text-sm">
                     <div class="flex flex-col gap-1">
                         ${hasOverdue
-                    ? `<span class="text-rose-500 font-bold flex items-center gap-1"><i data-lucide="x-circle" class="w-3 h-3"></i> ${overdue.length} Vencida(s)</span>`
-                    : `<span class="text-emerald-500 font-bold flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3 h-3"></i> Em Dia</span>`
+                    ? `<span class="text-rose-500 font-bold flex items-center gap-1"><i data-lucide="x-circle" class="w-3 h-3 text-rose-500"></i> ${overdue.length} Vencida(s)</span>`
+                    : `<span class="text-emerald-500 font-bold flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-500"></i> Em Dia</span>`
                 }
                     </div>
                 </td>
                 <td class="px-8 py-5 text-sm text-slate-500 font-medium">
                     ${user.firstAccessAt ? `Ativo desde ${DateHelper.formatLocal(user.firstAccessAt)}` : 'Aguardando 1º acesso'}
                 </td>
-                <td class="px-8 py-5">
-                    <div class="flex items-center gap-2">
-                        <button class="p-2 bg-slate-100 text-slate-400 rounded-lg group-hover:bg-primary group-hover:text-white transition-all">
-                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                <td class="px-8 py-5 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                        <button class="edit-admin-btn p-2 bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all" data-id="${user.id}" title="Editar">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        </button>
+                        <button class="access-control-btn px-4 py-2 bg-indigo-600 text-white font-black rounded-xl text-[10px] uppercase shadow-lg shadow-indigo-100 hover:scale-105 transition-all" data-id="${user.id}">
+                            Acesso
+                        </button>
+                        <button class="delete-admin-btn p-2 bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all" data-id="${user.id}" title="Excluir">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     </div>
                 </td>
             `;
             tbody.appendChild(tr);
         }
+
+        // Bind actions
+        tbody.querySelectorAll('.edit-admin-btn').forEach(btn => {
+            btn.onclick = async () => {
+                const user = this.users.find(u => String(u.id) === String(btn.dataset.id));
+                this.openEditModal(user);
+            };
+        });
+
+        tbody.querySelectorAll('.access-control-btn').forEach(btn => {
+            btn.onclick = async () => {
+                const user = this.users.find(u => String(u.id) === String(btn.dataset.id));
+                this.openUserDetail(user);
+            };
+        });
+
+        tbody.querySelectorAll('.delete-admin-btn').forEach(btn => {
+            btn.onclick = async () => this.deleteUserPermanently(btn.dataset.id);
+        });
+
         lucide.createIcons();
+    }
+
+    async deleteUserPermanently(id) {
+        const confirmMsg = "ATENÇÃO: Isso excluirá PERMANENTEMENTE o administrador e todos seus dados de cobrança.\n\nEsta ação não pode ser desfeita. Deseja continuar?";
+        if (confirm(confirmMsg)) {
+            try {
+                // Cascata: Deletar parcelas
+                const installments = await billingService.getUserInstallments(id);
+                for (let inst of installments) {
+                    await storage.delete('billing_installments', inst.id);
+                }
+                // Deletar usuário
+                await storage.delete('users', id);
+                alert("Administrador removido com sucesso.");
+                await this.loadData();
+            } catch (error) {
+                console.error("Erro ao deletar admin:", error);
+                alert("Erro ao excluir: " + error.message);
+            }
+        }
     }
 
     async openUserDetail(user) {
@@ -121,6 +167,11 @@ class MasterBilling {
         this.updateAccessButtons();
         await this.renderInstallments();
 
+        // Limpar form de geração
+        document.getElementById('batch-gen-form-container').classList.add('hidden');
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('gen-first-due').value = today;
+
         modal.classList.remove('hidden');
     }
 
@@ -132,22 +183,22 @@ class MasterBilling {
 
         if (user.accessEnabled) {
             btnEnabled.textContent = 'REVOGAR ACESSO';
-            btnEnabled.className = btnEnabled.className.replace('bg-primary', 'bg-rose-500');
+            btnEnabled.className = "px-6 py-2 bg-rose-500 text-white font-bold rounded-xl shadow-lg shadow-rose-200 hover:scale-105 transition-all text-xs";
             statusText.textContent = 'LIBERADO';
             statusText.className = 'text-sm font-black text-emerald-600';
         } else {
             btnEnabled.textContent = 'LIBERAR ACESSO';
-            btnEnabled.className = btnEnabled.className.replace('bg-rose-500', 'bg-primary');
+            btnEnabled.className = "px-6 py-2 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-105 transition-all text-xs";
             statusText.textContent = 'BLOQUEADO';
             statusText.className = 'text-sm font-black text-rose-600';
         }
 
         if (user.accessOverride) {
             btnOverride.textContent = 'DESATIVAR OVERRIDE';
-            btnOverride.className = btnOverride.className.replace('bg-slate-300 text-slate-600', 'bg-amber-400 text-amber-900');
+            btnOverride.className = "px-6 py-2 bg-amber-400 text-amber-900 font-bold rounded-xl hover:scale-105 transition-all text-xs";
         } else {
             btnOverride.textContent = 'ATIVAR OVERRIDE';
-            btnOverride.className = btnOverride.className.replace('bg-amber-400 text-amber-900', 'bg-slate-300 text-slate-600');
+            btnOverride.className = "px-6 py-2 bg-slate-300 text-slate-600 font-bold rounded-xl hover:scale-105 transition-all text-xs";
         }
     }
 
@@ -176,9 +227,9 @@ class MasterBilling {
                         ${inst.status}
                     </span>
                 </td>
-                <td class="px-6 py-4">
-                    <button class="toggle-pay-btn text-indigo-600 hover:text-indigo-800 font-bold text-xs" data-id="${inst.id}">
-                        ${isPaid ? 'Desfazer' : 'Marcar Paga'}
+                <td class="px-6 py-4 text-right">
+                    <button class="toggle-pay-btn text-indigo-600 hover:text-indigo-800 font-black text-xs uppercase tracking-wider" data-id="${inst.id}">
+                        ${isPaid ? 'Desfazer' : 'Dar Baixa'}
                     </button>
                 </td>
             `;
@@ -188,32 +239,107 @@ class MasterBilling {
         document.getElementById('modal-total-paid').textContent = `R$ ${paidTotal.toFixed(2)}`;
         document.getElementById('modal-total-pending').textContent = `R$ ${pendingTotal.toFixed(2)}`;
 
-        // Bind toggle buttons
         tbody.querySelectorAll('.toggle-pay-btn').forEach(btn => {
             btn.onclick = async () => {
                 const id = btn.dataset.id;
                 const inst = installments.find(i => String(i.id) === String(id));
-                if (inst.status === 'PAGA') {
-                    await billingService.undoPayment(id);
-                } else {
-                    await billingService.markAsPaid(id);
-                }
+
+                if (inst.status === 'PAGA') await billingService.undoPayment(id);
+                else await billingService.markAsPaid(id);
+
+                // Refresh modal and user state for auto-block/unblock
+                this.currentUser = await storage.getById('users', this.currentUser.id);
+                this.updateAccessButtons();
                 await this.renderInstallments();
-                await this.loadData(); // Update table and stats
+                await this.loadData();
             };
+        });
+    }
+
+    async openEditModal(user) {
+        document.getElementById('edit-user-id').value = user.id;
+        document.getElementById('edit-user-name').value = user.name;
+        document.getElementById('edit-user-email').value = user.email;
+        document.getElementById('edit-user-modal').classList.remove('hidden');
+    }
+
+    bindEvents() {
+        document.getElementById('refresh-users').onclick = () => this.loadData();
+        document.getElementById('close-modal').onclick = () => document.getElementById('user-detail-modal').classList.add('hidden');
+        document.getElementById('toggle-access-enabled').onclick = () => this.toggleAccessEnabled();
+        document.getElementById('toggle-access-override').onclick = () => this.toggleAccessOverride();
+
+        // Batch Gen
+        const genFormContainer = document.getElementById('batch-gen-form-container');
+        document.getElementById('btn-show-gen-form').onclick = () => genFormContainer.classList.toggle('hidden');
+        document.getElementById('btn-cancel-gen').onclick = () => genFormContainer.classList.add('hidden');
+
+        document.getElementById('btn-confirm-gen').onclick = async () => {
+            const count = parseInt(document.getElementById('gen-count').value);
+            const amount = parseFloat(document.getElementById('gen-amount').value);
+            const firstDue = document.getElementById('gen-first-due').value;
+
+            if (!count || count <= 0) return alert("Quantidade inválida.");
+            if (!amount || amount <= 0) return alert("Valor inválido.");
+            if (!firstDue) return alert("Data de vencimento obrigatória.");
+
+            try {
+                const btn = document.getElementById('btn-confirm-gen');
+                btn.disabled = true;
+                btn.textContent = "GERANDO...";
+
+                await billingService.generateMonthlyInstallments(this.currentUser, count, amount, firstDue);
+
+                await this.renderInstallments();
+                await this.loadData();
+
+                genFormContainer.classList.add('hidden');
+                alert(`${count} parcelas geradas com sucesso!`);
+            } catch (error) {
+                console.error("Erro ao gerar:", error);
+                alert("Erro: " + error.message);
+            } finally {
+                const btn = document.getElementById('btn-confirm-gen');
+                btn.disabled = false;
+                btn.textContent = "GERAR PARCELAS";
+            }
+        };
+
+        // Edit Form
+        document.getElementById('close-edit-modal').onclick = () => document.getElementById('edit-user-modal').classList.add('hidden');
+        document.getElementById('edit-user-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-user-id').value;
+            const user = await storage.getById('users', id);
+
+            user.name = document.getElementById('edit-user-name').value;
+            user.email = document.getElementById('edit-user-email').value;
+
+            await storage.put('users', user);
+            document.getElementById('edit-user-modal').classList.add('hidden');
+            await this.loadData();
+            alert('Dados atualizados!');
+        };
+
+        // Filters & Search
+        document.getElementById('user-search').oninput = (e) => {
+            const val = e.target.value.toLowerCase();
+            this.filteredUsers = this.users.filter(u =>
+                u.name?.toLowerCase().includes(val) || u.email?.toLowerCase().includes(val)
+            );
+            this.renderTable();
+        };
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.onclick = () => this.applyFilter(btn.dataset.filter);
         });
     }
 
     async toggleAccessEnabled() {
         this.currentUser.accessEnabled = !this.currentUser.accessEnabled;
-
-        // Se estiver habilitando pela primeira vez, marca first_access_at
         if (this.currentUser.accessEnabled && !this.currentUser.firstAccessAt) {
             this.currentUser.firstAccessAt = new Date().toISOString();
-            // Gera logo as parcelas
-            await billingService.generateMissingInstallments(this.currentUser);
         }
-
         await storage.put('users', this.currentUser);
         this.updateAccessButtons();
         await this.loadData();
@@ -238,7 +364,6 @@ class MasterBilling {
         } else if (filter === 'pending') {
             this.filteredUsers = this.users.filter(u => !u.accessEnabled);
         } else if (filter === 'overdue') {
-            // Este filtro requer check assíncrono, vamos tratar na renderização ou pre-processar
             this.syncAndFilter('overdue');
             return;
         } else if (filter === 'paid') {
@@ -258,35 +383,6 @@ class MasterBilling {
         }
         this.filteredUsers = results;
         this.renderTable();
-    }
-
-    bindEvents() {
-        document.getElementById('refresh-users').onclick = () => this.loadData();
-
-        document.getElementById('user-search').oninput = (e) => {
-            const val = e.target.value.toLowerCase();
-            this.filteredUsers = this.users.filter(u =>
-                u.name?.toLowerCase().includes(val) || u.email?.toLowerCase().includes(val)
-            );
-            this.renderTable();
-        };
-
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.onclick = () => this.applyFilter(btn.dataset.filter);
-        });
-
-        document.getElementById('close-modal').onclick = () => {
-            document.getElementById('user-detail-modal').classList.add('hidden');
-        };
-
-        document.getElementById('toggle-access-enabled').onclick = () => this.toggleAccessEnabled();
-        document.getElementById('toggle-access-override').onclick = () => this.toggleAccessOverride();
-
-        document.getElementById('generate-installments').onclick = async () => {
-            await billingService.generateMissingInstallments(this.currentUser);
-            await this.renderInstallments();
-            await this.loadData();
-        };
     }
 }
 
