@@ -41,10 +41,10 @@ serve(async (req) => {
 
         // 2. Identify and Validate Asaas API Key for this specific company
         const company = inst.company;
-        const dynamicApiKey = company?.asaas_api_key || ASAAS_API_KEY; // Fallback to global if needed, but per-company is preferred
+        const dynamicApiKey = company?.asaas_api_key;
 
         if (!dynamicApiKey) {
-            throw new Error(`Empresa "${company?.name || 'Desconhecida'}" não possui ASAAS_API_KEY configurada.`);
+            throw new Error(`A empresa "${company?.name || 'Desconhecida'}" nao possui chave de API asaas_api_key configurada. Operacao cancelada para evitar uso de conta mestre.`);
         }
 
         // Robust value extraction to handle naming variations in the DB
@@ -123,7 +123,7 @@ serve(async (req) => {
 
         // 5. Get QR Code
         const qrRes = await fetch(`${ASAAS_URL}/payments/${payData.id}/pixQrCode`, {
-            headers: { 'access_token': ASAAS_API_KEY }
+            headers: { 'access_token': dynamicApiKey }
         });
         const qrData = await qrRes.json();
 

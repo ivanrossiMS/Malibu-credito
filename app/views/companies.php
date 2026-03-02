@@ -83,6 +83,19 @@
                         <label class="block text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">API Key Asaas</label>
                         <input type="password" id="company-asaas-key" class="w-full px-5 py-4 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700">
                     </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="block text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Ambiente</label>
+                            <select id="company-asaas-env" class="w-full px-5 py-4 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700">
+                                <option value="sandbox">Sandbox (Teste)</option>
+                                <option value="production">Produção (Real)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Wallet ID (Opcional)</label>
+                            <input type="text" id="company-asaas-wallet" class="w-full px-5 py-4 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700" placeholder="ID da carteira Asaas">
+                        </div>
+                    </div>
                     <div class="space-y-2">
                         <label class="block text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Chave PIX</label>
                         <input type="text" id="company-pix-key" class="w-full px-5 py-4 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700">

@@ -95,8 +95,10 @@ class Companies {
         document.getElementById('company-slug').value = company ? company.slug : '';
         document.getElementById('company-cnpj').value = company ? (company.cnpj || '') : '';
         document.getElementById('company-status').value = company ? company.status : 'ativo';
-        document.getElementById('company-asaas-key').value = company ? (company.asaasApiKey || '') : '';
-        document.getElementById('company-pix-key').value = company ? (company.pixKey || '') : '';
+        document.getElementById('company-asaas-key').value = company ? (company.asaasApiKey || company.asaas_api_key || '') : '';
+        document.getElementById('company-asaas-env').value = company ? (company.asaasEnvironment || company.asaas_environment || 'sandbox') : 'sandbox';
+        document.getElementById('company-asaas-wallet').value = company ? (company.asaasWalletId || company.asaas_wallet_id || '') : '';
+        document.getElementById('company-pix-key').value = company ? (company.pixKey || company.pix_key || '') : '';
 
         this.modalTitle.textContent = company ? 'Editar Empresa' : 'Nova Empresa';
         this.modal.classList.remove('hidden');
@@ -120,8 +122,10 @@ class Companies {
             slug: document.getElementById('company-slug').value,
             cnpj: document.getElementById('company-cnpj').value,
             status: document.getElementById('company-status').value,
-            asaasApiKey: document.getElementById('company-asaas-key').value,
-            pixKey: document.getElementById('company-pix-key').value
+            asaas_api_key: document.getElementById('company-asaas-key').value,
+            asaas_environment: document.getElementById('company-asaas-env').value,
+            asaas_wallet_id: document.getElementById('company-asaas-wallet').value,
+            pix_key: document.getElementById('company-pix-key').value
         };
 
         try {
