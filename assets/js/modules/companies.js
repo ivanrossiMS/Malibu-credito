@@ -32,6 +32,8 @@ class Companies {
         window.toggleAccessOverride = () => this.toggleAccessOverride();
         window.toggleCompanyBlockStatus = () => this.toggleManualBlock();
         window.financeMarkAsPaid = (id) => this.markAsPaid(id);
+        window.financeEdit = (id) => this.financeEdit(id);
+        window.financeVoucher = (id) => this.financeVoucher(id);
     }
 
     async loadCompanies() {
@@ -116,7 +118,7 @@ class Companies {
         document.getElementById('company-name').value = company ? company.name : '';
         document.getElementById('company-slug').value = company ? company.slug : '';
         document.getElementById('company-cnpj').value = company ? (company.cnpj || '') : '';
-        document.getElementById('company-status').value = company ? company.status : 'ativo';
+        // Status removed from UI, handled by finance/manual block button
         document.getElementById('company-asaas-key').value = company ? (company.asaasApiKey || company.asaas_api_key || '') : '';
         document.getElementById('company-asaas-env').value = company ? (company.asaasEnvironment || company.asaas_environment || 'sandbox') : 'sandbox';
         document.getElementById('company-asaas-wallet').value = company ? (company.asaasWalletId || company.asaas_wallet_id || '') : '';
@@ -247,14 +249,66 @@ class Companies {
                         <td class="px-6 py-4">R$ ${parseFloat(inst.amount).toFixed(2)}</td>
                         <td class="px-6 py-4 ${statusClass}">${inst.status}</td>
                         <td class="px-6 py-4 text-right">
-                            ${inst.status !== 'PAGA' ? `
-                                <button onclick="financeMarkAsPaid(${inst.id})" class="text-xs font-black text-emerald-600 hover:underline uppercase">Baixar</button>
-                            ` : '---'}
+                            <div class="flex justify-end gap-1">
+                                ${inst.status !== 'PAGA' ? `
+                                    <button onclick="financeMarkAsPaid(${inst.id})" class="text-[10px] font-black text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg uppercase transition-all">Baixar</button>
+                                ` : `
+                                    <button onclick="financeVoucher(${inst.id})" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Ver Comprovante">
+                                        <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                `}
+                                <button onclick="financeEdit(${inst.id})" class="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg transition-all" title="Editar">
+                                    <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
             }).join('');
         }
+    }
+
+    async financeEdit(id) {
+        const inst = await storage.getById('billing_installments', id);
+        if (!inst) return;
+
+        const newAmount = prompt("Novo valor da parcela:", inst.amount);
+        const newDate = prompt("Nova data de vencimento (AAAA-MM-DD):", inst.dueDate);
+
+        if (newAmount !== null && newDate !== null) {
+            try {
+                inst.amount = parseFloat(newAmount);
+                inst.dueDate = newDate;
+                await storage.put('billing_installments', inst);
+                await this.refreshFinanceInfo();
+            } catch (error) {
+                alert("Erro ao editar parcela: " + error.message);
+            }
+        }
+    }
+
+    async financeVoucher(id) {
+        const inst = await storage.getById('billing_installments', id);
+        if (!inst || inst.status !== 'PAGA') return;
+
+        const company = this.currentFinanceCompany;
+
+        const voucherText = `
+            COMPROVANTE DE PAGAMENTO - MENSALIDADE
+            ------------------------------------
+            EMPRESA: ${company.name}
+            CNPJ: ${company.cnpj || '---'}
+            REF. MÊS: ${inst.competenceMonth}
+            VALOR: R$ ${parseFloat(inst.amount).toFixed(2)}
+            DATA PAGTO: ${new Date(inst.paidAt).toLocaleDateString()}
+            ------------------------------------
+            SISTEMA MALIBU CRÉDITO
+        `;
+
+        const win = window.open('', '_blank');
+        win.document.write(`<pre>${voucherText}</pre>`);
+        win.document.close();
+        win.print();
     }
 
     async generateBilling() {

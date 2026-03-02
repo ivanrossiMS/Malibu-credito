@@ -60,16 +60,9 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="space-y-2">
+                <div class="space-y-2 col-span-2">
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CNPJ</label>
                     <input type="text" id="company-cnpj" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700">
-                </div>
-                <div class="space-y-2">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
-                    <select id="company-status" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold text-slate-700">
-                        <option value="ativo">Ativo</option>
-                        <option value="bloqueado">Bloqueado</option>
-                    </select>
                 </div>
             </div>
 
