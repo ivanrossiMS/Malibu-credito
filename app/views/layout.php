@@ -127,7 +127,7 @@
                     <span class="font-bold text-sm">Gerenciar Empresas</span>
                 </a>
 
-                <a href="?page=users" class="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'users' ? 'bg-primary shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
+                <a href="?page=users" class="admin-only non-master-only hidden flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'users' ? 'bg-primary shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
                     <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'users' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-primary/20'; ?>">
                         <i data-lucide="shield-check" class="w-4 h-4 <?php echo $page === 'users' ? 'text-white' : 'text-slate-400 group-hover:text-primary'; ?>"></i>
                     </div>

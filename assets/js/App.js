@@ -188,12 +188,14 @@ class App {
                     // Specific logic for MASTER vs Regular ADMIN
                     if (auth.isMaster()) {
                         document.querySelectorAll('.master-only').forEach(el => el.classList.remove('hidden'));
+                        document.querySelectorAll('.non-master-only').forEach(el => el.classList.add('hidden'));
                         // Hide operational menu for Master as requested
                         const opMenu = document.getElementById('admin-operational-menu');
                         if (opMenu) opMenu.classList.add('hidden');
                     } else {
                         // Ensure master-only is hidden for regular admin
                         document.querySelectorAll('.master-only').forEach(el => el.classList.add('hidden'));
+                        document.querySelectorAll('.non-master-only').forEach(el => el.classList.remove('hidden'));
                         // Show operational menu for regular admin
                         const opMenu = document.getElementById('admin-operational-menu');
                         if (opMenu) opMenu.classList.remove('hidden');
