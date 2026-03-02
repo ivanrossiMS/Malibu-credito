@@ -407,9 +407,18 @@ export default class UsersModule {
         document.getElementById('toggle-access-enabled').onclick = () => this.toggleAccessEnabled();
         document.getElementById('toggle-access-override').onclick = () => this.toggleAccessOverride();
         document.getElementById('generate-installments').onclick = async () => {
-            await billingService.generateMissingInstallments(this.currentUser);
-            await this.renderInstallments();
-            await this.renderUsers();
+            const count = prompt("Quantas mensalidades deseja gerar para este administrador?", "1");
+            if (count && !isNaN(count) && parseInt(count) > 0) {
+                try {
+                    await billingService.generateMonthlyInstallments(this.currentUser, parseInt(count));
+                    await this.renderInstallments();
+                    await this.renderUsers();
+                    alert(`${count} mensalidade(s) gerada(s) com sucesso!`);
+                } catch (error) {
+                    console.error("Erro ao gerar mensalidades:", error);
+                    alert("Erro ao gerar mensalidades: " + error.message);
+                }
+            }
         };
 
         lucide.createIcons();

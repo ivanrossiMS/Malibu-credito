@@ -8,45 +8,61 @@ class BillingService {
     }
 
     /**
-     * Gera parcelas para um usuário ADMIN se necessário.
-     * Regra: Uma parcela por mês, vencimento todo dia 10.
-     * O ciclo começa no first_access_at.
+     * Gera uma quantidade específica de parcelas para um usuário.
+     * Começa a partir da última parcela existente ou do mês atual.
      */
-    async generateMissingInstallments(user) {
-        if (!user || (user.role !== 'admin' && user.role !== 'ADMIN')) return;
-        if (!user.firstAccessAt) return;
+    async generateMonthlyInstallments(user, count = 1) {
+        if (!user) return;
 
-        const firstAccess = DateHelper.getLocalDate(user.firstAccessAt);
-        const now = new Date();
+        // Buscar parcelas existentes para encontrar o ponto de partida
+        const installments = await this.getUserInstallments(user.id);
+        let startDate;
 
-        // Iterar desde o mês do primeiro acesso até o mês atual + 1 (para garantir a próxima)
-        let currentIter = new Date(firstAccess.getFullYear(), firstAccess.getMonth(), 1);
-        const endIter = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        if (installments.length > 0) {
+            // Pegar a competência da última parcela (ordenada por data decrescente no getUserInstallments)
+            const latest = installments[0];
+            const [year, month] = latest.competenceMonth.split('-').map(Number);
+            startDate = new Date(year, month, 1); // Próximo mês
+        } else {
+            // Se não tem nada, começa no mês atual
+            const now = new Date();
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        }
 
-        const installments = await storage.query('billing_installments', 'userId', user.id);
-        const existingMonths = installments.map(i => i.competenceMonth);
-
-        while (currentIter <= endIter) {
+        for (let i = 0; i < count; i++) {
+            const currentIter = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
             const competenceMonth = `${currentIter.getFullYear()}-${String(currentIter.getMonth() + 1).padStart(2, '0')}`;
+            const dueDate = `${currentIter.getFullYear()}-${String(currentIter.getMonth() + 1).padStart(2, '0')}-${String(this.DUE_DAY).padStart(2, '0')}`;
 
-            if (!existingMonths.includes(competenceMonth)) {
-                const dueDate = `${currentIter.getFullYear()}-${String(currentIter.getMonth() + 1).padStart(2, '0')}-${String(this.DUE_DAY).padStart(2, '0')}`;
-
-                await storage.add('billing_installments', {
-                    userId: user.id,
-                    competenceMonth: competenceMonth,
-                    dueDate: dueDate,
-                    amount: this.INSTALLMENT_AMOUNT,
-                    status: 'A_VENCER',
-                    createdAt: new Date().toISOString()
-                });
-                console.log(`Billing: Created installment for ${competenceMonth} (Admin: ${user.email})`);
-            }
-
-            currentIter.setMonth(currentIter.getMonth() + 1);
+            await storage.add('billing_installments', {
+                userId: user.id,
+                competenceMonth: competenceMonth,
+                dueDate: dueDate,
+                amount: this.INSTALLMENT_AMOUNT,
+                status: 'A_VENCER',
+                createdAt: new Date().toISOString()
+            });
+            console.log(`Billing: Created custom installment for ${competenceMonth} (User: ${user.email})`);
         }
 
         await this.syncInstallmentStatuses(user.id);
+    }
+
+    /**
+     * Gera parcelas faltantes automaticamente (legado/auto-gestão).
+     */
+    async generateMissingInstallments(user) {
+        if (!user || !user.firstAccessAt) return;
+
+        const firstAccess = new Date(user.firstAccessAt);
+        const now = new Date();
+
+        // Se já passaram meses desde o primeiro acesso e não tem parcelas, gera.
+        // Por simplicidade, vamos usar a nova função se o count for calculado.
+        const installments = await this.getUserInstallments(user.id);
+        if (installments.length === 0) {
+            await this.generateMonthlyInstallments(user, 1);
+        }
     }
 
     /**
