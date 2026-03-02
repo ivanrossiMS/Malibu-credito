@@ -254,20 +254,40 @@ class AuthService {
     }
 
     async impersonate(targetUserId) {
-        if (!this.isAdmin()) throw new Error("Apenas administradores podem acessar contas de clientes.");
+        if (!this.isAdmin()) throw new Error("Acesso negado.");
 
         const users = await storage.getAll('users');
         const targetUser = users.find(u => String(u.id) === String(targetUserId));
 
         if (!targetUser) throw new Error("Usuário não encontrado.");
-        if (targetUser.role === 'admin') throw new Error("Não é possível assumir a conta de outro administrador.");
 
-        // Salvar a sessão atual do admin como backup
+        const isTargetAdmin = targetUser.role === 'admin' || targetUser.role === 'ADMIN' || targetUser.role === 'MASTER';
+
+        // Regra: Apenas Master pode assumir Admin. Admin comum só assume Cliente.
+        if (isTargetAdmin && !this.isMaster()) {
+            throw new Error("Apenas o Administrador Master pode acessar outros painéis administrativos.");
+        }
+
+        if (targetUser.email === 'ivanrossi@outlook.com' && this.currentUser.email !== 'ivanrossi@outlook.com') {
+            throw new Error("Não é possível assumir a conta do Administrador Master.");
+        }
+
+        // Salvar a sessão atual (do admin/master) como backup
         localStorage.setItem('malibu_admin_session', localStorage.getItem('malibu_session'));
 
-        // Logar como o cliente
-        localStorage.setItem('malibu_session', JSON.stringify({ id: targetUser.id, email: targetUser.email }));
-        window.location.href = '?page=client_dashboard';
+        // Logar como o alvo
+        localStorage.setItem('malibu_session', JSON.stringify({
+            id: targetUser.id,
+            email: targetUser.email,
+            companyId: targetUser.company_id || targetUser.companyId
+        }));
+
+        // Redirecionamento inteligente
+        if (isTargetAdmin) {
+            window.location.href = '?page=dashboard';
+        } else {
+            window.location.href = '?page=client_dashboard';
+        }
     }
 
     isImpersonating() {

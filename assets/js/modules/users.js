@@ -97,6 +97,7 @@ export default class UsersModule {
 
             return `
                 <div class="flex items-center gap-1">
+                    ${this.isMaster ? `<button onclick="loginAsUser(${user.id})" class="text-indigo-600 border border-indigo-200 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2 flex items-center gap-1"><i data-lucide="log-in" class="w-3 h-3"></i> Acessar Painel</button>` : ''}
                     ${masterActions}
                     <button onclick="demoteUser(${user.id})" class="text-slate-400 hover:text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Remover Admin</button>
                 </div>
@@ -200,7 +201,7 @@ export default class UsersModule {
         };
 
         window.loginAsUser = async (id) => {
-            if (confirm('Você será levado ao painel deste cliente para visualizar seus dados. Deseja continuar?')) {
+            if (confirm('Deseja acessar o painel deste usuário? Você será redirecionado para a visão dele.')) {
                 try {
                     await auth.impersonate(id);
                 } catch (error) {
