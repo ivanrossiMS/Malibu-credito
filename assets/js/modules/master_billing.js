@@ -82,6 +82,12 @@ class MasterBilling {
 
         let filtered = [...this.installments];
 
+        // Ignorar órfãos (segurança de UI)
+        filtered = filtered.filter(i => {
+            const cid = i.company_id || i.companyId;
+            return cid && this.companies.some(c => c.id === cid);
+        });
+
         if (companyId !== 'all') {
             const idInt = parseInt(companyId);
             filtered = filtered.filter(i => (i.company_id || i.companyId) === idInt);
