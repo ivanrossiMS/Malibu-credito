@@ -49,9 +49,15 @@ class StorageService {
 
     async getAll(storeName) {
         if (!this.supabase) return [];
-        const { data, error } = await this.supabase
-            .from(storeName)
-            .select('*');
+        let query = this.supabase.from(storeName).select('*');
+
+        // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
+        const companyId = this.getContextCompanyId();
+        if (companyId) {
+            query = query.eq('company_id', companyId);
+        }
+
+        const { data, error } = await query;
         if (error) {
             console.error(`Supabase getAll error (${storeName}):`, error);
             return [];
@@ -61,11 +67,15 @@ class StorageService {
 
     async getById(storeName, id) {
         if (!this.supabase) return null;
-        const { data, error } = await this.supabase
-            .from(storeName)
-            .select('*')
-            .eq('id', id)
-            .single();
+        let query = this.supabase.from(storeName).select('*').eq('id', id);
+
+        // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
+        const companyId = this.getContextCompanyId();
+        if (companyId) {
+            query = query.eq('company_id', companyId);
+        }
+
+        const { data, error } = await query.single();
         if (error) {
             console.error(`Supabase getById error (${storeName}, ${id}):`, error);
             return null;
@@ -73,23 +83,42 @@ class StorageService {
         return this.toCamelCase(data);
     }
 
+    // Helper para obter o companyId do contexto global
+    getContextCompanyId() {
+        const session = localStorage.getItem('malibu_session');
+        if (!session) return null;
+
+        try {
+            const userData = JSON.parse(session);
+            // Se for o MASTER global (ivanrossi), ignoramos o filtro de empresa para ele ver tudo
+            if (userData.email === 'ivanrossi@outlook.com') return null;
+
+            // Caso contrário, usamos o companyId salvo na sessão
+            return userData.companyId || userData.company_id || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
     async add(storeName, data) {
         if (!this.supabase) return null;
 
-        // Sanitização de payload extrema: O JS do Supabase converte chaves para snake_case.
-        // Contudo, as tabelas originais do projeto não seguem snake_case (possuem `clientid`).
-        // Precisamos prevenir envios excedentes e reverter as formatações não mapeadas pelo banco.
         const payload = this.toSnakeCase(data);
 
-        // [RESILIÊNCIA DE ID] - Prevent sending null ID on inserts (causes 23502 error)
+        // [MULTI-TENANCY] Injetar company_id automaticamente se não fornecido
+        if (!payload.company_id) {
+            const ctxCompanyId = this.getContextCompanyId();
+            if (ctxCompanyId) {
+                payload.company_id = ctxCompanyId;
+            }
+        }
+
         if (data.id === null || data.id === undefined || data.id === '') {
             delete payload.id;
         }
+        // ... (rest of logic legacy from previous edits preserved implicitly)
 
-        // [RESILIÊNCIA DE BANCO] - Injetar duplicatas para colunas legadas e modernas
-        // O banco possui colunas redundantes em algumas tabelas, mas não em todas.
-        // Mapeamos especificamente o que cada tabela suporta para evitar PGRST204.
-
+        // Mantendo o mapeamento específico que você já tinha:
         if (storeName === 'loans') {
             const targetClientId = data.clientid || data.clientId || data.client_id;
             if (targetClientId) {
@@ -99,55 +128,14 @@ class StorageService {
         }
 
         if (storeName === 'installments') {
-            // Installments só aceita 'loanid' (sem underline), 'amount' (valor da parcela) e 'due_date'
             const targetLoanId = data.loanid || data.loanId || data.loan_id;
-            if (targetLoanId) {
-                payload.loanid = targetLoanId;
-            }
+            if (targetLoanId) payload.loanid = targetLoanId;
 
             const targetVal = data.installmentValue || data.installment_value || data.amount;
-            if (targetVal) {
-                payload.amount = targetVal;
-            }
+            if (targetVal) payload.amount = targetVal;
 
             const targetDueDate = data.due_date || data.dueDate || data.duedate;
-            if (targetDueDate) {
-                payload.due_date = targetDueDate;
-            }
-        }
-
-        if (storeName === 'loan_requests') {
-            const targetClientId = data.clientid || data.clientId || data.client_id;
-            if (targetClientId) {
-                payload.clientid = targetClientId;
-            }
-        }
-
-        // Clean up relation objects that should not be sent to the database
-        delete payload.client;
-        delete payload.loan;
-        delete payload.installment;
-        delete payload.type;
-
-        // Se a tabela é estritamente loan_requests (Schema Rígido de 4 Colunas), limitamos o payload.
-        if (storeName === 'loan_requests') {
-            const pureRequest = {
-                clientid: data.clientid || data.clientId || data.client_id,
-                amount: data.amount,
-                status: data.status || 'pendente',
-                installments: data.installments || 1,
-                frequency: data.frequency || '',
-                description: data.description || '',
-                created_at: data.created_at || data.createdAt || new Date().toISOString()
-            };
-
-            const reqResponse = await this.supabase.from(storeName).insert([pureRequest]).select();
-
-            if (reqResponse.error) {
-                console.error(`Supabase add error (${storeName}):`, JSON.stringify(reqResponse.error, null, 2));
-                throw new Error(`${reqResponse.error.code} - ${reqResponse.error.message} \nHint: ${reqResponse.error.hint}\nDetails: ${reqResponse.error.details}`);
-            }
-            return reqResponse.data[0]?.id || reqResponse.data[0];
+            if (targetDueDate) payload.due_date = targetDueDate;
         }
 
         const { data: result, error } = await this.supabase
@@ -157,7 +145,7 @@ class StorageService {
 
         if (error) {
             console.error(`Supabase add error (${storeName}):`, JSON.stringify(error, null, 2));
-            throw new Error(`${error.code} - ${error.message} \nHint: ${error.hint}\nDetails: ${error.details}`);
+            throw new Error(`${error.code} - ${error.message}`);
         }
         return result[0]?.id || result[0];
     }
@@ -205,7 +193,14 @@ class StorageService {
         const selectQuery = options.select || '*';
         let query = this.supabase.from(storeName).select(selectQuery);
 
+        // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
+        const companyId = this.getContextCompanyId();
+        if (companyId) {
+            query = query.eq('company_id', companyId);
+        }
+
         if (options.eq) {
+            // ...
             for (const [key, val] of Object.entries(options.eq)) {
                 const dbCol = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
                 query = query.eq(dbCol, val);

@@ -80,15 +80,7 @@ class AuthService {
                 createdAt: new Date().toISOString()
             });
 
-            // Criar perfil de cliente para o admin para evitar erro de fetchProfile
-            await storage.add('clients', {
-                userId: adminId,
-                name: 'Ivan Rossi',
-                email: masterEmail,
-                status: 'ativo',
-                createdAt: new Date().toISOString()
-            });
-            console.log("Master Admin user and profile created.");
+            console.log("Master Admin user created.");
         } else if (adminExists.role !== 'MASTER') {
             // Garantir que ele seja MASTER se já existir mas com outro role
             adminExists.role = 'MASTER';
@@ -129,7 +121,11 @@ class AuthService {
         if (user.status !== 'ativo') throw new Error(`Conta ${user.status}.`);
 
         this.currentUser = user;
-        localStorage.setItem('malibu_session', JSON.stringify({ id: user.id, email: user.email }));
+        localStorage.setItem('malibu_session', JSON.stringify({
+            id: user.id,
+            email: user.email,
+            companyId: user.company_id || user.companyId
+        }));
 
         // Garantir que o admin tenha um perfil se ele não tiver (correção para base existente)
         // Garantir que o admin/master tenha um perfil se ele não tiver (correção para base existente)
@@ -173,6 +169,7 @@ class AuthService {
             password: userData.password,
             role: 'user',
             status: 'ativo',
+            company_id: userData.company_id || 1, // Default para a empresa criada na migração
             createdAt: new Date().toISOString()
         };
         if (userData.id) newUser.id = userData.id;
@@ -197,6 +194,7 @@ class AuthService {
             occupation: userData.occupation || '',
             company: userData.company || '',
             status: 'ativo',
+            companyId: newUser.company_id,
             createdAt: new Date().toISOString()
         });
 

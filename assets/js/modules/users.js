@@ -23,24 +23,22 @@ export default class UsersModule {
         const allUsers = await storage.getAll('users');
         let users;
 
-        const adminRoles = ['admin', 'ADMIN', 'MASTER'];
+        const adminRoles = ['ADMIN', 'MASTER'];
         const isLoggedMaster = auth.isMaster();
 
-        // User Toggles (Basic)
-        document.getElementById('master-stats-row')?.classList.add('hidden');
-        document.getElementById('admin-mini-filters')?.classList.add('hidden');
-
         if (this.currentTab === 'admin') {
-            users = allUsers.filter(u => adminRoles.includes(String(u.role).toUpperCase()) || adminRoles.includes(u.role));
+            users = allUsers.filter(u => adminRoles.includes(String(u.role).toUpperCase()));
             if (!isLoggedMaster) {
-                // Esconder MASTER por role ou por email fixo
-                users = users.filter(u =>
-                    String(u.role).toUpperCase() !== 'MASTER' &&
-                    u.email !== 'ivanrossi@outlook.com'
-                );
+                // Filtro já aplicado pelo StorageService (company_id), 
+                // apenas removemos o próprio master daqui para admins comuns se houver
+                users = users.filter(u => String(u.role).toUpperCase() !== 'MASTER');
             }
         } else {
-            users = allUsers.filter(u => u.status === this.currentTab && !adminRoles.includes(u.role));
+            // Filtro por status e garantindo que não pegue admins nas outras abas
+            users = allUsers.filter(u =>
+                (u.status === this.currentTab) &&
+                !adminRoles.includes(String(u.role).toUpperCase())
+            );
         }
 
         if (users.length === 0) {
@@ -96,8 +94,6 @@ export default class UsersModule {
             let masterActions = '';
             if (this.isMaster) {
                 masterActions = `
-                    <button onclick="openEditUser(${user.id})" class="text-slate-500 hover:bg-slate-100 p-1.5 rounded-lg transition-all" title="Editar"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-                    <button onclick="openAccessControl(${user.id})" class="text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all">Acesso</button>
                     <button onclick="deleteUserPermanently(${user.id})" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 `;
             }

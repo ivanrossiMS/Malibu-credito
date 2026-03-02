@@ -58,6 +58,14 @@ export default class LoansModule {
         const listContainer = document.getElementById('loans-list');
         if (!listContainer) return;
 
+        // Recarregar dados para garantir isolamento de empresa
+        if (!loansToRender) {
+            this.allLoans = await loanService.getAll();
+            this.allClients = await clientService.getAll();
+            this.clientsMap = new Map(this.allClients.map(c => [c.id, c]));
+            this.applyFilters(false); // true seria recursivo
+        }
+
         const loans = loansToRender || this.filteredLoans;
 
         if (loans.length === 0) {
@@ -167,11 +175,11 @@ export default class LoansModule {
         if (statusCountEl) statusCountEl.textContent = (statusCount || 0).toString();
     }
 
-    applyFilters() {
+    applyFilters(shouldRender = true) {
         const { clientId, status, date, searchId } = this.filterConfig;
 
         this.filteredLoans = this.allLoans.filter(loan => {
-            const matchClient = !clientId || loan.clientId === parseInt(clientId);
+            const matchClient = !clientId || String(loan.clientId || loan.clientid) === String(clientId);
             const matchStatus = !status || loan.status === status;
             const matchDate = !date || loan.startDate === date;
             const matchId = !searchId || (loan.loanCode && loan.loanCode.toLowerCase().includes(searchId.toLowerCase()));
@@ -179,7 +187,7 @@ export default class LoansModule {
             return matchClient && matchStatus && matchDate && matchId;
         });
 
-        this.applySorting();
+        if (shouldRender) this.applySorting();
     }
 
     applySorting() {

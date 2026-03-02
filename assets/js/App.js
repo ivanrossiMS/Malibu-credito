@@ -24,7 +24,8 @@ const modules = {
     client_payments: () => import('./modules/client_payments.js'),
     client_loans: () => import('./modules/client_loans.js'),
     client_profile: () => import('./modules/client_profile.js'),
-    master_billing: () => import('./modules/master_billing.js')
+    master_billing: () => import('./modules/master_billing.js'),
+    companies: () => import('./modules/companies.js')
 };
 
 class App {

@@ -77,26 +77,28 @@ serve(async (req) => {
                     status: "PAID"
                 }).eq("id", charge.installment_id);
 
-                // 5. Register Payment Record
+                // 5. Register Payment Record (with company_id from charge context)
                 const paymentDate = payment.paymentDate || new Date().toISOString().split('T')[0];
                 const amount = payment.value || charge.amount;
 
-                // Get Client ID and Loan ID from links
+                // Get ID references from charge relations
                 const loanId = charge.installment?.loanid || charge.installment?.loan_id || charge.installment?.loan?.id;
                 const clientId = charge.installment?.loan?.clientid || charge.installment?.loan?.client_id;
+                const companyId = charge.installment?.company_id || charge.installment?.loan?.company_id;
 
                 await supabase.from("payments").insert({
                     installment_id: charge.installment_id,
                     installmentid: charge.installment_id,
                     loan_id: loanId,
                     client_id: clientId,
+                    company_id: companyId,
                     amount: amount,
                     payment_date: paymentDate,
                     method: 'PIX',
                     created_at: new Date().toISOString()
                 });
 
-                console.log(`Successfully settled installment ${charge.installment_id} via Asaas Webhook.`);
+                console.log(`Successfully settled installment ${charge.installment_id} for Company ${companyId} via Asaas Webhook.`);
             }
         }
 

@@ -97,13 +97,13 @@
                 </a>
 
                 <!-- MASTER ONLY SECTION -->
-                <div class="master-only hidden pt-4">
-                    <div class="pb-1 px-4 flex items-center gap-2">
-                        <span class="h-px flex-1 bg-primary/20"></span>
-                        <span class="text-[10px] font-black text-primary uppercase tracking-widest px-2">Master</span>
-                        <span class="h-px flex-1 bg-primary/20"></span>
-                    </div>
-                    
+                    <a href="?page=companies" class="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'companies' ? 'bg-emerald-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
+                        <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'companies' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-emerald-500/20'; ?>">
+                            <i data-lucide="building-2" class="w-4 h-4 <?php echo $page === 'companies' ? 'text-white' : 'text-slate-400 group-hover:text-emerald-400'; ?>"></i>
+                        </div>
+                        <span class="font-bold text-sm">Gerenciar Empresas</span>
+                    </a>
+
                     <a href="?page=master_billing" class="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'master_billing' ? 'bg-indigo-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
                         <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'master_billing' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-indigo-500/20'; ?>">
                             <i data-lucide="crown" class="w-4 h-4 <?php echo $page === 'master_billing' ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'; ?>"></i>

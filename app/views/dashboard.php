@@ -3,7 +3,7 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div class="space-y-1">
             <h1 class="text-4xl font-black tracking-tight text-slate-900 font-heading">
-                Olá, <span class="user-name gradient-text underline decoration-primary/20 decoration-8 underline-offset-4">Usuário</span>! 👋
+                Olá, <span class="user-name-welcome gradient-text underline decoration-primary/20 decoration-8 underline-offset-4">Usuário</span>! 👋
             </h1>
             <p class="text-slate-500 font-medium">Confira o pulso financeiro do seu negócio agora.</p>
         </div>

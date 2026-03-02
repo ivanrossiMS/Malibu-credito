@@ -29,15 +29,23 @@ serve(async (req) => {
             db: { schema: 'public' }
         });
 
-        // 1. Get Installment and Client Data
+        // 1. Get Installment, Client and Company Data
         const { data: inst, error: instError } = await supabase
             .from("installments")
-            .select("*, loan:loans(*, client:clients(*))")
+            .select("*, loan:loans(*, client:clients(*)), company:companies(*)")
             .eq("id", installment_id)
             .maybeSingle();
 
         if (instError) throw new Error(`Banco (Parcela): ${instError.message}`);
         if (!inst) throw new Error(`Parcela ${installment_id} não encontrada.`);
+
+        // 2. Identify and Validate Asaas API Key for this specific company
+        const company = inst.company;
+        const dynamicApiKey = company?.asaas_api_key || ASAAS_API_KEY; // Fallback to global if needed, but per-company is preferred
+
+        if (!dynamicApiKey) {
+            throw new Error(`Empresa "${company?.name || 'Desconhecida'}" não possui ASAAS_API_KEY configurada.`);
+        }
 
         // Robust value extraction to handle naming variations in the DB
         console.log("DEBUG Parcela Content:", JSON.stringify(inst));
@@ -69,7 +77,7 @@ serve(async (req) => {
 
         // 3. Asaas Integration: Customer
         const searchRes = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${client.cpf_cnpj.replace(/\D/g, '')}`, {
-            headers: { 'access_token': ASAAS_API_KEY }
+            headers: { 'access_token': dynamicApiKey }
         });
         const searchData = await searchRes.json();
         let asaasCustomerId: string;
@@ -80,7 +88,7 @@ serve(async (req) => {
             console.log(`Criando novo cliente no Asaas: ${client.name}`);
             const createRes = await fetch(`${ASAAS_URL}/customers`, {
                 method: 'POST',
-                headers: { 'access_token': ASAAS_API_KEY, 'Content-Type': 'application/json' },
+                headers: { 'access_token': dynamicApiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: client.name,
                     cpfCnpj: client.cpf_cnpj.replace(/\D/g, ''),
@@ -99,7 +107,7 @@ serve(async (req) => {
 
         const payRes = await fetch(`${ASAAS_URL}/payments`, {
             method: 'POST',
-            headers: { 'access_token': ASAAS_API_KEY, 'Content-Type': 'application/json' },
+            headers: { 'access_token': dynamicApiKey, 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 customer: asaasCustomerId,
                 billingType: "PIX",

@@ -123,9 +123,10 @@ export default class DashboardModule {
         if (totalClientsEl) totalClientsEl.textContent = this.clients.length.toString();
 
         // Set current username securely to the view
-        const user = window.auth ? window.auth.getCurrentUser() : null;
+        const user = window.auth ? window.auth.currentUser : null;
         if (user) {
-            document.querySelectorAll('.user-name').forEach(el => el.textContent = user.name.split(' ')[0]);
+            const displayName = user.name || user.email || 'Usuário';
+            document.querySelectorAll('.user-name-welcome').forEach(el => el.textContent = displayName.split(' ')[0]);
         }
 
         this.renderPendingRequests();
