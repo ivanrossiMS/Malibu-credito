@@ -18,6 +18,7 @@ class Companies {
         window.openAddCompanyModal = () => this.openModal();
         window.closeCompanyModal = () => this.closeModal();
         window.editCompany = (id) => this.editCompany(id);
+        window.deleteCompany = (id) => this.deleteCompany(id);
     }
 
     async loadCompanies() {
@@ -67,9 +68,14 @@ class Companies {
                     </span>
                 </td>
                 <td class="px-6 py-4 text-right">
-                    <button onclick="editCompany(${company.id})" class="text-slate-500 hover:bg-slate-100 p-2 rounded-xl transition-all" title="Editar">
-                        <i data-lucide="edit-3" class="w-4 h-4"></i>
-                    </button>
+                    <div class="flex justify-end gap-2">
+                        <button onclick="editCompany(${company.id})" class="text-slate-500 hover:bg-slate-100 p-2 rounded-xl transition-all" title="Editar">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="deleteCompany(${company.id})" class="text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition-all" title="Excluir">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -136,7 +142,17 @@ class Companies {
         } catch (error) {
             alert("Erro ao salvar empresa: " + error.message);
         }
+    async deleteCompany(id) {
+            if (confirm("ATENÇÃO: Excluir esta empresa removerá todos os dados vinculados a ela. Esta ação não pode ser desfeita.\n\nDeseja continuar?")) {
+                try {
+                    await companyService.delete(id);
+                    await this.loadCompanies();
+                    alert("Empresa excluída com sucesso!");
+                } catch (error) {
+                    alert("Erro ao excluir empresa: " + error.message);
+                }
+            }
+        }
     }
-}
 
 export default Companies;

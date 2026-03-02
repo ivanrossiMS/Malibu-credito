@@ -9,3 +9,9 @@ SET asaas_api_key = NULL,
     pix_key = NULL, 
     asaas_wallet_id = NULL
 WHERE slug != 'malibu-default';
+
+-- Delete residual PIX charges for other companies to force a fresh generation with correct keys
+DELETE FROM pix_charges 
+WHERE installment_id IN (
+    SELECT id FROM installments WHERE company_id != (SELECT id FROM companies WHERE slug = 'malibu-default')
+);
