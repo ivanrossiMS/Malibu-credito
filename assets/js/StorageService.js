@@ -127,9 +127,12 @@ class StorageService {
                 created_at: new Date().toISOString()
             };
 
-            await this.supabase.from('system_logs').insert([payload]);
+            const { error } = await this.supabase.from('system_logs').insert([payload]);
+            if (error && error.code !== 'PGRST205' && error.message?.indexOf('system_logs') === -1) {
+                console.warn("Silent Log Error:", error);
+            }
         } catch (e) {
-            console.warn("Silent Log Error:", e);
+            console.warn("Log Exception:", e);
         }
     }
 
@@ -324,6 +327,11 @@ class StorageService {
 
                 const fallback = await retryQuery;
                 return this.toCamelCase(fallback.data || []);
+            }
+
+            if (error.code === 'PGRST205') {
+                console.warn(`Tabela não encontrada: ${storeName}. Certifique-se de executar os scripts de migração SQL.`);
+                return { _error: 'TABLE_NOT_FOUND', store: storeName };
             }
 
             console.error(`Supabase getAdvanced error (${storeName}):`, error);
