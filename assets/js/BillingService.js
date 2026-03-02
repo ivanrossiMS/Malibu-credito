@@ -125,12 +125,49 @@ class BillingService {
     async hasCompanyOverdue(companyId) {
         if (!companyId) return false;
 
+        // Sync statuses before checking
+        await this.syncCompanyInstallmentStatuses(companyId);
+
         const installments = await storage.getAdvanced('billing_installments', {
             eq: { company_id: companyId }
         });
 
         const todayStr = DateHelper.getTodayStr();
         return installments.some(i => i.status === 'VENCIDA' || (i.status === 'A_VENCER' && i.dueDate < todayStr));
+    }
+
+    /**
+     * Atualiza o status das parcelas da empresa (A_VENCER -> VENCIDA)
+     */
+    async syncCompanyInstallmentStatuses(companyId) {
+        const installments = await storage.getAdvanced('billing_installments', {
+            eq: { company_id: companyId }
+        });
+
+        const todayStr = DateHelper.getTodayStr();
+        console.log(`[BillingSync] Syncing for company ${companyId}. Today: ${todayStr}`);
+
+        for (const inst of installments) {
+            let newStatus = inst.status;
+
+            if (inst.status !== 'PAGA') {
+                const dueDate = DateHelper.toLocalYYYYMMDD(inst.dueDate);
+                if (dueDate < todayStr) {
+                    newStatus = 'VENCIDA';
+                } else {
+                    newStatus = 'A_VENCER';
+                }
+            }
+
+            if (newStatus !== inst.status) {
+                console.log(`[BillingSync] Update ${inst.id}: ${inst.status} -> ${newStatus}`);
+                await storage.put('billing_installments', {
+                    ...inst,
+                    status: newStatus,
+                    updatedAt: new Date().toISOString()
+                });
+            }
+        }
     }
 
     /**
@@ -212,6 +249,8 @@ class BillingService {
             });
             console.log(`Billing: Created company installment for ${competenceMonth} (ID: ${companyId})`);
         }
+
+        await this.syncCompanyInstallmentStatuses(companyId);
     }
 
     /**
