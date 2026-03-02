@@ -195,13 +195,29 @@ class BillingService {
             updatedAt: new Date().toISOString()
         });
 
-        // Tentar liberar acesso se não houver mais pendências
-        const anyOverdue = await this.hasOverdueInstallment(inst.userId);
-        if (!anyOverdue) {
-            const user = await storage.getById('users', inst.userId);
-            if (user && !user.accessEnabled) {
-                await storage.put('users', { ...user, accessEnabled: true });
-                console.log(`Billing: Access RESTORED for ${user.email} (Payment confirmed)`);
+        // 1. Desbloqueio de Usuário Individual (Legado/Acesso Direto)
+        if (inst.userId) {
+            const anyOverdue = await this.hasOverdueInstallment(inst.userId);
+            if (!anyOverdue) {
+                const user = await storage.getById('users', inst.userId);
+                if (user && !user.accessEnabled) {
+                    await storage.put('users', { ...user, accessEnabled: true });
+                    console.log(`Billing: Access RESTORED for ${user.email} (Payment confirmed)`);
+                }
+            }
+        }
+
+        // 2. Desbloqueio de Empresa (Multi-Tenant)
+        if (inst.company_id || inst.companyId) {
+            const companyId = inst.company_id || inst.companyId;
+            const anyCompanyOverdue = await this.hasCompanyOverdue(companyId);
+
+            if (!anyCompanyOverdue) {
+                const company = await storage.getById('companies', companyId);
+                if (company && company.status === 'bloqueado') {
+                    await storage.put('companies', { ...company, status: 'ativo' });
+                    console.log(`Billing: Company ${companyId} RESTORED to 'ativo' (All installments paid)`);
+                }
             }
         }
     }
