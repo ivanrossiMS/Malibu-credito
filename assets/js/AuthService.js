@@ -71,16 +71,19 @@ class AuthService {
         const adminExists = users.find(u => u.email === masterEmail);
 
         if (!adminExists) {
-            const adminId = await storage.add('users', {
-                name: 'Ivan Rossi',
-                email: masterEmail,
-                password: 'admin',
-                role: 'MASTER',
-                status: 'ativo',
-                createdAt: new Date().toISOString()
-            });
-
-            console.log("Master Admin user created.");
+            try {
+                await storage.add('users', {
+                    name: 'Ivan Rossi',
+                    email: masterEmail,
+                    password: 'admin',
+                    role: 'MASTER',
+                    status: 'ativo',
+                    createdAt: new Date().toISOString()
+                });
+                console.log("Master Admin user created.");
+            } catch (e) {
+                console.warn("Master Admin already exists or could not be created:", e.message);
+            }
         } else if (adminExists.role !== 'MASTER') {
             // Garantir que ele seja MASTER se já existir mas com outro role
             adminExists.role = 'MASTER';

@@ -39,7 +39,8 @@ class App {
 
         // Se PHP não substituiu, ou URL pede outra coisa, manda a SPA
         if (urlPage || this.config.currentPage === '<?php echo $page; ?>') {
-            this.config.currentPage = urlPage || 'dashboard';
+            const defaultPage = 'dashboard';
+            this.config.currentPage = urlPage || defaultPage;
         }
     }
 
@@ -69,6 +70,11 @@ class App {
 
             // Load specific module if authenticated e injeta HTML
             if (auth.isAuthenticated()) {
+                // Se for Master e estiver na dashboard comum, redireciona para a Master
+                if (auth.isMaster() && this.config.currentPage === 'dashboard') {
+                    this.config.currentPage = 'master_dashboard';
+                }
+
                 // SPA Injector - Injeta HTML da pagina ANTES do setupUI ler os seletores CSS
                 this.renderSPAPage(this.config.currentPage);
 
