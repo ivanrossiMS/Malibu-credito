@@ -26,7 +26,7 @@ const modules = {
     client_profile: () => import('./modules/client_profile.js'),
     master_billing: () => import('./modules/master_billing.js'),
     companies: () => import('./modules/companies.js'),
-    master_dashboard: () => import('./modules/master_dashboard.js'),
+    master_dashboard: () => import('./modules/master_dashboard.js?v=2'),
     master_users: () => import('./modules/master_users.js')
 };
 
@@ -73,7 +73,8 @@ class App {
             if (auth.isAuthenticated()) {
                 // Se for Master e estiver na dashboard comum, redireciona para a Master
                 if (auth.isMaster() && this.config.currentPage === 'dashboard') {
-                    this.config.currentPage = 'master_dashboard';
+                    window.location.href = '?page=master_dashboard';
+                    return; // Interrompe para evitar carregar módulo errado
                 }
 
                 // SPA Injector - Injeta HTML da pagina ANTES do setupUI ler os seletores CSS
