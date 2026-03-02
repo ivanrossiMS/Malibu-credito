@@ -219,7 +219,7 @@
                         <div class="bg-primary/20 p-2 rounded-xl border border-primary/20">
                             <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
                         </div>
-                        <h3 class="font-black text-white text-sm uppercase tracking-widest">Insight IA Malibu</h3>
+                        <h3 class="font-black text-white text-sm uppercase tracking-widest text-nowrap">Insight IA</h3>
                     </div>
                     <p class="text-slate-300 text-sm leading-relaxed mb-6 font-medium italic">
                         "Otimize seu dia focando nas cobranças de hoje. Há 12 parcelas vencendo com alta probabilidade de retorno."
