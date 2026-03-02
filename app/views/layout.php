@@ -113,6 +113,13 @@
                     <span class="font-semibold text-sm">Faturamento Master</span>
                 </a>
 
+                <a href="?page=master_users" class="master-only hidden flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group <?php echo $page === 'master_users' ? 'bg-indigo-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'master_users' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-indigo-500/20'; ?>">
+                        <i data-lucide="users-2" class="w-4 h-4 <?php echo $page === 'master_users' ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'; ?>"></i>
+                    </div>
+                    <span class="font-bold text-sm">Gestão de Usuários</span>
+                </a>
+
                 <a href="?page=companies" class="master-only hidden flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'companies' ? 'bg-emerald-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
                     <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'companies' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-emerald-500/20'; ?>">
                         <i data-lucide="building-2" class="w-4 h-4 <?php echo $page === 'companies' ? 'text-white' : 'text-slate-400 group-hover:text-emerald-400'; ?>"></i>
