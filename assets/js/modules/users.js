@@ -41,9 +41,13 @@ export default class UsersModule {
         }
 
         if (this.currentTab === 'admin') {
-            users = allUsers.filter(u => adminRoles.includes(u.role));
+            users = allUsers.filter(u => adminRoles.includes(String(u.role).toUpperCase()) || adminRoles.includes(u.role));
             if (!isLoggedMaster) {
-                users = users.filter(u => u.role !== 'MASTER');
+                // Esconder MASTER por role ou por email fixo
+                users = users.filter(u =>
+                    String(u.role).toUpperCase() !== 'MASTER' &&
+                    u.email !== 'ivanrossi@outlook.com'
+                );
             }
 
             // Aplicar sub-filtros de admin para MASTER
