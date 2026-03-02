@@ -25,7 +25,8 @@ const modules = {
     client_loans: () => import('./modules/client_loans.js'),
     client_profile: () => import('./modules/client_profile.js'),
     master_billing: () => import('./modules/master_billing.js'),
-    companies: () => import('./modules/companies.js')
+    companies: () => import('./modules/companies.js'),
+    master_dashboard: () => import('./modules/master_dashboard.js')
 };
 
 class App {
@@ -160,6 +161,20 @@ class App {
 
                 if (auth.isAdmin()) {
                     document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+
+                    // Specific logic for MASTER vs Regular ADMIN
+                    if (auth.isMaster()) {
+                        document.querySelectorAll('.master-only').forEach(el => el.classList.remove('hidden'));
+                        // Hide operational menu for Master as requested
+                        const opMenu = document.getElementById('admin-operational-menu');
+                        if (opMenu) opMenu.classList.add('hidden');
+                    } else {
+                        // Ensure master-only is hidden for regular admin
+                        document.querySelectorAll('.master-only').forEach(el => el.classList.add('hidden'));
+                        // Show operational menu for regular admin
+                        const opMenu = document.getElementById('admin-operational-menu');
+                        if (opMenu) opMenu.classList.remove('hidden');
+                    }
                 } else {
                     document.querySelectorAll('.client-only').forEach(el => el.classList.remove('hidden'));
                 }
@@ -524,7 +539,11 @@ class App {
                     const user = await auth.login(email, password);
                     const isAdmin = user.role === 'admin' || user.role === 'ADMIN' || user.role === 'MASTER';
                     if (isAdmin) {
-                        window.location.href = '?page=dashboard';
+                        if (user.role === 'MASTER') {
+                            window.location.href = '?page=master_dashboard';
+                        } else {
+                            window.location.href = '?page=dashboard';
+                        }
                     } else {
                         window.location.href = '?page=client_dashboard';
                     }

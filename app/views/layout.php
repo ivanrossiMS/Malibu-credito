@@ -27,7 +27,8 @@
 
         <nav class="flex-1 px-4 py-4 overflow-y-auto custom-scrollbar space-y-2">
             <!-- COMMON / ADMIN SECTION -->
-            <div class="admin-only hidden space-y-1">
+            <!-- ADMIN OPERATIONAL SECTION (Only for non-MASTER admins) -->
+            <div class="admin-only hidden space-y-1" id="admin-operational-menu">
                 <a href="?page=dashboard" class="flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group <?php echo $page === 'dashboard' ? 'bg-primary shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
                     <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'dashboard' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-primary/20'; ?>">
                         <i data-lucide="layout-dashboard" class="w-4 h-4 <?php echo $page === 'dashboard' ? 'text-white' : 'text-slate-400 group-hover:text-primary'; ?>"></i>
@@ -81,6 +82,30 @@
                     <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest px-2">Sistema</span>
                     <span class="h-px flex-1 bg-white/5"></span>
                 </div>
+            </div>
+
+            <!-- MASTER / SHARED ADMIN SYSTEM SECTION -->
+            <div class="admin-only hidden space-y-1">
+                <a href="?page=master_dashboard" class="master-only hidden flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group <?php echo $page === 'master_dashboard' ? 'bg-indigo-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'master_dashboard' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-indigo-500/20'; ?>">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4 <?php echo $page === 'master_dashboard' ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'; ?>"></i>
+                    </div>
+                    <span class="font-semibold text-sm">Dashboard</span>
+                </a>
+
+                <a href="?page=master_billing" class="master-only hidden flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'master_billing' ? 'bg-indigo-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'master_billing' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-indigo-500/20'; ?>">
+                        <i data-lucide="crown" class="w-4 h-4 <?php echo $page === 'master_billing' ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'; ?>"></i>
+                    </div>
+                    <span class="font-semibold text-sm">Controle de Acessos</span>
+                </a>
+
+                <a href="?page=companies" class="master-only hidden flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'companies' ? 'bg-emerald-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'companies' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-emerald-500/20'; ?>">
+                        <i data-lucide="building-2" class="w-4 h-4 <?php echo $page === 'companies' ? 'text-white' : 'text-slate-400 group-hover:text-emerald-400'; ?>"></i>
+                    </div>
+                    <span class="font-bold text-sm">Gerenciar Empresas</span>
+                </a>
 
                 <a href="?page=users" class="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'users' ? 'bg-primary shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
                     <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'users' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-primary/20'; ?>">
@@ -95,22 +120,7 @@
                     </div>
                     <span class="font-medium text-sm">Configurações</span>
                 </a>
-
-                <!-- MASTER ONLY SECTION -->
-                    <a href="?page=companies" class="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'companies' ? 'bg-emerald-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
-                        <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'companies' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-emerald-500/20'; ?>">
-                            <i data-lucide="building-2" class="w-4 h-4 <?php echo $page === 'companies' ? 'text-white' : 'text-slate-400 group-hover:text-emerald-400'; ?>"></i>
-                        </div>
-                        <span class="font-bold text-sm">Gerenciar Empresas</span>
-                    </a>
-
-                    <a href="?page=master_billing" class="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'master_billing' ? 'bg-indigo-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
-                        <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'master_billing' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-indigo-500/20'; ?>">
-                            <i data-lucide="crown" class="w-4 h-4 <?php echo $page === 'master_billing' ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'; ?>"></i>
-                        </div>
-                        <span class="font-bold text-sm">Controle de Acessos</span>
-                    </a>
-                </div>
+            </div>
             
             <!-- CLIENT SECTION -->
             <div class="client-only hidden space-y-1">
