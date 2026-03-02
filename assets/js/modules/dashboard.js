@@ -57,7 +57,7 @@ export default class DashboardModule {
         if (defaultPeriodBtn) this.selectPeriod('hoje', defaultPeriodBtn);
 
         this.bindEvents();
-        this.setupRealtime();
+        // this.setupRealtime(); // Removido pois causa crash: this.setupRealtime is not a function
     }
 
     async loadData() {
