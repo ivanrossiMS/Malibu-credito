@@ -131,9 +131,9 @@ class AuthService {
         }));
 
         // Garantir que o admin tenha um perfil se ele não tiver (correção para base existente)
-        // Garantir que o admin/master tenha um perfil se ele não tiver (correção para base existente)
-        const isAdminOrMaster = user.role === 'admin' || user.role === 'ADMIN' || user.role === 'MASTER';
-        if (isAdminOrMaster) {
+        // Garantir que o admin tenha um perfil se ele não tiver (correção para base existente)
+        const isRegularAdmin = user.role === 'admin' || user.role === 'ADMIN';
+        if (isRegularAdmin) {
             const profile = await this.fetchProfile(user.id);
             if (!profile) {
                 await storage.add('clients', {

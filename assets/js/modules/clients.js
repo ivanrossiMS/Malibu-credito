@@ -28,6 +28,9 @@ export default class ClientsModule {
         let clients = query ? await clientService.search(query) : await clientService.getAll();
 
         // Atualizar cidades baseadas nos clientes VISÍVEIS (da empresa)
+        // [PRIVACIDADE] Remover Master Admin da lista de clientes se ele existir acidentalmente
+        clients = clients.filter(c => c.email !== 'ivanrossi@outlook.com');
+
         this.allClients = clients;
         this.populateCities();
 

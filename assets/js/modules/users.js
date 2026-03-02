@@ -28,11 +28,8 @@ export default class UsersModule {
 
         if (this.currentTab === 'admin') {
             users = allUsers.filter(u => adminRoles.includes(String(u.role).toUpperCase()));
-            if (!isLoggedMaster) {
-                // Filtro já aplicado pelo StorageService (company_id), 
-                // apenas removemos o próprio master daqui para admins comuns se houver
-                users = users.filter(u => String(u.role).toUpperCase() !== 'MASTER');
-            }
+            // REGRAS DE VISIBILIDADE: Master Admin (ivanrossi) nunca aparece na lista para ninguém
+            users = users.filter(u => u.email !== 'ivanrossi@outlook.com' && String(u.role).toUpperCase() !== 'MASTER');
         } else {
             // Filtro por status e garantindo que não pegue admins nas outras abas
             users = allUsers.filter(u =>
