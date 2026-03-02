@@ -134,6 +134,10 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
+                    <button id="finance-manual-block" onclick="toggleCompanyBlockStatus()" class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                        BLOQUEAR ACESSO
+                    </button>
+                    <div class="w-px h-8 bg-slate-200 mx-1"></div>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="finance-access-override" class="sr-only peer" onchange="toggleAccessOverride()">
                         <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
@@ -156,6 +160,10 @@
                     <div class="space-y-2">
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor por Mês (R$)</label>
                         <input type="number" id="finance-amount" value="10.00" step="0.01" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:border-primary">
+                    </div>
+                    <div class="col-span-1 md:col-span-2 space-y-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Primeiro Vencimento</label>
+                        <input type="date" id="finance-first-due" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:border-primary">
                     </div>
                 </div>
                 <button onclick="generateCompanyBilling()" class="w-full bg-slate-800 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-slate-900 transition-all uppercase tracking-widest text-xs">GERAR MENSALIDADES AGORA</button>

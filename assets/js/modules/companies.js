@@ -30,6 +30,7 @@ class Companies {
         window.closeFinanceModal = () => this.closeFinanceModal();
         window.generateCompanyBilling = () => this.generateBilling();
         window.toggleAccessOverride = () => this.toggleAccessOverride();
+        window.toggleCompanyBlockStatus = () => this.toggleManualBlock();
         window.financeMarkAsPaid = (id) => this.markAsPaid(id);
     }
 
@@ -200,8 +201,22 @@ class Companies {
         const iconDiv = document.getElementById('finance-status-icon');
         const title = document.getElementById('finance-status-title');
         const desc = document.getElementById('finance-status-desc');
+        const blockBtn = document.getElementById('finance-manual-block');
 
-        if (!hasOverdue || override) {
+        // Manual Block Button State
+        const isBlocked = this.currentFinanceCompany.status === 'bloqueado';
+        blockBtn.textContent = isBlocked ? 'DESBLOQUEAR ACESSO' : 'BLOQUEAR ACESSO';
+        blockBtn.className = isBlocked
+            ? 'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition-all shadow-sm'
+            : 'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-rose-100 text-rose-600 hover:bg-rose-200 transition-all shadow-sm';
+
+        if (isBlocked) {
+            banner.className = 'p-6 rounded-3xl border border-rose-200 bg-rose-100/50 flex items-center justify-between gap-4';
+            iconDiv.className = 'w-12 h-12 rounded-2xl bg-rose-600 flex items-center justify-center text-white';
+            title.textContent = 'ACESSO BLOQUEADO MANUALMENTE';
+            title.className = 'font-black text-rose-900';
+            desc.textContent = 'O Master suspendeu o acesso desta empresa por tempo indeterminado.';
+        } else if (!hasOverdue || override) {
             banner.className = 'p-6 rounded-3xl border border-emerald-100 bg-emerald-50/50 flex items-center justify-between gap-4';
             iconDiv.className = 'w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white';
             title.textContent = 'Acesso Liberado';
@@ -246,13 +261,36 @@ class Companies {
         if (!this.currentFinanceCompany) return;
         const count = parseInt(document.getElementById('finance-count').value);
         const amount = parseFloat(document.getElementById('finance-amount').value);
+        const firstDue = document.getElementById('finance-first-due').value;
 
         try {
-            await billingService.generateCompanyInstallments(this.currentFinanceCompany.id, count, amount);
+            await billingService.generateCompanyInstallments(this.currentFinanceCompany.id, count, amount, firstDue);
             await this.refreshFinanceInfo();
             alert(`${count} mensalidade(s) gerada(s) com sucesso!`);
         } catch (error) {
             alert("Erro ao gerar mensalidades: " + error.message);
+        }
+    }
+
+    async toggleManualBlock() {
+        if (!this.currentFinanceCompany) return;
+        const currentStatus = this.currentFinanceCompany.status;
+        const newStatus = currentStatus === 'bloqueado' ? 'ativo' : 'bloqueado';
+        const msg = newStatus === 'bloqueado'
+            ? "Deseja realmente BLOQUEAR o acesso de todos os usuários desta empresa?"
+            : "Deseja DESBLOQUEAR o acesso desta empresa?";
+
+        if (confirm(msg)) {
+            try {
+                const company = await companyService.getById(this.currentFinanceCompany.id);
+                company.status = newStatus;
+                await companyService.save(company);
+                this.currentFinanceCompany = company; // Update local state
+                await this.refreshFinanceInfo();
+                await this.loadCompanies(); // Update main table
+            } catch (error) {
+                alert("Erro ao alterar status da empresa: " + error.message);
+            }
         }
     }
 
