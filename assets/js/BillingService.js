@@ -117,6 +117,20 @@ class BillingService {
     }
 
     /**
+     * Verifica se a empresa possui alguma parcela vencida.
+     */
+    async hasCompanyOverdue(companyId) {
+        if (!companyId) return false;
+
+        const installments = await storage.getAdvanced('billing_installments', {
+            eq: { company_id: companyId }
+        });
+
+        const todayStr = DateHelper.getTodayStr();
+        return installments.some(i => i.status === 'VENCIDA' || (i.status === 'A_VENCER' && i.dueDate < todayStr));
+    }
+
+    /**
      * Retorna todas as mensalidades de um usuário.
      */
     async getUserInstallments(userId) {

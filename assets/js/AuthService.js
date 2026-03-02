@@ -233,20 +233,27 @@ class AuthService {
         if (this.isMaster()) return { allowed: true };
 
         // Somente ADMINS normais passam pela regra de mensalidade
-        // (Usuarios comuns/clientes entram no painel de cliente)
         if (this.currentUser.role !== 'admin' && this.currentUser.role !== 'ADMIN') {
             return { allowed: true };
         }
 
-        // Se o MASTER deu override, entra sempre
+        // 1. Verificar Override da Empresa (Se o Master liberou a empresa toda)
+        const CompanyService = (await import('./CompanyService.js')).default;
+        const company = await CompanyService.getById(this.currentUser.company_id || this.currentUser.companyId);
+
+        if (company && (company.access_override || company.accessOverride)) {
+            return { allowed: true };
+        }
+
+        // 2. Se o MASTER deu override individual no usuário, entra tbm
         if (this.currentUser.accessOverride) return { allowed: true };
 
-        // Se o acesso ainda não foi habilitado pelo MASTER (primeira vez)
+        // 3. Se o acesso ainda não foi habilitado pelo MASTER (primeira vez)
         if (!this.currentUser.accessEnabled) return { allowed: false, reason: 'pending_master' };
 
-        // Verificar mensalidades
+        // 4. Verificar mensalidades da Empresa (Bloqueio Coletivo)
         const billingService = (await import('./BillingService.js')).default;
-        const hasOverdue = await billingService.hasOverdueInstallment(this.currentUser.id);
+        const hasOverdue = await billingService.hasCompanyOverdue(this.currentUser.company_id || this.currentUser.companyId);
 
         if (hasOverdue) return { allowed: false, reason: 'overdue_billing' };
 

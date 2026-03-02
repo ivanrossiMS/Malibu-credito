@@ -1,4 +1,7 @@
 import companyService from '../CompanyService.js';
+import billingService from '../BillingService.js';
+import DateHelper from '../DateHelper.js';
+import storage from '../StorageService.js';
 
 class Companies {
     constructor() {
@@ -6,6 +9,10 @@ class Companies {
         this.modal = document.getElementById('company-modal');
         this.form = document.getElementById('company-form');
         this.modalTitle = document.getElementById('modal-title');
+
+        this.financeModal = document.getElementById('finance-modal');
+        this.financeList = document.getElementById('finance-installments-list');
+        this.currentFinanceCompany = null;
     }
 
     async init() {
@@ -19,6 +26,11 @@ class Companies {
         window.closeCompanyModal = () => this.closeModal();
         window.editCompany = (id) => this.editCompany(id);
         window.deleteCompany = (id) => this.deleteCompany(id);
+        window.openCompanyFinance = (id) => this.openFinance(id);
+        window.closeFinanceModal = () => this.closeFinanceModal();
+        window.generateCompanyBilling = () => this.generateBilling();
+        window.toggleAccessOverride = () => this.toggleAccessOverride();
+        window.financeMarkAsPaid = (id) => this.markAsPaid(id);
     }
 
     async loadCompanies() {
@@ -69,6 +81,9 @@ class Companies {
                 </td>
                 <td class="px-6 py-4 text-right">
                     <div class="flex justify-end gap-2">
+                        <button onclick="openCompanyFinance(${company.id})" class="text-indigo-600 hover:bg-indigo-50 p-2 rounded-xl transition-all" title="Financeiro / Mensalidades">
+                            <i data-lucide="circle-dollar-sign" class="w-4 h-4"></i>
+                        </button>
                         <button onclick="editCompany(${company.id})" class="text-slate-500 hover:bg-slate-100 p-2 rounded-xl transition-all" title="Editar">
                             <i data-lucide="edit-3" class="w-4 h-4"></i>
                         </button>
@@ -151,6 +166,117 @@ class Companies {
                 alert("Empresa excluída com sucesso!");
             } catch (error) {
                 alert("Erro ao excluir empresa: " + error.message);
+            }
+        }
+    }
+
+    async openFinance(id) {
+        const company = await companyService.getById(id);
+        if (!company) return;
+
+        this.currentFinanceCompany = company;
+        document.getElementById('finance-company-name').textContent = company.name;
+        document.getElementById('finance-access-override').checked = !!(company.access_override || company.accessOverride);
+
+        await this.refreshFinanceInfo();
+
+        this.financeModal.classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    closeFinanceModal() {
+        this.financeModal.classList.add('hidden');
+        this.currentFinanceCompany = null;
+    }
+
+    async refreshFinanceInfo() {
+        const id = this.currentFinanceCompany.id;
+
+        // Check Debt Status
+        const hasOverdue = await billingService.hasCompanyOverdue(id);
+        const override = document.getElementById('finance-access-override').checked;
+
+        const banner = document.getElementById('finance-access-banner');
+        const iconDiv = document.getElementById('finance-status-icon');
+        const title = document.getElementById('finance-status-title');
+        const desc = document.getElementById('finance-status-desc');
+
+        if (!hasOverdue || override) {
+            banner.className = 'p-6 rounded-3xl border border-emerald-100 bg-emerald-50/50 flex items-center justify-between gap-4';
+            iconDiv.className = 'w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white';
+            title.textContent = 'Acesso Liberado';
+            title.className = 'font-black text-emerald-900';
+            desc.textContent = override ? 'Acesso liberado forçadamente pelo Master.' : 'A empresa está em dia com as mensalidades.';
+        } else {
+            banner.className = 'p-6 rounded-3xl border border-rose-100 bg-rose-50 flex items-center justify-between gap-4';
+            iconDiv.className = 'w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center text-white';
+            title.textContent = 'Acesso Bloqueado';
+            title.className = 'font-black text-rose-900';
+            desc.textContent = 'Existem mensalidades vencidas pendentes.';
+        }
+
+        // List Installments
+        const installments = await storage.getAdvanced('billing_installments', {
+            eq: { company_id: id },
+            order: { column: 'dueDate', ascending: false }
+        });
+
+        if (installments.length === 0) {
+            this.financeList.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400">Nenhuma mensalidade gerada.</td></tr>`;
+        } else {
+            this.financeList.innerHTML = installments.map(inst => {
+                const statusClass = inst.status === 'PAGA' ? 'text-emerald-500' : (inst.status === 'VENCIDA' ? 'text-rose-500' : 'text-amber-500');
+                return `
+                    <tr>
+                        <td class="px-6 py-4">${DateHelper.formatLocal(inst.dueDate)}</td>
+                        <td class="px-6 py-4">R$ ${parseFloat(inst.amount).toFixed(2)}</td>
+                        <td class="px-6 py-4 ${statusClass}">${inst.status}</td>
+                        <td class="px-6 py-4 text-right">
+                            ${inst.status !== 'PAGA' ? `
+                                <button onclick="financeMarkAsPaid(${inst.id})" class="text-xs font-black text-emerald-600 hover:underline uppercase">Baixar</button>
+                            ` : '---'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
+
+    async generateBilling() {
+        if (!this.currentFinanceCompany) return;
+        const count = parseInt(document.getElementById('finance-count').value);
+        const amount = parseFloat(document.getElementById('finance-amount').value);
+
+        try {
+            await billingService.generateCompanyInstallments(this.currentFinanceCompany.id, count, amount);
+            await this.refreshFinanceInfo();
+            alert(`${count} mensalidade(s) gerada(s) com sucesso!`);
+        } catch (error) {
+            alert("Erro ao gerar mensalidades: " + error.message);
+        }
+    }
+
+    async toggleAccessOverride() {
+        if (!this.currentFinanceCompany) return;
+        const override = document.getElementById('finance-access-override').checked;
+
+        try {
+            const company = await companyService.getById(this.currentFinanceCompany.id);
+            company.access_override = override;
+            await companyService.save(company);
+            await this.refreshFinanceInfo();
+        } catch (error) {
+            alert("Erro ao salvar override: " + error.message);
+        }
+    }
+
+    async markAsPaid(id) {
+        if (confirm("Confirmar recebimento desta mensalidade?")) {
+            try {
+                await billingService.markAsPaid(id);
+                await this.refreshFinanceInfo();
+            } catch (error) {
+                alert("Erro ao baixar mensalidade: " + error.message);
             }
         }
     }
