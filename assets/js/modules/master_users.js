@@ -29,6 +29,7 @@ class MasterUsers {
         window.refreshUsers = () => this.loadUsers();
         window.masterToggleUserStatus = (id) => this.toggleStatus(id);
         window.masterToggleAdminAccess = (id) => this.toggleAdminAccess(id);
+        window.masterChangeRole = (id) => this.changeRole(id);
         window.masterImpersonate = (id) => this.impersonateUser(id);
         window.masterDeleteUser = (id) => this.deleteUser(id);
     }
@@ -162,6 +163,10 @@ class MasterUsers {
                         <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             ${accessToggleHtml}
                             
+                            <button onclick="masterChangeRole(${user.id})" class="text-blue-600 hover:bg-blue-50 p-3 rounded-2xl transition-all" title="${isAdmin ? 'Tirar Admin' : 'Dar Admin'}">
+                                <i data-lucide="${isAdmin ? 'user-minus' : 'shield-plus'}" class="w-4 h-4"></i>
+                            </button>
+
                             <button onclick="masterImpersonate(${user.id})" class="text-indigo-600 hover:bg-indigo-50 p-3 rounded-2xl transition-all" title="Ver Painel">
                                 <i data-lucide="eye" class="w-4 h-4"></i>
                             </button>
@@ -196,6 +201,31 @@ class MasterUsers {
                 await this.loadUsers();
             } catch (error) {
                 alert("Erro ao atualizar status: " + error.message);
+            }
+        }
+    }
+
+    async changeRole(id) {
+        const user = this.users.find(u => u.id === id);
+        if (!user || user.role === 'MASTER') return;
+
+        const isAdmin = ['ADMIN', 'admin'].includes(String(user.role).toLowerCase());
+        const newRole = isAdmin ? 'user' : 'admin';
+        const msg = isAdmin
+            ? `Deseja remover as permissões administrativas de ${user.name}?`
+            : `Deseja promover ${user.name} a Administrador?`;
+
+        if (confirm(msg)) {
+            try {
+                user.role = newRole;
+                // Se estiver promovendo, desabilita acesso admin até master liberar no cadeado (segurança adicional)
+                if (newRole === 'admin') user.accessEnabled = false;
+
+                await storage.put('users', user);
+                await this.loadUsers();
+                alert(`Usuário atualizado com sucesso para ${newRole === 'admin' ? 'Administrador' : 'Cliente'}.`);
+            } catch (error) {
+                alert("Erro ao atualizar cargo: " + error.message);
             }
         }
     }
