@@ -555,8 +555,14 @@ export default class UsersModule {
             btn.onclick = async () => {
                 const id = btn.dataset.id;
                 const inst = installments.find(i => String(i.id) === String(id));
+
                 if (inst.status === 'PAGA') await billingService.undoPayment(id);
                 else await billingService.markAsPaid(id);
+
+                // Atualizar status do usuário no modal (Auto-liberação/bloqueio)
+                this.currentUser = await storage.getById('users', this.currentUser.id);
+                this.updateAccessButtons();
+
                 await this.renderInstallments();
                 await this.renderUsers();
             };
