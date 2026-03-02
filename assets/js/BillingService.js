@@ -1,6 +1,9 @@
 import storage from './StorageService.js';
 import DateHelper from './DateHelper.js';
 
+/**
+ * BillingService v1.0.1 - Updated 2026-03-02
+ */
 class BillingService {
     constructor() {
         this.INSTALLMENT_AMOUNT = 10.00;
