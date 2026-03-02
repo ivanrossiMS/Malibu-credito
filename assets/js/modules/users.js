@@ -386,10 +386,33 @@ export default class UsersModule {
                         </div>
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <h3 class="font-black text-slate-800 flex items-center gap-2 text-lg"><i data-lucide="calendar" class="w-6 h-6 text-slate-400"></i> Histórico de Mensalidades</h3>
-                                <button id="generate-installments" class="text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4"></i> Gerar Faltantes</button>
+                                <h3 class="font-black text-slate-800 flex items-center gap-2 text-lg"><i data-lucide="calendar" class="w-6 h-6 text-slate-400"></i> Gestão de Mensalidades</h3>
+                                <button id="btn-show-gen-form" class="text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline flex items-center gap-2 transition-all"><i data-lucide="plus-circle" class="w-4 h-4"></i> Geração em Lote</button>
                             </div>
-                            <div class="border border-slate-100 rounded-3xl overflow-hidden">
+
+                            <!-- Advanced Batch Generation Form -->
+                            <div id="batch-gen-form-container" class="hidden bg-indigo-50/50 p-6 rounded-[2rem] border border-indigo-100 animate-fade-in space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="space-y-2">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantidade</label>
+                                        <input type="number" id="gen-count" value="1" min="1" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary outline-none font-bold text-slate-700">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor Unitário</label>
+                                        <input type="number" id="gen-amount" value="10.00" step="0.01" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary outline-none font-bold text-slate-700">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">1º Vencimento</label>
+                                        <input type="date" id="gen-first-due" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary outline-none font-bold text-slate-700">
+                                    </div>
+                                </div>
+                                <div class="flex justify-end gap-3">
+                                    <button id="btn-cancel-gen" class="px-5 py-2 text-slate-500 font-bold text-xs uppercase transition-all">Cancelar</button>
+                                    <button id="btn-confirm-gen" class="px-8 py-2 bg-indigo-600 text-white font-black rounded-xl shadow-lg shadow-indigo-200 hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-widest">GERAR PARCELAS</button>
+                                </div>
+                            </div>
+
+                            <div class="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
                                 <table class="w-full text-left border-collapse">
                                     <thead class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                         <tr><th class="px-6 py-4">Competência</th><th class="px-6 py-4">Vencimento</th><th class="px-6 py-4">Valor</th><th class="px-6 py-4">Status</th><th class="px-6 py-4">Ação</th></tr>
@@ -406,18 +429,40 @@ export default class UsersModule {
         document.getElementById('close-modal').onclick = () => document.getElementById('user-detail-modal').classList.add('hidden');
         document.getElementById('toggle-access-enabled').onclick = () => this.toggleAccessEnabled();
         document.getElementById('toggle-access-override').onclick = () => this.toggleAccessOverride();
-        document.getElementById('generate-installments').onclick = async () => {
-            const count = prompt("Quantas mensalidades deseja gerar para este administrador?", "1");
-            if (count && !isNaN(count) && parseInt(count) > 0) {
-                try {
-                    await billingService.generateMonthlyInstallments(this.currentUser, parseInt(count));
-                    await this.renderInstallments();
-                    await this.renderUsers();
-                    alert(`${count} mensalidade(s) gerada(s) com sucesso!`);
-                } catch (error) {
-                    console.error("Erro ao gerar mensalidades:", error);
-                    alert("Erro ao gerar mensalidades: " + error.message);
-                }
+
+        // Advanced Gen Form Controls
+        const genFormContainer = document.getElementById('batch-gen-form-container');
+        document.getElementById('btn-show-gen-form').onclick = () => genFormContainer.classList.remove('hidden');
+        document.getElementById('btn-cancel-gen').onclick = () => genFormContainer.classList.add('hidden');
+
+        document.getElementById('btn-confirm-gen').onclick = async () => {
+            const count = parseInt(document.getElementById('gen-count').value);
+            const amount = parseFloat(document.getElementById('gen-amount').value);
+            const firstDue = document.getElementById('gen-first-due').value;
+
+            if (!count || count <= 0) return alert("Quantidade inválida.");
+            if (!amount || amount <= 0) return alert("Valor inválido.");
+            if (!firstDue) return alert("Data de vencimento obrigatória.");
+
+            try {
+                const btn = document.getElementById('btn-confirm-gen');
+                btn.disabled = true;
+                btn.textContent = "GERANDO...";
+
+                await billingService.generateMonthlyInstallments(this.currentUser, count, amount, firstDue);
+
+                await this.renderInstallments();
+                await this.renderUsers();
+
+                genFormContainer.classList.add('hidden');
+                alert(`${count} parcelas geradas com sucesso!`);
+            } catch (error) {
+                console.error("Erro ao gerar parcelas:", error);
+                alert("Erro ao gerar parcelas: " + error.message);
+            } finally {
+                const btn = document.getElementById('btn-confirm-gen');
+                btn.disabled = false;
+                btn.textContent = "GERAR PARCELAS";
             }
         };
 
@@ -434,6 +479,10 @@ export default class UsersModule {
 
         this.updateAccessButtons();
         await this.renderInstallments();
+
+        // Default date for generation
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('gen-first-due').value = today;
 
         modal.classList.remove('hidden');
     }

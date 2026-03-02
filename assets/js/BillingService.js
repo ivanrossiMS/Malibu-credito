@@ -8,41 +8,43 @@ class BillingService {
     }
 
     /**
-     * Gera uma quantidade específica de parcelas para um usuário.
-     * Começa a partir da última parcela existente ou do mês atual.
+     * Gera uma quantidade específica de parcelas para um usuário com valores e datas customizadass.
      */
-    async generateMonthlyInstallments(user, count = 1) {
+    async generateMonthlyInstallments(user, count = 1, amount = null, firstDueDate = null) {
         if (!user) return;
 
-        // Buscar parcelas existentes para encontrar o ponto de partida
-        const installments = await this.getUserInstallments(user.id);
+        const finalAmount = amount !== null ? parseFloat(amount) : this.INSTALLMENT_AMOUNT;
         let startDate;
 
-        if (installments.length > 0) {
-            // Pegar a competência da última parcela (ordenada por data decrescente no getUserInstallments)
-            const latest = installments[0];
-            const [year, month] = latest.competenceMonth.split('-').map(Number);
-            startDate = new Date(year, month, 1); // Próximo mês
+        if (firstDueDate) {
+            startDate = new Date(firstDueDate + 'T12:00:00'); // Evitar problemas de timezone
         } else {
-            // Se não tem nada, começa no mês atual
-            const now = new Date();
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            // Fallback: Buscar parcelas existentes para encontrar o ponto de partida
+            const installments = await this.getUserInstallments(user.id);
+            if (installments.length > 0) {
+                const latest = installments[0];
+                const [year, month] = latest.competenceMonth.split('-').map(Number);
+                startDate = new Date(year, month, this.DUE_DAY);
+            } else {
+                const now = new Date();
+                startDate = new Date(now.getFullYear(), now.getMonth(), this.DUE_DAY);
+            }
         }
 
         for (let i = 0; i < count; i++) {
-            const currentIter = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
+            const currentIter = new Date(startDate.getFullYear(), startDate.getMonth() + i, startDate.getDate());
             const competenceMonth = `${currentIter.getFullYear()}-${String(currentIter.getMonth() + 1).padStart(2, '0')}`;
-            const dueDate = `${currentIter.getFullYear()}-${String(currentIter.getMonth() + 1).padStart(2, '0')}-${String(this.DUE_DAY).padStart(2, '0')}`;
+            const dueDate = currentIter.toISOString().split('T')[0];
 
             await storage.add('billing_installments', {
                 userId: user.id,
                 competenceMonth: competenceMonth,
                 dueDate: dueDate,
-                amount: this.INSTALLMENT_AMOUNT,
+                amount: finalAmount,
                 status: 'A_VENCER',
                 createdAt: new Date().toISOString()
             });
-            console.log(`Billing: Created custom installment for ${competenceMonth} (User: ${user.email})`);
+            console.log(`Billing: Created installment for ${competenceMonth} (Due: ${dueDate}, Amount: ${finalAmount})`);
         }
 
         await this.syncInstallmentStatuses(user.id);
