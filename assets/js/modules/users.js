@@ -25,6 +25,7 @@ export default class UsersModule {
         if (!listContainer) return;
 
         const allUsers = await storage.getAll('users');
+        let users;
 
         const adminRoles = ['admin', 'ADMIN', 'MASTER'];
         const isLoggedMaster = auth.isMaster();
