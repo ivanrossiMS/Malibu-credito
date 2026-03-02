@@ -142,17 +142,18 @@ class Companies {
         } catch (error) {
             alert("Erro ao salvar empresa: " + error.message);
         }
+    }
     async deleteCompany(id) {
-            if (confirm("ATENÇÃO: Excluir esta empresa removerá todos os dados vinculados a ela. Esta ação não pode ser desfeita.\n\nDeseja continuar?")) {
-                try {
-                    await companyService.delete(id);
-                    await this.loadCompanies();
-                    alert("Empresa excluída com sucesso!");
-                } catch (error) {
-                    alert("Erro ao excluir empresa: " + error.message);
-                }
+        if (confirm("ATENÇÃO: Excluir esta empresa removerá todos os dados vinculados a ela. Esta ação não pode ser desfeita.\n\nDeseja continuar?")) {
+            try {
+                await companyService.delete(id);
+                await this.loadCompanies();
+                alert("Empresa excluída com sucesso!");
+            } catch (error) {
+                alert("Erro ao excluir empresa: " + error.message);
             }
         }
     }
+}
 
 export default Companies;
