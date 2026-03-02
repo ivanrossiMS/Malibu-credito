@@ -59,6 +59,12 @@ class StorageService {
 
         const { data, error } = await query;
         if (error) {
+            // [TRANSITION LOGIC] Se a coluna company_id não existir ainda, fazemos o fallback para a query completa
+            if (error.code === 'PGRST204' && companyId) {
+                console.warn(`Fallback: Tabela ${storeName} ainda não possui a coluna company_id. Retornando todos os registros.`);
+                const fallback = await this.supabase.from(storeName).select('*');
+                return this.toCamelCase(fallback.data || []);
+            }
             console.error(`Supabase getAll error (${storeName}):`, error);
             return [];
         }
@@ -239,6 +245,16 @@ class StorageService {
 
         const { data, error } = await query;
         if (error) {
+            // [TRANSITION LOGIC] Se a coluna company_id não existir ainda, fazemos o fallback para a query completa
+            if (error.code === 'PGRST204' && companyId) {
+                console.warn(`Fallback Advanced: Tabela ${storeName} ainda não possui a coluna company_id.`);
+                let retryQuery = this.supabase.from(storeName).select(selectQuery);
+                // Re-aplicar outros filtros exceto company_id
+                if (options.limit) retryQuery = retryQuery.limit(options.limit);
+                const fallback = await retryQuery;
+                return this.toCamelCase(fallback.data || []);
+            }
+
             // [FALLBACK DO SISTEMA ANTI-TELA-BRANCA]
             // Se o PostgREST acusar PGRST200 (Falha de Relacionamento/FK), mas estávamos pedindo um JOIN,
             // cancelamos a árvore e enviamos a lista Plana para não quebrar a UI.

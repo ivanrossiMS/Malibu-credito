@@ -44,6 +44,7 @@ class App {
 
     async init() {
         console.log("Initializing Malibu Crédito...");
+        window.auth = auth; // Expor globalmente para módulos como Dashboard
 
         try {
             await storage.init();

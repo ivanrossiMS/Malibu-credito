@@ -15,7 +15,7 @@
     </header>
 
     <!-- Sidebar (Desktop & Mobile Drawer) -->
-    <aside id="sidebar" class="bg-gradient-to-b from-slate-900 via-[#0F172A] to-[#1E293B] text-slate-300 w-full md:w-72 fixed md:relative top-0 z-50 h-screen transition-all duration-500 transform -translate-x-full md:translate-x-0 shadow-2xl flex flex-col border-r border-white/5">
+    <aside id="sidebar" class="bg-gradient-to-b from-slate-900 via-[#0F172A] to-[#1E293B] text-slate-300 w-full md:w-72 fixed md:static top-0 z-50 h-screen transition-all duration-500 transform -translate-x-full md:translate-x-0 shadow-2xl flex flex-col border-r border-white/5">
         <!-- Sidebar Header / High-Impact Logo Area -->
         <div class="w-full px-5 py-6 border-b border-white/5 flex items-center justify-center mb-2">
             <div class="w-full relative group flex justify-center items-center overflow-hidden rounded-2xl bg-white/[0.03] border border-white/10 shadow-lg h-[110px]">
