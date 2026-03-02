@@ -10,6 +10,8 @@ export default class SettingsModule {
         this.companyFilter = document.getElementById('log-filter-company');
         this.userFilter = document.getElementById('log-filter-user');
         this.actionFilter = document.getElementById('log-filter-action');
+        this.dateFromFilter = document.getElementById('log-filter-date-from');
+        this.dateToFilter = document.getElementById('log-filter-date-to');
 
         this.logs = [];
         this.companies = [];
@@ -45,7 +47,7 @@ export default class SettingsModule {
 
             this.logs = await storage.getAdvanced('system_logs', {
                 order: { column: 'created_at', ascending: false },
-                limit: 200
+                limit: 500
             });
 
             this.populateUserFilter();
@@ -64,12 +66,15 @@ export default class SettingsModule {
     }
 
     bindEvents() {
-        [this.companyFilter, this.userFilter, this.actionFilter].forEach(f => {
+        [this.companyFilter, this.userFilter, this.actionFilter, this.dateFromFilter, this.dateToFilter].forEach(f => {
             if (f) f.onchange = () => this.applyFilters();
         });
 
         const refreshBtn = document.getElementById('refresh-logs-btn');
         if (refreshBtn) refreshBtn.onclick = () => this.loadLogs();
+
+        const exportLogsBtn = document.getElementById('export-logs-csv-btn');
+        if (exportLogsBtn) exportLogsBtn.onclick = () => this.exportLogsToCSV();
 
         const backupServerBtn = document.getElementById('backup-server-btn');
         if (backupServerBtn) {
@@ -175,6 +180,8 @@ export default class SettingsModule {
         const companyId = this.companyFilter.value;
         const userEmail = this.userFilter.value;
         const action = this.actionFilter.value;
+        const dateFrom = this.dateFromFilter?.value;
+        const dateTo = this.dateToFilter?.value;
 
         let filtered = [...this.logs];
 
@@ -191,7 +198,50 @@ export default class SettingsModule {
             filtered = filtered.filter(l => l.action === action);
         }
 
+        if (dateFrom) {
+            filtered = filtered.filter(l => l.createdAt >= `${dateFrom}T00:00:00`);
+        }
+
+        if (dateTo) {
+            filtered = filtered.filter(l => l.createdAt <= `${dateTo}T23:59:59`);
+        }
+
+        this.lastFilteredLogs = filtered;
         this.renderLogs(filtered);
+    }
+
+    exportLogsToCSV() {
+        const data = this.lastFilteredLogs || this.logs;
+        if (!data || data.length === 0) return alert("Nenhum dado para exportar.");
+
+        const headers = ["Data", "Hora", "Empresa", "Usuário", "Módulo", "Ação", "Detalhes"];
+        const rows = data.map(log => {
+            const company = this.companies.find(c => c.id === log.companyId) || { name: 'Sistema' };
+            const date = new Date(log.createdAt);
+            return [
+                date.toLocaleDateString(),
+                date.toLocaleTimeString(),
+                company.name,
+                log.userEmail || 'Anônimo',
+                log.module,
+                log.action,
+                log.details ? log.details.replace(/"/g, '""') : '-'
+            ];
+        });
+
+        let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM for Excel
+        csvContent += headers.join(";") + "\n";
+        rows.forEach(row => {
+            csvContent += row.map(cell => `"${cell}"`).join(";") + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `malibu_logs_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     renderLogs(data) {

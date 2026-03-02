@@ -155,14 +155,20 @@
                                 <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Monitoramento em Tempo Real</p>
                             </div>
                         </div>
-                        <button id="refresh-logs-btn" class="bg-white hover:bg-slate-50 text-slate-600 font-bold py-2.5 px-5 rounded-xl border border-slate-200 shadow-sm transition-all flex items-center gap-2 text-sm">
-                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                            <span>Atualizar Logs</span>
-                        </button>
+                        <div class="flex items-center gap-3">
+                            <button id="export-logs-csv-btn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold py-2.5 px-5 rounded-xl border border-emerald-200 shadow-sm transition-all flex items-center gap-2 text-sm">
+                                <i data-lucide="file-spread-sheet" class="w-4 h-4"></i>
+                                <span>Exportar CSV</span>
+                            </button>
+                            <button id="refresh-logs-btn" class="bg-white hover:bg-slate-50 text-slate-600 font-bold py-2.5 px-5 rounded-xl border border-slate-200 shadow-sm transition-all flex items-center gap-2 text-sm">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                <span>Atualizar Logs</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Filters Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div class="relative group">
                             <i data-lucide="building-2" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors"></i>
                             <select id="log-filter-company" class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold text-slate-700 appearance-none text-xs">
@@ -185,6 +191,14 @@
                                 <option value="LOGIN">Acesso</option>
                                 <option value="BACKUP">Manutenção</option>
                             </select>
+                        </div>
+                        <div class="relative group">
+                            <i data-lucide="calendar" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors"></i>
+                            <input type="date" id="log-filter-date-from" placeholder="De" class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold text-slate-700 text-xs">
+                        </div>
+                        <div class="relative group">
+                            <i data-lucide="calendar" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors"></i>
+                            <input type="date" id="log-filter-date-to" placeholder="Até" class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold text-slate-700 text-xs">
                         </div>
                     </div>
                 </div>
