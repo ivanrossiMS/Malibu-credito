@@ -373,6 +373,12 @@ export default class DashboardModule {
             baseData = this.clients;
         }
 
+        // [PRIVACIDADE] Remover Master Admin de qualquer métrica ou lista no dashboard
+        baseData = baseData.filter(item => {
+            const email = item.email || (item.client && item.client.email);
+            return email !== 'ivanrossi@outlook.com';
+        });
+
         // Apply city filter
         let data = baseData;
         if (this.currentCity !== 'all') {
