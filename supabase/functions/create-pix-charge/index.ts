@@ -76,7 +76,7 @@ serve(async (req) => {
         }
 
         // 3. Asaas Integration: Customer
-        const searchRes = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${client.cpf_cnpj.replace(/\D/g, '')}`, {
+        const searchRes = await fetch(`${dynamicAsaasUrl}/customers?cpfCnpj=${client.cpf_cnpj.replace(/\D/g, '')}`, {
             headers: { 'access_token': dynamicApiKey }
         });
         const searchData = await searchRes.json();
@@ -86,7 +86,7 @@ serve(async (req) => {
             asaasCustomerId = searchData.data[0].id;
         } else {
             console.log(`Criando novo cliente no Asaas: ${client.name}`);
-            const createRes = await fetch(`${ASAAS_URL}/customers`, {
+            const createRes = await fetch(`${dynamicAsaasUrl}/customers`, {
                 method: 'POST',
                 headers: { 'access_token': dynamicApiKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -105,7 +105,7 @@ serve(async (req) => {
         // 4. Create Payment
         const dueDate = inst.due_date || new Date().toISOString().split('T')[0];
 
-        const payRes = await fetch(`${ASAAS_URL}/payments`, {
+        const payRes = await fetch(`${dynamicAsaasUrl}/payments`, {
             method: 'POST',
             headers: { 'access_token': dynamicApiKey, 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -122,7 +122,7 @@ serve(async (req) => {
         if (payData.errors) throw new Error(`Asaas (Pagamento): ${payData.errors[0].description}`);
 
         // 5. Get QR Code
-        const qrRes = await fetch(`${ASAAS_URL}/payments/${payData.id}/pixQrCode`, {
+        const qrRes = await fetch(`${dynamicAsaasUrl}/payments/${payData.id}/pixQrCode`, {
             headers: { 'access_token': dynamicApiKey }
         });
         const qrData = await qrRes.json();
