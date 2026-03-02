@@ -106,11 +106,11 @@
                     <span class="font-semibold text-sm">Dashboard</span>
                 </a>
 
-                <a href="?page=master_billing" class="master-only hidden flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'master_billing' ? 'bg-indigo-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
+                <a href="?page=master_billing" class="master-only hidden flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group <?php echo $page === 'master_billing' ? 'bg-indigo-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
                     <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'master_billing' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-indigo-500/20'; ?>">
-                        <i data-lucide="crown" class="w-4 h-4 <?php echo $page === 'master_billing' ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'; ?>"></i>
+                        <i data-lucide="banknote" class="w-4 h-4 <?php echo $page === 'master_billing' ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'; ?>"></i>
                     </div>
-                    <span class="font-semibold text-sm">Controle de Acessos</span>
+                    <span class="font-semibold text-sm">Faturamento Master</span>
                 </a>
 
                 <a href="?page=companies" class="master-only hidden flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group <?php echo $page === 'companies' ? 'bg-emerald-600 shadow-premium text-white' : 'hover:bg-white/5 hover:text-white'; ?>">
