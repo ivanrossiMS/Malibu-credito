@@ -48,7 +48,7 @@ const DateHelper = {
         const pieces = part.split('-');
         if (pieces.length !== 3) return dateStr;
         const [y, m, d] = pieces;
-        return `${d}/${m}/${y}`;
+        return `${d}-${m}-${y}`;
     },
 
     /**

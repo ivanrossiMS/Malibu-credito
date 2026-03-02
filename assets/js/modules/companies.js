@@ -34,6 +34,7 @@ class Companies {
         window.financeMarkAsPaid = (id) => this.markAsPaid(id);
         window.financeEdit = (id) => this.financeEdit(id);
         window.financeVoucher = (id) => this.financeVoucher(id);
+        window.financeDelete = (id) => this.financeDelete(id);
     }
 
     async loadCompanies() {
@@ -260,6 +261,9 @@ class Companies {
                                 <button onclick="financeEdit(${inst.id})" class="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg transition-all" title="Editar">
                                     <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
                                 </button>
+                                <button onclick="financeDelete(${inst.id})" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Excluir">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -369,6 +373,17 @@ class Companies {
                 await this.refreshFinanceInfo();
             } catch (error) {
                 alert("Erro ao baixar mensalidade: " + error.message);
+            }
+        }
+    }
+
+    async financeDelete(id) {
+        if (confirm("Deseja realmente EXCLUIR esta mensalidade permanentemente?")) {
+            try {
+                await storage.delete('billing_installments', id);
+                await this.refreshFinanceInfo();
+            } catch (error) {
+                alert("Erro ao excluir mensalidade: " + error.message);
             }
         }
     }
