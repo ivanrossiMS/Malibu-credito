@@ -161,15 +161,18 @@ class App {
                 }
 
                 // Update company info in sidebar
-                const companyBadge = document.getElementById('sidebar-company-name');
-                if (companyBadge) {
-                    if (auth.isMaster()) {
-                        companyBadge.textContent = 'Malibu Crédito Master';
-                    } else {
+                const companyBadgeContainer = document.getElementById('sidebar-company-badge');
+                const companyBadgeName = document.getElementById('sidebar-company-name');
+
+                if (auth.isMaster()) {
+                    if (companyBadgeContainer) companyBadgeContainer.classList.add('hidden');
+                } else {
+                    if (companyBadgeContainer) companyBadgeContainer.classList.remove('hidden');
+                    if (companyBadgeName) {
                         const companyId = user.company_id || user.companyId || 1;
                         const CompanyService = (await import('./CompanyService.js')).default;
                         const company = await CompanyService.getById(companyId).catch(() => ({ name: 'Empresa Padrão' }));
-                        companyBadge.textContent = company.name || 'Empresa Padrão';
+                        companyBadgeName.textContent = company.name || 'Empresa Padrão';
                     }
                 }
 
