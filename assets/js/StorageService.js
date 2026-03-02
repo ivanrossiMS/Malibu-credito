@@ -73,6 +73,8 @@ class StorageService {
 
     async getById(storeName, id) {
         if (!this.supabase) return null;
+
+        const queryWithoutCompany = this.supabase.from(storeName).select('*').eq('id', id).single();
         let query = this.supabase.from(storeName).select('*').eq('id', id);
 
         // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
@@ -81,12 +83,23 @@ class StorageService {
             query = query.eq('company_id', companyId);
         }
 
-        const { data, error } = await query.single();
-        if (error) {
+        try {
+            const { data, error } = await query.single();
+            if (error) {
+                // FALLBACK: Se houver erro de coluna inexistente (PGRST204 ou 42703), tenta sem companyId
+                if (error.code === 'PGRST204' || error.code === '42703') {
+                    console.warn(`Fallback Seguro: Coluna company_id não existe em ${storeName}. Tentando sem filtro.`);
+                    const { data: retryData, error: retryError } = await queryWithoutCompany;
+                    if (retryError) throw retryError;
+                    return retryData ? this.toCamelCase(retryData) : null;
+                }
+                throw error;
+            }
+            return data ? this.toCamelCase(data) : null;
+        } catch (error) {
             console.error(`Supabase getById error (${storeName}, ${id}):`, error);
             return null;
         }
-        return this.toCamelCase(data);
     }
 
     // Helper para obter o companyId do contexto global
