@@ -71,20 +71,31 @@ class App {
 
             // Load specific module if authenticated e injeta HTML
             if (auth.isAuthenticated()) {
-                // Se for Master e estiver na dashboard comum, redireciona para a Master
-                if (auth.isMaster() && this.config.currentPage === 'dashboard') {
-                    window.location.href = '?page=master_dashboard';
-                    return; // Interrompe para evitar carregar módulo errado
+                // Redirecionamento Consolidado de Landing Page (apenas se não estiver em visualização/impersonate)
+                if (!auth.isImpersonating()) {
+                    const page = this.config.currentPage;
+
+                    // 1. Master -> Master Dashboard (se cair na comum ou root)
+                    if (auth.isMaster() && page === 'dashboard') {
+                        window.location.href = '?page=master_dashboard';
+                        return;
+                    }
+
+                    // 2. Admin Normal -> Dashboard (se cair na do cliente ou root)
+                    if (auth.isAdmin() && !auth.isMaster() && page === 'client_dashboard') {
+                        window.location.href = '?page=dashboard';
+                        return;
+                    }
+
+                    // 3. Cliente -> Client Dashboard (se cair na do admin ou root)
+                    if (!auth.isAdmin() && page === 'dashboard') {
+                        window.location.href = '?page=client_dashboard';
+                        return;
+                    }
                 }
 
                 // SPA Injector - Injeta HTML da pagina ANTES do setupUI ler os seletores CSS
                 this.renderSPAPage(this.config.currentPage);
-
-                // Redirecionamento de segurança para clientes na dashboard administrativa
-                if (!auth.isAdmin() && this.config.currentPage === 'dashboard') {
-                    window.location.href = '?page=client_dashboard';
-                    return;
-                }
 
                 // Agora varre o CSS e substitui nomes e fotos (já cobrindo o conteúdo recém-injetado)
                 await this.setupUI();
