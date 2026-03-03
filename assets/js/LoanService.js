@@ -111,6 +111,7 @@ class LoanService {
     }
 
     async checkAndUpdateLoanStatus(loanId) {
+        if (!auth.isAdmin()) return; // Non-admins shouldn't trigger DB status updates
         if (!loanId || loanId === 'undefined' || loanId === 'null') return;
         const loan = await storage.getById('loans', loanId);
         if (!loan) return;

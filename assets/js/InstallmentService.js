@@ -4,9 +4,6 @@ import loanService from './LoanService.js';
 class InstallmentService {
     async getAll() {
         // Usa as chaves estrangeiras (`loan:loans(*, client:clients(*))`) para auto-preencher os dados vinculados numa query atômica.
-        if (typeof loanService.updateAllLoansStatus === 'function') {
-            await loanService.updateAllLoansStatus(); // Safe-guard call
-        }
         const items = await storage.getAdvanced('installments', {
             select: '*, loan:loans(*, client:clients(*))'
         });
