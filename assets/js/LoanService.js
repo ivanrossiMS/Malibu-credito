@@ -41,39 +41,60 @@ class LoanService {
         const loan = await storage.getById('loans', id);
         if (!loan) throw new Error("Empréstimo não encontrado.");
 
+        // Fallback for naming variations
+        updatedData.clientid = updatedData.clientid || updatedData.clientId || updatedData.client_id;
+        delete updatedData.clientId;
+        delete updatedData.client_id;
+
         Object.assign(loan, updatedData);
         await storage.put('loans', loan);
 
-        // Regenerate unpaid installments safely
-        const allInstallments = await storage.query('installments', 'loanid', id);
-        const existingPaid = allInstallments.filter(i => i.status === 'paga');
+        // Efficiently update installments instead of full regeneration
+        const newInstallmentSchedule = this.generateInstallments(id, loan);
 
-        // Remove pending installments
-        for (let inst of allInstallments) {
-            if (inst.status !== 'paga') {
-                await storage.delete('installments', inst.id);
+        // Filter out those that are already paid logic
+        const existingInstallments = await storage.query('installments', 'loanid', id);
+
+        // Process each installment in the new schedule
+        for (let newInst of newInstallmentSchedule) {
+            const existing = existingInstallments.find(e => parseInt(e.number) === parseInt(newInst.number));
+
+            if (existing) {
+                const s = String(existing.status || '').toUpperCase();
+                const isPaid = s === 'PAID' || s === 'PAGA' || s === 'PAGO' || s === 'QUITADO';
+
+                if (!isPaid) {
+                    // Update existing unpaid installment
+                    const updatedInst = { ...existing, ...newInst };
+                    await storage.put('installments', updatedInst);
+                }
+            } else {
+                // Add new installment if it doesn't exist
+                await storage.add('installments', newInst);
             }
         }
 
-        // Generate full schedule
-        const newInstallments = this.generateInstallments(id, loan);
-        for (let inst of newInstallments) {
-            // Only insert if it doesn't collide with an already paid installment number
-            const isPaid = existingPaid.find(p => parseInt(p.number) === parseInt(inst.number));
-            if (!isPaid) {
-                await storage.add('installments', inst);
-            }
+        // Cleanup: remove installments that are beyond the new numInstallments count and NOT paid
+        const newMaxNumber = parseInt(loan.numInstallments);
+        const toDelete = existingInstallments.filter(e => {
+            const num = parseInt(e.number);
+            const s = String(e.status || '').toUpperCase();
+            const isPaid = s === 'PAID' || s === 'PAGA' || s === 'PAGO' || s === 'QUITADO';
+            return num > newMaxNumber && !isPaid;
+        });
+
+        for (let inst of toDelete) {
+            await storage.delete('installments', inst.id);
         }
     }
 
     async generateLoanCode() {
-        const loans = await storage.getAll('loans');
-        const count = loans.length + 1;
-        const date = new Date();
-        const year = date.getFullYear().toString().substring(2);
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const sequence = count.toString().padStart(3, '0');
-        return `MAL-${year}${month}-${sequence}`;
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < 6; i++) {
+            result += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        return `MAL-${result}`;
     }
 
     generateInstallments(loanId, data) {
@@ -97,7 +118,8 @@ class LoanService {
                 number: i,
                 amount: data.installmentValue || data.amount,
                 due_date: DateHelper.toLocalYYYYMMDD(dueDate),
-                status: 'PENDING'
+                status: 'PENDING',
+                installmentCode: `${data.loanCode || 'MAL'}-${i}`
             });
         }
 
@@ -176,7 +198,8 @@ class LoanService {
     async updateAllLoansStatus() {
         const loans = await storage.getAll('loans');
         for (let loan of loans) {
-            if (loan.status !== 'quitado') {
+            const s = String(loan.status || '').toLowerCase();
+            if (s !== 'quitado' && s !== 'paid') {
                 await this.checkAndUpdateLoanStatus(loan.id);
             }
         }

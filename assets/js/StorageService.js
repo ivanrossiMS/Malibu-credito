@@ -163,41 +163,14 @@ class StorageService {
 
     async add(storeName, data) {
         if (!this.supabase) return null;
-
-        const payload = this.toSnakeCase(data);
-
-        // [MULTI-TENANCY] Injetar company_id automaticamente se não fornecido
-        if (!payload.company_id && storeName !== 'companies') {
-            const ctxCompanyId = this.getContextCompanyId();
-            if (ctxCompanyId) {
-                payload.company_id = ctxCompanyId;
-            }
-        }
+        let payload = this.preparePayload(storeName, data);
 
         if (data.id === null || data.id === undefined || data.id === '') {
             delete payload.id;
         }
         // ... (rest of logic legacy from previous edits preserved implicitly)
 
-        // Mantendo o mapeamento específico que você já tinha:
-        if (storeName === 'loans') {
-            const targetClientId = data.clientid || data.clientId || data.client_id;
-            if (targetClientId) {
-                payload.clientid = targetClientId;
-                payload.client_id = targetClientId;
-            }
-        }
-
-        if (storeName === 'installments') {
-            const targetLoanId = data.loanid || data.loanId || data.loan_id;
-            if (targetLoanId) payload.loanid = targetLoanId;
-
-            const targetVal = data.installmentValue || data.installment_value || data.amount;
-            if (targetVal) payload.amount = targetVal;
-
-            const targetDueDate = data.due_date || data.dueDate || data.duedate;
-            if (targetDueDate) payload.due_date = targetDueDate;
-        }
+        // Property mapping logic handled in preparePayload
 
         const { data: result, error } = await this.supabase
             .from(storeName)
@@ -217,7 +190,7 @@ class StorageService {
 
     async put(storeName, data) {
         if (!this.supabase) return null;
-        const payload = this.toSnakeCase(data);
+        const payload = this.preparePayload(storeName, data);
         const { data: result, error } = await this.supabase
             .from(storeName)
             .upsert([payload])
@@ -231,6 +204,44 @@ class StorageService {
         this.logAction('UPDATE', storeName.toUpperCase(), { id: data.id, data: payload });
 
         return result[0]?.id || result[0];
+    }
+
+    // Helper para padronizar o payload antes de enviar ao Supabase
+    preparePayload(storeName, data) {
+        const payload = this.toSnakeCase(data);
+
+        // [MULTI-TENANCY] Injetar company_id automaticamente se não fornecido
+        if (!payload.company_id && storeName !== 'companies') {
+            const ctxCompanyId = this.getContextCompanyId();
+            if (ctxCompanyId) {
+                payload.company_id = ctxCompanyId;
+            }
+        }
+
+        // Mapeamentos específicos por tabela (Legado + Transição)
+        if (storeName === 'loans') {
+            const targetClientId = data.clientid || data.clientId || data.client_id;
+            if (targetClientId) {
+                payload.clientid = targetClientId;
+                payload.client_id = targetClientId;
+            }
+        }
+
+        if (storeName === 'installments') {
+            const targetLoanId = data.loanid || data.loanId || data.loan_id;
+            if (targetLoanId) {
+                payload.loanid = targetLoanId;
+                payload.loan_id = targetLoanId;
+            }
+
+            const targetVal = data.installmentValue || data.installment_value || data.amount;
+            if (targetVal) payload.amount = targetVal;
+
+            const targetDueDate = data.due_date || data.dueDate || data.duedate;
+            if (targetDueDate) payload.due_date = targetDueDate;
+        }
+
+        return payload;
     }
 
     async delete(storeName, id) {
