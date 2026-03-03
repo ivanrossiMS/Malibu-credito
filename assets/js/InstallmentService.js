@@ -7,10 +7,15 @@ class InstallmentService {
         const items = await storage.getAdvanced('installments', {
             select: '*, loan:loans(*, client:clients(*))'
         });
+
+        // Resilience: If metadata is missing (JOIN failed), try to load basic data
         for (let item of items) {
             // Compatibilidade Reversa com antigas props independentes (espalmando árvore json pro root)
             if (item.loan && item.loan.client) {
                 item.client = item.loan.client;
+            } else if (!item.loan && (item.loanid || item.loanId)) {
+                // FALLBACK: Se o join falhou, retornamos objeto vazio para evitar quebras de propriedade
+                item.loan = { loanCode: '---' };
             }
         }
         return items;

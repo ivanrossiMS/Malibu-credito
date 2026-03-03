@@ -172,38 +172,85 @@ class StorageService {
 
         // Property mapping logic handled in preparePayload
 
-        const { data: result, error } = await this.supabase
-            .from(storeName)
-            .insert([payload])
-            .select();
+        try {
+            const { data: result, error } = await this.supabase
+                .from(storeName)
+                .insert([payload])
+                .select();
 
-        if (error) {
-            console.error(`Supabase add error (${storeName}):`, JSON.stringify(error, null, 2));
-            throw new Error(`${error.code} - ${error.message}`);
+            if (error) {
+                // FALLBACK: Se houver erro de coluna inexistente (PGRST204 ou 42703)
+                if (error.code === 'PGRST204' || error.code === '42703') {
+                    console.warn(`Fallback Add: Coluna inexistente detectada em ${storeName}. Tentando remover colunas de transição.`);
+                    const safePayload = { ...payload };
+                    delete safePayload.company_id;
+                    delete safePayload.installment_code;
+                    delete safePayload.loan_id;
+                    delete safePayload.client_id;
+
+                    const { data: retryResult, error: retryError } = await this.supabase
+                        .from(storeName)
+                        .insert([safePayload])
+                        .select();
+
+                    if (retryError) throw retryError;
+
+                    this.logAction('CREATE', storeName.toUpperCase(), { id: retryResult[0]?.id, data: safePayload, warning: 'FALLBACK_USED' });
+                    return retryResult[0]?.id || retryResult[0];
+                }
+                throw error;
+            }
+
+            // AUTO-LOG
+            this.logAction('CREATE', storeName.toUpperCase(), { id: result[0]?.id, data: payload });
+            return result[0]?.id || result[0];
+
+        } catch (error) {
+            console.error(`Supabase add error (${storeName}):`, error);
+            throw error;
         }
-
-        // AUTO-LOG
-        this.logAction('CREATE', storeName.toUpperCase(), { id: result[0]?.id, data: payload });
-
-        return result[0]?.id || result[0];
     }
 
     async put(storeName, data) {
         if (!this.supabase) return null;
         const payload = this.preparePayload(storeName, data);
-        const { data: result, error } = await this.supabase
-            .from(storeName)
-            .upsert([payload])
-            .select();
-        if (error) {
+        try {
+            const { data: result, error } = await this.supabase
+                .from(storeName)
+                .upsert([payload])
+                .select();
+
+            if (error) {
+                // FALLBACK: Se houver erro de coluna inexistente (PGRST204 ou 42703)
+                if (error.code === 'PGRST204' || error.code === '42703') {
+                    console.warn(`Fallback Put: Coluna inexistente detectada em ${storeName}. Tentando remover colunas de transição.`);
+                    const safePayload = { ...payload };
+                    delete safePayload.company_id;
+                    delete safePayload.installment_code;
+                    delete safePayload.loan_id;
+                    delete safePayload.client_id;
+
+                    const { data: retryResult, error: retryError } = await this.supabase
+                        .from(storeName)
+                        .upsert([safePayload])
+                        .select();
+
+                    if (retryError) throw retryError;
+
+                    this.logAction('UPDATE', storeName.toUpperCase(), { id: data.id, data: safePayload, warning: 'FALLBACK_USED' });
+                    return retryResult[0]?.id || retryResult[0];
+                }
+                throw error;
+            }
+
+            // AUTO-LOG
+            this.logAction('UPDATE', storeName.toUpperCase(), { id: data.id, data: payload });
+            return result[0]?.id || result[0];
+
+        } catch (error) {
             console.error(`Supabase put error (${storeName}):`, error);
             throw error;
         }
-
-        // AUTO-LOG
-        this.logAction('UPDATE', storeName.toUpperCase(), { id: data.id, data: payload });
-
-        return result[0]?.id || result[0];
     }
 
     // Helper para padronizar o payload antes de enviar ao Supabase
@@ -266,6 +313,10 @@ class StorageService {
         const dbColumn = indexName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
         const { data, error } = await this.supabase.from(storeName).select('*').eq(dbColumn, value);
         if (error) {
+            if (error.code === 'PGRST204' || error.code === '42703') {
+                console.warn(`Fallback Query: Coluna ${dbColumn} não existe em ${storeName}.`);
+                return [];
+            }
             console.error(`Supabase query error (${storeName}, ${indexName}):`, error);
             return [];
         }
@@ -325,12 +376,21 @@ class StorageService {
         const { data, error } = await query;
         if (error) {
             // [TRANSITION LOGIC] Se a coluna company_id não existir ainda, fazemos o fallback para a query completa
-            if ((error.code === 'PGRST204' || error.code === '42703') && companyId) {
-                console.warn(`Fallback Advanced: Tabela ${storeName} ainda não possui a coluna company_id.`);
-                let retryQuery = this.supabase.from(storeName).select(selectQuery);
-                // Re-aplicar outros filtros exceto company_id
+            if (error.code === 'PGRST204' || error.code === '42703') {
+                console.warn(`Fallback Advanced: Coluna inexistente detectada em ${storeName}. Tentando carga simplificada.`);
+
+                // Retry without filters that might contain missing columns
+                let retryQuery = this.supabase.from(storeName).select('*');
+
+                // Re-aplicar outros filtros que sejam "seguros" (mais simples) se possível, 
+                // ou apenas retornar tudo e filtrar no JS para não quebrar a tela.
                 if (options.limit) retryQuery = retryQuery.limit(options.limit);
+
                 const fallback = await retryQuery;
+                if (fallback.error) {
+                    console.error("Critical Fallback Failure:", fallback.error);
+                    return [];
+                }
                 return this.toCamelCase(fallback.data || []);
             }
 

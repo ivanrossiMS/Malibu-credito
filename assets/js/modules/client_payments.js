@@ -20,12 +20,36 @@ export default class ClientPaymentsModule {
     }
 
     async loadData() {
-        const all = await installmentService.getAll();
-        // Filter by current client (linked via loan -> client)
-        this.installments = all.filter(i => i.loan && i.loan.clientid === this.client.id);
+        try {
+            // Step 1: Get client loans
+            const loans = await storage.getAdvanced('loans', {
+                eq: { clientid: this.client.id }
+            });
+            const loanIds = loans.map(l => l.id);
 
-        // Initial sorting: data crescente (antiga para nova)
-        this.installments.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+            if (loanIds.length === 0) {
+                this.installments = [];
+                return;
+            }
+
+            // Step 2: Get installments for these loans
+            // We use IN to get everything in one shot
+            const allInstallments = await storage.getAdvanced('installments', {
+                in: { loanid: loanIds }
+            });
+
+            // Map loans back to installments for UI (loanCode, etc)
+            this.installments = allInstallments.map(inst => {
+                const loan = loans.find(l => l.id === (inst.loanid || inst.loanId));
+                return { ...inst, loan: loan };
+            });
+
+            // Initial sorting: data crescente (antiga para nova)
+            this.installments.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        } catch (err) {
+            console.error("Error in loadData (ClientPayments):", err);
+            this.installments = [];
+        }
     }
 
     setupRealtime() {

@@ -190,8 +190,8 @@ export default class ClientLoansModule {
         modal.classList.remove('hidden');
 
         try {
-            const allInstallments = await installmentService.getAll();
-            const installments = allInstallments.filter(i => String(i.loanid || i.loanId) === String(loanId));
+            // Specific query instead of getAll() for better performance and resilience
+            const installments = await installmentService.getByLoan(loanId);
 
             // Sort by number
             installments.sort((a, b) => parseInt(a.number) - parseInt(b.number));
