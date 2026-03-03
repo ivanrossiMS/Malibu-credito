@@ -205,8 +205,8 @@ export default class ClientDashboardModule {
                         <td class="px-8 py-5 text-[11px] font-bold text-slate-500 uppercase tracking-widest">${this.formatDate(inst.dueDate)}</td>
                         <td class="px-8 py-5 text-sm font-black text-emerald-600">${this.formatCurrency(inst.installmentValue || inst.amount)}</td>
                         <td class="px-8 py-5">
-                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${this.getStatusClass(inst.status)}">
-                            ${this.translateStatus(inst.status)}
+                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${this.getStatusClass(inst.status, inst.dueDate)}">
+                            ${this.translateStatus(inst.status, inst.dueDate)}
                         </span>
                     </td>
                     <td class="px-8 py-5 text-right">
@@ -510,20 +510,27 @@ export default class ClientDashboardModule {
         return DateHelper.formatLocal(dateStr);
     }
 
-    translateStatus(status) {
-        switch (status) {
-            case 'PAID': return 'Paga';
-            case 'OVERDUE': return 'Atrasada';
-            default: return 'Pendente';
+    translateStatus(status, dueDate) {
+        const s = String(status || '').toUpperCase();
+        if (s === 'PAID' || s === 'PAGA' || s === 'PAGO') return 'Paga';
+
+        // Check if overdue regardless of "pendente" status in DB
+        if (dueDate && DateHelper.isPast(dueDate)) {
+            return 'Atrasada';
         }
+
+        return 'Pendente';
     }
 
-    getStatusClass(status) {
-        switch (status) {
-            case 'PAID': return 'bg-emerald-50 text-emerald-600';
-            case 'OVERDUE': return 'bg-rose-50 text-rose-600';
-            default: return 'bg-amber-50 text-amber-600';
+    getStatusClass(status, dueDate) {
+        const s = String(status || '').toUpperCase();
+        if (s === 'PAID' || s === 'PAGA' || s === 'PAGO') return 'bg-emerald-50 text-emerald-600';
+
+        if (dueDate && DateHelper.isPast(dueDate)) {
+            return 'bg-rose-50 text-rose-600';
         }
+
+        return 'bg-amber-50 text-amber-600';
     }
 
     async fileToBase64(file) {
