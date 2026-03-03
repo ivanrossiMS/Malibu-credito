@@ -6,7 +6,7 @@
 <div class="space-y-8 fade-in">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-            <h1 class="text-3xl font-black text-slate-900 font-heading tracking-tight">Meus Pagamentos</h1>
+            <h1 class="text-3xl font-black text-slate-900 font-heading tracking-tight">Minhas Parcelas</h1>
             <p class="text-slate-500 font-medium">Gerencie suas parcelas e realize pagamentos via PIX.</p>
         </div>
         
