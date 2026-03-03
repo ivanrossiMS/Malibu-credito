@@ -3,9 +3,9 @@ import loanService from './LoanService.js';
 
 class InstallmentService {
     async getAll() {
-        // Usa as chaves estrangeiras (`loan:loans(*, client:clients(*))`) para auto-preencher os dados vinculados numa query atômica.
+        // Usa as chaves estrangeiras (`loan:loans!loanid(*, client:clients(*))`) para auto-preencher os dados vinculados numa query atômica.
         const items = await storage.getAdvanced('installments', {
-            select: '*, loan:loans(*, client:clients(*))'
+            select: '*, loan:loans!loanid(*, client:clients(*))'
         });
 
         // Resilience: If metadata is missing (JOIN failed), try to load basic data

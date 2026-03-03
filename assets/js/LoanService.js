@@ -15,7 +15,6 @@ class LoanService {
         }
         return loan;
     }
-
     async createLoan(loanData) {
         loanData.createdAt = new Date().toISOString();
         loanData.status = 'ATIVO';
@@ -25,6 +24,14 @@ class LoanService {
         loanData.clientid = loanData.clientid || loanData.clientId || loanData.client_id;
         delete loanData.clientId;
         delete loanData.client_id;
+
+        // [RLS FIX] If company_id is missing (Master Admin), fetch it from client
+        if (!loanData.company_id && !loanData.companyId) {
+            const client = await storage.getById('clients', loanData.clientid);
+            if (client) {
+                loanData.company_id = client.companyId || client.company_id;
+            }
+        }
 
         const loanId = await storage.add('loans', loanData);
 
@@ -119,7 +126,8 @@ class LoanService {
                 amount: data.installmentValue || data.amount,
                 due_date: DateHelper.toLocalYYYYMMDD(dueDate),
                 status: 'PENDING',
-                installmentCode: `${data.loanCode || 'MAL'}-${i}`
+                installmentCode: `${data.loanCode || 'MAL'}-${i}`,
+                company_id: data.company_id || data.companyId // [RLS FIX]
             });
         }
 

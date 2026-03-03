@@ -32,7 +32,7 @@ serve(async (req) => {
         // 1. Get Installment, Client and Company Data
         const { data: inst, error: instError } = await supabase
             .from("installments")
-            .select("*, loan:loans(*, client:clients(*)), company:companies(*)")
+            .select("*, loan:loans!loanid(*, client:clients(*)), company:companies(*)")
             .eq("id", installment_id)
             .maybeSingle();
 
