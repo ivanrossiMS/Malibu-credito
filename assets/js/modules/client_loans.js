@@ -209,6 +209,7 @@ export default class ClientLoansModule {
             listContainer.innerHTML = installments.map(inst => {
                 const date = new Date(inst.dueDate);
                 let statusClass = 'bg-slate-100 text-slate-500';
+                let statusText = '';
                 const amountValue = parseFloat(inst.amount || inst.installmentValue || 0);
                 const isPagaStatus = (status) => ['PAID', 'PAGA', 'PAGO'].includes(String(status || '').toUpperCase());
                 const isPaga = isPagaStatus(inst.status);
