@@ -54,9 +54,21 @@ export default class ClientDashboardModule {
         });
 
         // Calculate Totals
-        const totalLoaned = loans.reduce((sum, l) => sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0)), 0);
-        const totalPaid = installments.filter(i => i.status === 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
-        const balanceDue = installments.filter(i => i.status !== 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+        const totalLoaned = loans.reduce((sum, l) => {
+            const status = String(l.status || '').toLowerCase();
+            if (status === 'cancelado' || status === 'cancelada' || status === 'rejeitado') return sum;
+            return sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0));
+        }, 0);
+
+        const totalPaid = installments.filter(i => {
+            const status = String(i.status || '').toLowerCase();
+            return status === 'paga' || status === 'pago';
+        }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+
+        const balanceDue = installments.filter(i => {
+            const status = String(i.status || '').toLowerCase();
+            return status !== 'paga' && status !== 'pago';
+        }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
         // Update UI Cards
         if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
@@ -117,9 +129,21 @@ export default class ClientDashboardModule {
 
     renderStats() {
         // Recalculate and update UI Cards
-        const totalLoaned = this.loans.reduce((sum, l) => sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0)), 0);
-        const totalPaid = this.installments.filter(i => i.status === 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
-        const balanceDue = this.installments.filter(i => i.status !== 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+        const totalLoaned = this.loans.reduce((sum, l) => {
+            const status = String(l.status || '').toLowerCase();
+            if (status === 'cancelado' || status === 'cancelada' || status === 'rejeitado') return sum;
+            return sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0));
+        }, 0);
+
+        const totalPaid = this.installments.filter(i => {
+            const status = String(i.status || '').toLowerCase();
+            return status === 'paga' || status === 'pago';
+        }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+
+        const balanceDue = this.installments.filter(i => {
+            const status = String(i.status || '').toLowerCase();
+            return status !== 'paga' && status !== 'pago';
+        }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
         if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
         if (document.getElementById('total-paid')) document.getElementById('total-paid').textContent = this.formatCurrency(totalPaid);

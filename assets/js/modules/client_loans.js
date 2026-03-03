@@ -50,7 +50,9 @@ export default class ClientLoansModule {
     }
 
     getLoanStatusClass(status) {
-        switch (status) {
+        if (!status) return 'bg-slate-50 text-slate-600 border border-slate-100';
+        const s = status.toLowerCase();
+        switch (s) {
             case 'ativo': return 'bg-emerald-50 text-emerald-600 border border-emerald-100';
             case 'quitado': return 'bg-slate-100 text-slate-500 border border-slate-200';
             case 'em atraso': return 'bg-rose-50 text-rose-600 border border-rose-100';
@@ -62,12 +64,16 @@ export default class ClientLoansModule {
 
     renderStats() {
         // Só contabiliza empréstimos REAIS (ignorando solicitações na contagem do card) e que estão ativos ou em atraso.
-        const activeLoans = this.clientLoans.filter(l => !l.isRequest && (l.status === 'ativo' || l.status === 'em atraso'));
+        const activeLoans = this.clientLoans.filter(l => {
+            if (l.isRequest) return false;
+            const status = String(l.status || '').toLowerCase();
+            return status === 'ativo' || status === 'em atraso' || status === 'overdue';
+        });
 
         let activeTotal = 0;
         activeLoans.forEach(l => {
             const numInstallments = parseInt(l.numInstallments || l.installmentsCount || l.installments || 0);
-            const installmentValue = parseFloat(l.installmentValue || l.installmentAmount || 0);
+            const installmentValue = parseFloat(l.installmentValue || l.installmentAmount || l.installment_value || 0);
             activeTotal += (installmentValue * numInstallments);
         });
 
