@@ -209,33 +209,37 @@ export default class ClientLoansModule {
             listContainer.innerHTML = installments.map(inst => {
                 const date = new Date(inst.dueDate);
                 let statusClass = 'bg-slate-100 text-slate-500';
-                let statusText = inst.status;
-                const amountValue = parseFloat(inst.installmentValue);
+                const amountValue = parseFloat(inst.amount || inst.installmentValue || 0);
+                const isPagaStatus = (status) => ['PAID', 'PAGA', 'PAGO'].includes(String(status || '').toUpperCase());
+                const isPaga = isPagaStatus(inst.status);
 
-                if (inst.status === 'pendente' || inst.status === 'em atraso' || inst.status === 'atrasada') {
-                    totalAberto += amountValue;
+                if (!isPaga) {
+                    if (!isNaN(amountValue)) totalAberto += amountValue;
 
-                    if (inst.status === 'pendente') {
+                    if (inst.status?.toUpperCase() === 'PENDING' || inst.status?.toUpperCase() === 'PENDENTE' || !inst.status) {
                         // Check if pending is actually overdue
-                        if (DateHelper.isPast(inst.dueDate)) {
+                        if (inst.dueDate && DateHelper.isPast(inst.dueDate)) {
                             statusClass = 'bg-rose-50 text-rose-600 border border-rose-100';
-                            statusText = 'em atraso';
+                            statusText = 'Atrasada';
                         } else {
                             statusClass = 'bg-amber-50 text-amber-600 border border-amber-100';
+                            statusText = 'Pendente';
                         }
                     } else {
                         statusClass = 'bg-rose-50 text-rose-600 border border-rose-100';
+                        statusText = 'Atrasada';
                     }
-                } else if (inst.status === 'paga' || inst.status === 'pago') {
-                    totalPago += amountValue;
+                } else {
+                    if (!isNaN(amountValue)) totalPago += amountValue;
                     statusClass = 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+                    statusText = 'Paga';
                 }
 
                 return `
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
                         <td class="px-8 py-4 font-bold text-slate-700">${inst.number}</td>
                         <td class="px-8 py-4 text-sm font-medium text-slate-600">${DateHelper.formatLocal(inst.dueDate)}</td>
-                        <td class="px-8 py-4 font-black text-emerald-600">R$ ${amountValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td class="px-8 py-4 font-black text-emerald-600">R$ ${(!isNaN(amountValue) ? amountValue : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td class="px-8 py-4">
                             <span class="px-3 py-1.5 rounded-[10px] text-[10px] font-black uppercase tracking-widest ${statusClass}">
                                 ${statusText}

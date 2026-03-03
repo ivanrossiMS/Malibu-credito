@@ -40,60 +40,75 @@ export default class ClientDashboardModule {
     }
 
     async renderDashboard() {
-        const allLoans = await loanService.getAll();
-        const loans = allLoans.filter(l => String(l.clientId || l.clientid) === String(this.client.id));
+        try {
+            // Step 1: Get client loans
+            const loans = await storage.getAdvanced('loans', {
+                eq: { clientid: this.client.id }
+            });
+            this.loans = loans;
+            const loanIds = loans.map(l => l.id);
 
-        const allInstallments = await installmentService.getAll();
-        const installments = allInstallments.filter(i => i.loan && String(i.loan.clientId || i.loan.clientid) === String(this.client.id));
+            // Step 2: Get installments for these loans
+            let installments = [];
+            if (loanIds.length > 0) {
+                const allInst = await storage.getAdvanced('installments', {
+                    in: { loanid: loanIds }
+                });
+                // Map loan back for UI consistency
+                installments = allInst.map(inst => {
+                    const loan = loans.find(l => l.id === (inst.loanid || inst.loanId));
+                    return { ...inst, loan: loan };
+                });
+            }
 
-        // Also fetch payments to cross-reference proofs
-        const allPayments = await paymentService.getAll();
-        this.clientPayments = allPayments.filter(p => {
-            const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
-            return String(pClientId) === String(this.client.id);
-        });
+            // Step 3: Get payments
+            const allPayments = await paymentService.getAll();
+            this.clientPayments = allPayments.filter(p => {
+                const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
+                return String(pClientId) === String(this.client.id);
+            });
 
-        // Calculate Totals
-        const totalLoaned = loans.reduce((sum, l) => {
-            const status = String(l.status || '').toLowerCase();
-            if (status === 'cancelado' || status === 'cancelada' || status === 'rejeitado') return sum;
-            return sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0));
-        }, 0);
+            // Helpers for robust status checking
+            const isPagaStatus = (s) => ['PAID', 'PAGA', 'PAGO'].includes(String(s || '').toUpperCase());
 
-        const totalPaid = installments.filter(i => {
-            const status = String(i.status || '').toLowerCase();
-            return status === 'paga' || status === 'pago';
-        }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+            // Calculate Totals with Fallbacks
+            const totalLoaned = loans.reduce((sum, l) => {
+                const status = String(l.status || '').toUpperCase();
+                if (['CANCELADO', 'CANCELADA', 'REJEITADO', 'CANCELLED', 'REJECTED'].includes(status)) return sum;
+                const val = parseFloat(l.installmentValue || l.installment_value || l.amount || 0);
+                const count = parseInt(l.numInstallments || l.installments || 0);
+                return sum + (val * count);
+            }, 0);
 
-        const balanceDue = installments.filter(i => {
-            const status = String(i.status || '').toLowerCase();
-            const isPaga = status === 'paga' || status === 'pago';
-            return !isPaga && i.dueDate && DateHelper.isPast(i.dueDate);
-        }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+            const totalPaid = installments.filter(i => isPagaStatus(i.status))
+                .reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
-        // Update UI Cards
-        if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
-        if (document.getElementById('total-paid')) document.getElementById('total-paid').textContent = this.formatCurrency(totalPaid);
-        if (document.getElementById('balance-due')) document.getElementById('balance-due').textContent = this.formatCurrency(balanceDue);
+            const balanceDue = installments.filter(i => {
+                const isPaga = isPagaStatus(i.status);
+                return !isPaga && i.dueDate && DateHelper.isPast(i.dueDate);
+            }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
-        // Render Notifications
-        await this.renderNotifications();
+            // Update UI Cards
+            if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
+            if (document.getElementById('total-paid')) document.getElementById('total-paid').textContent = this.formatCurrency(totalPaid);
+            if (document.getElementById('balance-due')) document.getElementById('balance-due').textContent = this.formatCurrency(balanceDue);
 
-        // Render Financial Insight
-        this.renderFinancialInsight(installments);
+            // Render Notifications
+            await this.renderNotifications();
 
-        // Store installments globally for pagination/filters
-        this.installments = installments;
+            // Render Financial Insight
+            this.renderFinancialInsight(installments);
 
-        // Render Installments List
-        this.renderInstallmentsTable();
+            // Store installments globally for pagination/filters
+            this.installments = installments;
 
-        // Check if onboarding is needed (Disabled by Admin request)
-        // if (!this.client.cpf_cnpj || this.client.cpf_cnpj === 'null' || this.client.cpf_cnpj === '') {
-        //     this.showOnboarding();
-        // }
+            // Render Installments List
+            this.renderInstallmentsTable();
 
-        lucide.createIcons();
+            lucide.createIcons();
+        } catch (err) {
+            console.error("Error rendering dashboard:", err);
+        }
     }
 
     setupRealtime() {
@@ -114,36 +129,53 @@ export default class ClientDashboardModule {
     }
 
     async loadData() {
-        // This method is called by setupRealtime, it should reload all necessary data
-        const allLoans = await loanService.getAll();
-        this.loans = allLoans.filter(l => String(l.clientId || l.clientid) === String(this.client.id));
+        try {
+            // Step 1: Get client loans
+            const loans = await storage.getAdvanced('loans', {
+                eq: { clientid: this.client.id }
+            });
+            this.loans = loans;
+            const loanIds = loans.map(l => l.id);
 
-        const allInstallments = await installmentService.getAll();
-        this.installments = allInstallments.filter(i => i.loan && String(i.loan.clientId || i.loan.clientid) === String(this.client.id));
+            // Step 2: Get installments for these loans
+            if (loanIds.length > 0) {
+                const allInst = await storage.getAdvanced('installments', {
+                    in: { loanid: loanIds }
+                });
+                this.installments = allInst.map(inst => {
+                    const loan = loans.find(l => l.id === (inst.loanid || inst.loanId));
+                    return { ...inst, loan: loan };
+                });
+            } else {
+                this.installments = [];
+            }
 
-        const allPayments = await paymentService.getAll();
-        this.clientPayments = allPayments.filter(p => {
-            const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
-            return String(pClientId) === String(this.client.id);
-        });
+            // Step 3: Get payments
+            const allPayments = await paymentService.getAll();
+            this.clientPayments = allPayments.filter(p => {
+                const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
+                return String(pClientId) === String(this.client.id);
+            });
+        } catch (err) {
+            console.error("Error in loadData (Dashboard):", err);
+        }
     }
 
     renderStats() {
+        const isPagaStatus = (s) => ['PAID', 'PAGA', 'PAGO'].includes(String(s || '').toUpperCase());
+
         // Recalculate and update UI Cards
         const totalLoaned = this.loans.reduce((sum, l) => {
-            const status = String(l.status || '').toLowerCase();
-            if (status === 'cancelado' || status === 'cancelada' || status === 'rejeitado') return sum;
+            const status = String(l.status || '').toUpperCase();
+            if (['CANCELADO', 'CANCELADA', 'REJEITADO', 'CANCELLED', 'REJECTED'].includes(status)) return sum;
             return sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0));
         }, 0);
 
-        const totalPaid = this.installments.filter(i => {
-            const status = String(i.status || '').toLowerCase();
-            return status === 'paga' || status === 'pago';
-        }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+        const totalPaid = this.installments.filter(i => isPagaStatus(i.status))
+            .reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
         const balanceDue = this.installments.filter(i => {
-            const status = String(i.status || '').toLowerCase();
-            const isPaga = status === 'paga' || status === 'pago';
+            const isPaga = isPagaStatus(i.status);
             return !isPaga && i.dueDate && DateHelper.isPast(i.dueDate);
         }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
@@ -160,8 +192,10 @@ export default class ClientDashboardModule {
 
         const todayStr = DateHelper.getTodayStr();
 
+        const isPagaStatus = (s) => ['PAID', 'PAGA', 'PAGO'].includes(String(s || '').toUpperCase());
+
         filtered = filtered.filter(inst => {
-            const isPaga = inst.status === 'paga' || inst.status === 'pago';
+            const isPaga = isPagaStatus(inst.status);
             const isLate = !isPaga && DateHelper.isPast(inst.dueDate);
 
             if (this.currentFilter === 'todas') return true;
@@ -505,7 +539,9 @@ export default class ClientDashboardModule {
     }
 
     formatCurrency(val) {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        const n = parseFloat(val);
+        if (isNaN(n)) return 'R$ 0,00';
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
     }
 
     formatDate(dateStr) {
