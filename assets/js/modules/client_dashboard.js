@@ -67,7 +67,8 @@ export default class ClientDashboardModule {
 
         const balanceDue = installments.filter(i => {
             const status = String(i.status || '').toLowerCase();
-            return status !== 'paga' && status !== 'pago';
+            const isPaga = status === 'paga' || status === 'pago';
+            return !isPaga && i.dueDate && DateHelper.isPast(i.dueDate);
         }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
         // Update UI Cards
@@ -142,7 +143,8 @@ export default class ClientDashboardModule {
 
         const balanceDue = this.installments.filter(i => {
             const status = String(i.status || '').toLowerCase();
-            return status !== 'paga' && status !== 'pago';
+            const isPaga = status === 'paga' || status === 'pago';
+            return !isPaga && i.dueDate && DateHelper.isPast(i.dueDate);
         }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
         if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
