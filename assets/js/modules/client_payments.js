@@ -20,12 +20,36 @@ export default class ClientPaymentsModule {
     }
 
     async loadData() {
-        const all = await installmentService.getAll();
-        // Filter by current client (linked via loan -> client)
-        this.installments = all.filter(i => i.loan && i.loan.clientid === this.client.id);
+        try {
+            // Step 1: Get client loans
+            const loans = await storage.getAdvanced('loans', {
+                eq: { clientid: this.client.id }
+            });
+            const loanIds = loans.map(l => l.id);
 
-        // Initial sorting
-        this.installments.sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
+            if (loanIds.length === 0) {
+                this.installments = [];
+                return;
+            }
+
+            // Step 2: Get installments for these loans
+            // We use IN to get everything in one shot
+            const allInstallments = await storage.getAdvanced('installments', {
+                in: { loanid: loanIds }
+            });
+
+            // Map loans back to installments for UI (loanCode, etc)
+            this.installments = allInstallments.map(inst => {
+                const loan = loans.find(l => l.id === (inst.loanid || inst.loanId));
+                return { ...inst, loan: loan };
+            });
+
+            // Initial sorting: data crescente (antiga para nova)
+            this.installments.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        } catch (err) {
+            console.error("Error in loadData (ClientPayments):", err);
+            this.installments = [];
+        }
     }
 
     setupRealtime() {
@@ -48,8 +72,16 @@ export default class ClientPaymentsModule {
     }
 
     renderStats() {
-        const paid = this.installments.filter(i => i.status === 'PAID').length;
-        const pending = this.installments.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').length;
+        const paid = this.installments.filter(i => {
+            const s = String(i.status || '').toUpperCase();
+            return s === 'PAID' || s === 'PAGA' || s === 'PAGO';
+        }).length;
+
+        const pending = this.installments.filter(i => {
+            const s = String(i.status || '').toUpperCase();
+            const isPaid = s === 'PAID' || s === 'PAGA' || s === 'PAGO';
+            return !isPaid;
+        }).length;
 
         document.getElementById('stats-paid-count').textContent = paid;
         document.getElementById('stats-pending-count').textContent = pending;
@@ -70,8 +102,10 @@ export default class ClientPaymentsModule {
         }
 
         container.innerHTML = filtered.map(inst => {
-            const statusClass = this.getStatusClass(inst.status);
-            const canPay = inst.status === 'PENDING' || inst.status === 'OVERDUE';
+            const statusClass = this.getStatusClass(inst.status, inst.dueDate);
+            const s = String(inst.status || '').toUpperCase();
+            const isPaid = s === 'PAID' || s === 'PAGA' || s === 'PAGO';
+            const canPay = !isPaid;
 
             return `
                 <tr class="hover:bg-slate-50/50 transition-colors">
@@ -85,7 +119,7 @@ export default class ClientPaymentsModule {
                     <td class="px-8 py-5 text-sm font-black text-slate-900">R$ ${parseFloat(inst.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                     <td class="px-8 py-5">
                         <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${statusClass}">
-                            ${this.translateStatus(inst.status)}
+                            ${this.translateStatus(inst.status, inst.dueDate)}
                         </span>
                     </td>
                     <td class="px-8 py-5 text-right">
@@ -106,20 +140,24 @@ export default class ClientPaymentsModule {
         lucide.createIcons();
     }
 
-    getStatusClass(status) {
-        switch (status) {
-            case 'PAID': return 'bg-emerald-50 text-emerald-600';
-            case 'OVERDUE': return 'bg-rose-50 text-rose-600';
-            default: return 'bg-amber-50 text-amber-600';
+    getStatusClass(status, dueDate) {
+        const s = String(status || '').toUpperCase();
+        if (s === 'PAID' || s === 'PAGA' || s === 'PAGO') return 'bg-emerald-50 text-emerald-600';
+
+        if (dueDate && DateHelper.isPast(dueDate)) {
+            return 'bg-rose-50 text-rose-600';
         }
+        return 'bg-amber-50 text-amber-600';
     }
 
-    translateStatus(status) {
-        switch (status) {
-            case 'PAID': return 'Paga';
-            case 'OVERDUE': return 'Vencida';
-            default: return 'Pendente';
+    translateStatus(status, dueDate) {
+        const s = String(status || '').toUpperCase();
+        if (s === 'PAID' || s === 'PAGA' || s === 'PAGO') return 'Paga';
+
+        if (dueDate && DateHelper.isPast(dueDate)) {
+            return 'Atrasada';
         }
+        return 'Pendente';
     }
 
     bindEvents() {

@@ -82,7 +82,11 @@ class AuthService {
                 });
                 console.log("Master Admin user created.");
             } catch (e) {
-                console.warn("Master Admin already exists or could not be created:", e.message);
+                if (e.code === '23505' || e.message?.includes('unique constraint')) {
+                    console.log("Master Admin specifically confirmed in remote (23505).");
+                } else {
+                    console.warn("Master Admin creation issue:", e.message);
+                }
             }
         } else if (adminExists.role !== 'MASTER') {
             // Garantir que ele seja MASTER se já existir mas com outro role

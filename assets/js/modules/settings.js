@@ -45,10 +45,22 @@ export default class SettingsModule {
         try {
             this.logsList.innerHTML = `<tr><td colspan="4" class="px-8 py-10 text-center opacity-50 italic">Carregando Auditoria...</td></tr>`;
 
-            this.logs = await storage.getAdvanced('system_logs', {
+            const result = await storage.getAdvanced('system_logs', {
                 order: { column: 'created_at', ascending: false },
                 limit: 500
             });
+
+            if (result && result._error === 'TABLE_NOT_FOUND') {
+                this.logsList.innerHTML = `<tr><td colspan="4" class="px-8 py-10 text-center text-amber-600 font-bold bg-amber-50 rounded-2xl border border-amber-100">
+                    <i data-lucide="database" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                    Tabela de Auditoria não encontrada em sua nuvem.<br>
+                    <span class="text-[10px] font-normal uppercase tracking-widest block mt-1">Execute o script de setup no painel do Supabase.</span>
+                </td></tr>`;
+                lucide.createIcons();
+                return;
+            }
+
+            this.logs = Array.isArray(result) ? result : [];
 
             this.populateUserFilter();
             this.applyFilters();

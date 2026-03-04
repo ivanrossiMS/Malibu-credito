@@ -258,12 +258,12 @@
                 <!-- Contato -->
                 <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-5">
                     <h3 class="text-sm font-black text-slate-800 flex items-center gap-2 border-b border-slate-50 pb-3">
-                        <i data-lucide="message-square" class="w-4 h-4 text-indigo-400"></i> Contato (Bloqueado)
+                        <i data-lucide="message-square" class="w-4 h-4 text-indigo-400"></i> Contato
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-1">
-                            <label class="block text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 justify-between">WhatsApp/Celular <i data-lucide="lock" class="w-3 h-3 text-red-300"></i></label>
-                            <input type="tel" id="edit-phone" readonly class="w-full bg-slate-100 px-4 py-3 rounded-xl border border-slate-200 text-slate-500 cursor-not-allowed outline-none select-none">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase">WhatsApp/Celular</label>
+                            <input type="tel" id="edit-phone" name="phone" required class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 text-slate-700 outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-all">
                         </div>
                         <div class="space-y-1">
                             <label class="block text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 justify-between">E-mail <i data-lucide="lock" class="w-3 h-3 text-red-300"></i></label>

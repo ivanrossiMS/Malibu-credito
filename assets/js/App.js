@@ -8,26 +8,26 @@ import ClientLoanRequestModule from './modules/client_loan_request.js';
 
 // Module Dynamic Imports
 const modules = {
-    clients: () => import('./modules/clients.js'),
-    loans: () => import('./modules/loans.js'),
-    installments: () => import('./modules/installments.js'),
-    templates: () => import('./modules/templates.js'),
-    users: () => import('./modules/users.js'),
-    settings: () => import('./modules/settings.js'),
-    dashboard: () => import('./modules/dashboard.js'),
-    client_dashboard: () => import('./modules/client_dashboard.js'),
-    client_profile: () => import('./modules/client_profile.js'),
-    client_loan_request: () => import('./modules/client_loan_request.js'),
-    loan_requests: () => import('./modules/loan_requests.js'),
-    payments: () => import('./modules/payments.js'),
-    payment_history: () => import('./modules/payment_history.js'),
-    client_payments: () => import('./modules/client_payments.js'),
-    client_loans: () => import('./modules/client_loans.js'),
-    client_profile: () => import('./modules/client_profile.js'),
-    master_billing: () => import('./modules/master_billing.js'),
-    companies: () => import('./modules/companies.js'),
-    master_dashboard: () => import('./modules/master_dashboard.js'),
-    master_users: () => import('./modules/master_users.js')
+    clients: () => import('./modules/clients.js?v=2'),
+    loans: () => import('./modules/loans.js?v=2'),
+    installments: () => import('./modules/installments.js?v=2'),
+    templates: () => import('./modules/templates.js?v=2'),
+    users: () => import('./modules/users.js?v=2'),
+    settings: () => import('./modules/settings.js?v=2'),
+    dashboard: () => import('./modules/dashboard.js?v=2'),
+    client_dashboard: () => import('./modules/client_dashboard.js?v=2'),
+    client_profile: () => import('./modules/client_profile.js?v=2'),
+    client_loan_request: () => import('./modules/client_loan_request.js?v=2'),
+    loan_requests: () => import('./modules/loan_requests.js?v=2'),
+    payments: () => import('./modules/payments.js?v=2'),
+    payment_history: () => import('./modules/payment_history.js?v=2'),
+    client_payments: () => import('./modules/client_payments.js?v=2'),
+    client_loans: () => import('./modules/client_loans.js?v=2'),
+    client_profile: () => import('./modules/client_profile.js?v=2'),
+    master_billing: () => import('./modules/master_billing.js?v=2'),
+    companies: () => import('./modules/companies.js?v=2'),
+    master_dashboard: () => import('./modules/master_dashboard.js?v=2'),
+    master_users: () => import('./modules/master_users.js?v=2')
 };
 
 class App {
@@ -542,14 +542,19 @@ class App {
             const CompanyService = (await import('./CompanyService.js')).default;
             const companies = await CompanyService.getAll();
 
+            const cleanName = (name) => name.replace(/\s*\(Padrão\)/gi, '').trim();
+
+            let optionsHtml = '<option value="" disabled selected>Selecione sua empresa</option>';
+
             if (companies && companies.length > 0) {
-                select.innerHTML = companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                optionsHtml += companies.map(c => `<option value="${c.id}">${cleanName(c.name)}</option>`).join('');
             } else {
-                select.innerHTML = '<option value="1">Malibu Crédito (Padrão)</option>';
+                optionsHtml += '<option value="1">Malibu Crédito</option>';
             }
+            select.innerHTML = optionsHtml;
         } catch (err) {
             console.error("Erro ao carregar empresas para registro:", err);
-            select.innerHTML = '<option value="1">Malibu Crédito (Padrão)</option>';
+            select.innerHTML = '<option value="" disabled selected>Selecione sua empresa</option><option value="1">Malibu Crédito</option>';
         }
     }
 

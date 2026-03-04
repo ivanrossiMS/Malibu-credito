@@ -41,6 +41,9 @@
                         <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50 animate-pulse"></span>
                         Status Ativo
                     </p>
+                    <button id="btn-reset-password" class="mt-2 text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary-dark transition-colors flex items-center gap-1">
+                        <i data-lucide="key" class="w-3 h-3"></i> Redefinir Minha Senha
+                    </button>
                 </div>
             </div>
         </div>

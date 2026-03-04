@@ -3,17 +3,19 @@ import loanService from './LoanService.js';
 
 class InstallmentService {
     async getAll() {
-        // Usa as chaves estrangeiras (`loan:loans(*, client:clients(*))`) para auto-preencher os dados vinculados numa query atômica.
-        if (typeof loanService.updateAllLoansStatus === 'function') {
-            await loanService.updateAllLoansStatus(); // Safe-guard call
-        }
+        // Usa as chaves estrangeiras (`loan:loans!loanid(*, client:clients(*))`) para auto-preencher os dados vinculados numa query atômica.
         const items = await storage.getAdvanced('installments', {
-            select: '*, loan:loans(*, client:clients(*))'
+            select: '*, loan:loans!loanid(*, client:clients(*))'
         });
+
+        // Resilience: If metadata is missing (JOIN failed), try to load basic data
         for (let item of items) {
             // Compatibilidade Reversa com antigas props independentes (espalmando árvore json pro root)
             if (item.loan && item.loan.client) {
                 item.client = item.loan.client;
+            } else if (!item.loan && (item.loanid || item.loanId)) {
+                // FALLBACK: Se o join falhou, retornamos objeto vazio para evitar quebras de propriedade
+                item.loan = { loanCode: '---' };
             }
         }
         return items;

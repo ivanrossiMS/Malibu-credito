@@ -31,6 +31,7 @@ class MasterUsers {
         window.masterToggleAdminAccess = (id) => this.toggleAdminAccess(id);
         window.masterChangeRole = (id) => this.changeRole(id);
         window.masterImpersonate = (id) => this.impersonateUser(id);
+        window.masterResetPassword = (id) => this.resetPassword(id);
         window.masterDeleteUser = (id) => this.deleteUser(id);
     }
 
@@ -175,6 +176,10 @@ class MasterUsers {
                                 <i data-lucide="${user.status === 'ativo' ? 'user-minus' : 'user-check'}" class="w-4 h-4"></i>
                             </button>
 
+                            <button onclick="masterResetPassword(${user.id})" class="text-slate-500 hover:bg-slate-100 p-3 rounded-2xl transition-all" title="Redefinir Senha">
+                                <i data-lucide="key" class="w-4 h-4"></i>
+                            </button>
+
                             ${user.role !== 'MASTER' ? `
                                 <button onclick="masterDeleteUser(${user.id})" class="text-rose-500 hover:bg-rose-50 p-3 rounded-2xl transition-all" title="Excluir Permanentemente">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -278,6 +283,22 @@ class MasterUsers {
                 alert("Usuário excluído com sucesso.");
             } catch (error) {
                 alert("Erro ao excluir usuário: " + error.message);
+            }
+        }
+    }
+
+    async resetPassword(id) {
+        const user = this.users.find(u => u.id === id);
+        if (!user) return;
+
+        if (confirm(`Deseja gerar uma nova senha aleatória para ${user.name}?`)) {
+            try {
+                const newPass = Math.random().toString(36).slice(-8);
+                user.password = newPass;
+                await storage.put('users', user);
+                alert(`Senha redefinida com sucesso!\n\nNova senha: ${newPass}\n\nEnvie esta senha para o cliente.`);
+            } catch (error) {
+                alert("Erro ao redefinir senha: " + error.message);
             }
         }
     }

@@ -168,7 +168,7 @@
                     <div class="w-8 h-8 rounded-xl flex items-center justify-center <?php echo $page === 'client_payments' ? 'bg-white/20' : 'bg-slate-800 group-hover:bg-primary/20'; ?>">
                         <i data-lucide="history" class="w-4 h-4 <?php echo $page === 'client_payments' ? 'text-white' : 'text-slate-400 group-hover:text-primary'; ?>"></i>
                     </div>
-                    <span class="font-semibold text-sm">Meus Pagamentos</span>
+                    <span class="font-semibold text-sm">Minhas Parcelas</span>
                 </a>
                 
                 <!-- separator -->

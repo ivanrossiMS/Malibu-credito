@@ -146,24 +146,34 @@ export default class LoansModule {
         const portfolioType = document.getElementById('stat-portfolio-type')?.value || 'ativo';
         let portfolioLoans = this.allLoans;
         if (portfolioType === 'ativo') {
-            portfolioLoans = this.allLoans.filter(l => l.status === 'ativo');
+            portfolioLoans = this.allLoans.filter(l => {
+                const s = String(l.status || '').toLowerCase();
+                return s === 'active' || s === 'ativo';
+            });
         }
         const totalPortfolio = portfolioLoans.reduce((sum, l) => {
-            const val = parseFloat(l.amount || l.installmentValue || l.installmentAmount) || 0;
-            const count = parseInt(l.numInstallments || l.installmentsCount) || 0;
-            return sum + (val * count);
+            const val = parseFloat(l.amount || l.installmentValue || l.installmentAmount || 0);
+            const count = parseInt(l.numInstallments || l.installmentsCount || 1); // Fallback to 1 if count is missing
+            return sum + (val * (portfolioType === 'ativo' ? 1 : count)); // Adjust logic if needed: is portfolio the total value or just the capital?
         }, 0);
 
         // Contracts Card
         const contractsType = document.getElementById('stat-contracts-type')?.value || 'ativo';
         let contractsCount = this.allLoans.length;
         if (contractsType === 'ativo') {
-            contractsCount = this.allLoans.filter(l => l.status === 'ativo').length;
+            contractsCount = this.allLoans.filter(l => {
+                const s = String(l.status || '').toLowerCase();
+                return s === 'active' || s === 'ativo';
+            }).length;
         }
 
         // Status Card
         const statusType = document.getElementById('stat-status-type')?.value || 'quitado';
-        const statusCount = this.allLoans.filter(l => l.status === statusType).length;
+        const statusCount = this.allLoans.filter(l => {
+            const s = String(l.status || '').toLowerCase();
+            const target = String(statusType).toLowerCase();
+            return s === target || (target === 'quitado' && s === 'paid') || (target === 'atrasado' && s === 'overdue');
+        }).length;
 
         // Update UI
         const portfolioEl = document.getElementById('stat-portfolio-value');
@@ -237,9 +247,9 @@ export default class LoansModule {
         status = String(status || '').toUpperCase();
         switch (status) {
             case 'ACTIVE':
-            case 'ATIVO': return 'bg-amber-50 text-amber-600';
+            case 'ATIVO': return 'bg-emerald-50 text-emerald-600';
             case 'PAID':
-            case 'QUITADO': return 'bg-emerald-50 text-emerald-600';
+            case 'QUITADO': return 'bg-amber-50 text-amber-600';
             case 'OVERDUE':
             case 'ATRASADO': return 'bg-rose-50 text-rose-600';
             case 'CANCELLED':
@@ -302,7 +312,7 @@ export default class LoansModule {
                 }
 
                 const data = {
-                    clientId: parseInt(document.getElementById('clientId').value),
+                    clientid: parseInt(document.getElementById('clientId').value),
                     amount,
                     interestRate,
                     interestType,
@@ -356,7 +366,7 @@ export default class LoansModule {
             // Adjust modal for edit
             document.getElementById('modal-title-loan').textContent = 'Editar Empréstimo ' + (loan.loanCode || '');
             document.getElementById('status-container').style.display = 'block';
-            document.getElementById('loan-status').value = loan.status;
+            document.getElementById('loan-status').value = loan.status || 'ATIVO';
 
             this.calculatePreview();
             modal.classList.remove('hidden');

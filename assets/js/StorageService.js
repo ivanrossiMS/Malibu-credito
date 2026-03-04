@@ -54,13 +54,13 @@ class StorageService {
         // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
         const companyId = this.getContextCompanyId();
         if (companyId) {
-            query = query.eq('company_id', companyId);
+            query = this.applyMultiTenancy(query, storeName, companyId);
         }
 
         const { data, error } = await query;
         if (error) {
             // [TRANSITION LOGIC] Se a coluna company_id não existir ainda, fazemos o fallback para a query completa
-            if (error.code === 'PGRST204' && companyId) {
+            if ((error.code === 'PGRST204' || error.code === '42703') && companyId) {
                 console.warn(`Fallback: Tabela ${storeName} ainda não possui a coluna company_id. Retornando todos os registros.`);
                 const fallback = await this.supabase.from(storeName).select('*');
                 return this.toCamelCase(fallback.data || []);
@@ -80,7 +80,7 @@ class StorageService {
         // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
         const companyId = this.getContextCompanyId();
         if (companyId) {
-            query = query.eq('company_id', companyId);
+            query = this.applyMultiTenancy(query, storeName, companyId);
         }
 
         try {
@@ -127,9 +127,12 @@ class StorageService {
                 created_at: new Date().toISOString()
             };
 
-            await this.supabase.from('system_logs').insert([payload]);
+            const { error } = await this.supabase.from('system_logs').insert([payload]);
+            if (error && error.code !== 'PGRST205' && error.message?.indexOf('system_logs') === -1) {
+                console.warn("Silent Log Error:", error);
+            }
         } catch (e) {
-            console.warn("Silent Log Error:", e);
+            console.warn("Log Exception:", e);
         }
     }
 
@@ -150,25 +153,119 @@ class StorageService {
         }
     }
 
+    applyMultiTenancy(query, storeName, companyId) {
+        if (!companyId) return query;
+        // Na tabela de empresas, filtramos pelo ID da própria empresa
+        if (storeName === 'companies') return query.eq('id', companyId);
+        // Nas demais, filtramos pela coluna company_id
+        return query.eq('company_id', companyId);
+    }
+
     async add(storeName, data) {
         if (!this.supabase) return null;
-
-        const payload = this.toSnakeCase(data);
-
-        // [MULTI-TENANCY] Injetar company_id automaticamente se não fornecido
-        if (!payload.company_id) {
-            const ctxCompanyId = this.getContextCompanyId();
-            if (ctxCompanyId) {
-                payload.company_id = ctxCompanyId;
-            }
-        }
+        let payload = this.preparePayload(storeName, data);
 
         if (data.id === null || data.id === undefined || data.id === '') {
             delete payload.id;
         }
         // ... (rest of logic legacy from previous edits preserved implicitly)
 
-        // Mantendo o mapeamento específico que você já tinha:
+        // Property mapping logic handled in preparePayload
+
+        try {
+            const { data: result, error } = await this.supabase
+                .from(storeName)
+                .insert([payload])
+                .select();
+
+            if (error) {
+                // FALLBACK: Se houver erro de coluna inexistente (PGRST204 ou 42703)
+                if (error.code === 'PGRST204' || error.code === '42703') {
+                    console.warn(`Fallback Add: Coluna inexistente detectada em ${storeName}. Tentando remover colunas de transição.`);
+                    const safePayload = { ...payload };
+                    delete safePayload.company_id;
+                    delete safePayload.installment_code;
+                    delete safePayload.loan_id;
+                    delete safePayload.client_id;
+
+                    const { data: retryResult, error: retryError } = await this.supabase
+                        .from(storeName)
+                        .insert([safePayload])
+                        .select();
+
+                    if (retryError) throw retryError;
+
+                    this.logAction('CREATE', storeName.toUpperCase(), { id: retryResult[0]?.id, data: safePayload, warning: 'FALLBACK_USED' });
+                    return retryResult[0]?.id || retryResult[0];
+                }
+                throw error;
+            }
+
+            // AUTO-LOG
+            this.logAction('CREATE', storeName.toUpperCase(), { id: result[0]?.id, data: payload });
+            return result[0]?.id || result[0];
+
+        } catch (error) {
+            console.error(`Supabase add error (${storeName}):`, error);
+            throw error;
+        }
+    }
+
+    async put(storeName, data) {
+        if (!this.supabase) return null;
+        const payload = this.preparePayload(storeName, data);
+        try {
+            const { data: result, error } = await this.supabase
+                .from(storeName)
+                .upsert([payload])
+                .select();
+
+            if (error) {
+                // FALLBACK: Se houver erro de coluna inexistente (PGRST204 ou 42703)
+                if (error.code === 'PGRST204' || error.code === '42703') {
+                    console.warn(`Fallback Put: Coluna inexistente detectada em ${storeName}. Tentando remover colunas de transição.`);
+                    const safePayload = { ...payload };
+                    delete safePayload.company_id;
+                    delete safePayload.installment_code;
+                    delete safePayload.loan_id;
+                    delete safePayload.client_id;
+
+                    const { data: retryResult, error: retryError } = await this.supabase
+                        .from(storeName)
+                        .upsert([safePayload])
+                        .select();
+
+                    if (retryError) throw retryError;
+
+                    this.logAction('UPDATE', storeName.toUpperCase(), { id: data.id, data: safePayload, warning: 'FALLBACK_USED' });
+                    return retryResult[0]?.id || retryResult[0];
+                }
+                throw error;
+            }
+
+            // AUTO-LOG
+            this.logAction('UPDATE', storeName.toUpperCase(), { id: data.id, data: payload });
+            return result[0]?.id || result[0];
+
+        } catch (error) {
+            console.error(`Supabase put error (${storeName}):`, error);
+            throw error;
+        }
+    }
+
+    // Helper para padronizar o payload antes de enviar ao Supabase
+    preparePayload(storeName, data) {
+        const payload = this.toSnakeCase(data);
+
+        // [MULTI-TENANCY] Injetar company_id automaticamente se não fornecido
+        if (!payload.company_id && storeName !== 'companies') {
+            const ctxCompanyId = this.getContextCompanyId();
+            if (ctxCompanyId) {
+                payload.company_id = ctxCompanyId;
+            }
+        }
+
+        // Mapeamentos específicos por tabela (Legado + Transição)
         if (storeName === 'loans') {
             const targetClientId = data.clientid || data.clientId || data.client_id;
             if (targetClientId) {
@@ -179,7 +276,10 @@ class StorageService {
 
         if (storeName === 'installments') {
             const targetLoanId = data.loanid || data.loanId || data.loan_id;
-            if (targetLoanId) payload.loanid = targetLoanId;
+            if (targetLoanId) {
+                payload.loanid = targetLoanId;
+                payload.loan_id = targetLoanId;
+            }
 
             const targetVal = data.installmentValue || data.installment_value || data.amount;
             if (targetVal) payload.amount = targetVal;
@@ -188,38 +288,7 @@ class StorageService {
             if (targetDueDate) payload.due_date = targetDueDate;
         }
 
-        const { data: result, error } = await this.supabase
-            .from(storeName)
-            .insert([payload])
-            .select();
-
-        if (error) {
-            console.error(`Supabase add error (${storeName}):`, JSON.stringify(error, null, 2));
-            throw new Error(`${error.code} - ${error.message}`);
-        }
-
-        // AUTO-LOG
-        this.logAction('CREATE', storeName.toUpperCase(), { id: result[0]?.id, data: payload });
-
-        return result[0]?.id || result[0];
-    }
-
-    async put(storeName, data) {
-        if (!this.supabase) return null;
-        const payload = this.toSnakeCase(data);
-        const { data: result, error } = await this.supabase
-            .from(storeName)
-            .upsert([payload])
-            .select();
-        if (error) {
-            console.error(`Supabase put error (${storeName}):`, error);
-            throw error;
-        }
-
-        // AUTO-LOG
-        this.logAction('UPDATE', storeName.toUpperCase(), { id: data.id, data: payload });
-
-        return result[0]?.id || result[0];
+        return payload;
     }
 
     async delete(storeName, id) {
@@ -244,6 +313,10 @@ class StorageService {
         const dbColumn = indexName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
         const { data, error } = await this.supabase.from(storeName).select('*').eq(dbColumn, value);
         if (error) {
+            if (error.code === 'PGRST204' || error.code === '42703') {
+                console.warn(`Fallback Query: Coluna ${dbColumn} não existe em ${storeName}.`);
+                return [];
+            }
             console.error(`Supabase query error (${storeName}, ${indexName}):`, error);
             return [];
         }
@@ -259,7 +332,7 @@ class StorageService {
         // [MULTI-TENANCY] Injetar filtro de empresa se não for MASTER
         const companyId = this.getContextCompanyId();
         if (companyId) {
-            query = query.eq('company_id', companyId);
+            query = this.applyMultiTenancy(query, storeName, companyId);
         }
 
         if (options.eq) {
@@ -303,12 +376,21 @@ class StorageService {
         const { data, error } = await query;
         if (error) {
             // [TRANSITION LOGIC] Se a coluna company_id não existir ainda, fazemos o fallback para a query completa
-            if (error.code === 'PGRST204' && companyId) {
-                console.warn(`Fallback Advanced: Tabela ${storeName} ainda não possui a coluna company_id.`);
-                let retryQuery = this.supabase.from(storeName).select(selectQuery);
-                // Re-aplicar outros filtros exceto company_id
+            if (error.code === 'PGRST204' || error.code === '42703') {
+                console.warn(`Fallback Advanced: Coluna inexistente detectada em ${storeName}. Tentando carga simplificada.`);
+
+                // Retry without filters that might contain missing columns
+                let retryQuery = this.supabase.from(storeName).select('*');
+
+                // Re-aplicar outros filtros que sejam "seguros" (mais simples) se possível, 
+                // ou apenas retornar tudo e filtrar no JS para não quebrar a tela.
                 if (options.limit) retryQuery = retryQuery.limit(options.limit);
+
                 const fallback = await retryQuery;
+                if (fallback.error) {
+                    console.error("Critical Fallback Failure:", fallback.error);
+                    return [];
+                }
                 return this.toCamelCase(fallback.data || []);
             }
 
@@ -324,6 +406,11 @@ class StorageService {
 
                 const fallback = await retryQuery;
                 return this.toCamelCase(fallback.data || []);
+            }
+
+            if (error.code === 'PGRST205') {
+                console.warn(`Tabela não encontrada: ${storeName}. Certifique-se de executar os scripts de migração SQL.`);
+                return { _error: 'TABLE_NOT_FOUND', store: storeName };
             }
 
             console.error(`Supabase getAdvanced error (${storeName}):`, error);

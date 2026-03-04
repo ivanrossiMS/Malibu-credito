@@ -150,7 +150,7 @@ $viewPath = APP_PATH . "/views/{$page}.php";
 
     <!-- Storage Service & Core Scripts -->
     <script src="assets/js/DateHelper.js"></script>
-    <script type="module" src="assets/js/App.js"></script>
+    <script type="module" src="assets/js/App.js?v=2"></script>
     
     <script>
         // Set page context for JS
