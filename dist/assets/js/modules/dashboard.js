@@ -153,7 +153,16 @@ export default class DashboardModule {
         const allPending = this.data.installments.filter(i => (i.status || '').toUpperCase() === 'PENDING' && !DateHelper.isPast(i.dueDate));
         const totalInstWithActive = new Set(allPending.map(i => i.clientId || i.client?.id)).size;
 
-        const avgTicket = paid.length > 0 ? sum(paid, 'amount') / paid.length : 0;
+        // Ticket médio: usa pagamentos (campo amount) OU parcelas pagas (installmentValue)
+        let avgBase = paid.filter(p => parseFloat(p.amount || 0) > 0);
+        let avgVal = 0;
+        if (avgBase.length > 0) {
+            avgVal = avgBase.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) / avgBase.length;
+        } else {
+            // fallback: parcelas com status PAID no período
+            const paidInst = this.data.installments.filter(i => (i.status || '').toUpperCase() === 'PAID' && this._inRange(i.dueDate || i.updatedAt, range));
+            if (paidInst.length > 0) avgVal = paidInst.reduce((s, i) => s + (parseFloat(i.installmentValue || 0) || 0), 0) / paidInst.length;
+        }
 
         return {
             receivable, overdue, paid, due48h,
@@ -161,7 +170,7 @@ export default class DashboardModule {
             kpiDue48h: { v: fmt(sum(due48h)), c: due48h.length },
             kpiOverdue: { v: fmt(sum(overdue)), c: overdue.length },
             kpiReceived: { v: fmt(sum(paid, 'amount')), c: paid.length },
-            kpiAvgTicket: fmt(avgTicket),
+            kpiAvgTicket: avgVal > 0 ? fmt(avgVal) : 'R$ —',
             kpiClients: totalInstWithActive
         };
     }
@@ -559,17 +568,27 @@ export default class DashboardModule {
         const cfgBtn = document.getElementById('asaas-config-btn');
         if (!indicator) return;
         try {
-            const integrations = await storage.from('company_integrations').select('*').limit(1);
-            const hasIntegration = integrations?.data?.length > 0;
+            // Usa storage.getAdvanced (padrão StorageService, não storage.from())
+            const rows = await storage.getAdvanced('company_integrations', {
+                eq: { provider: 'asaas' },
+                select: 'id,company_id,environment,is_enabled,last_test_ok'
+            });
+            const hasIntegration = Array.isArray(rows) && rows.length > 0;
             if (!hasIntegration) {
                 indicator.innerHTML = `<div class="w-2 h-2 rounded-full bg-slate-300"></div><span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Não configurado</span>`;
                 if (detail) detail.innerHTML = `<p class="text-[10px] text-slate-400">Integração ASAAS não configurada.</p>`;
                 if (cfgBtn) cfgBtn.classList.remove('hidden');
             } else {
-                indicator.innerHTML = `<div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div><span class="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Online</span>`;
-                if (detail) detail.innerHTML = `<p class="text-[10px] text-emerald-600 font-bold">✓ Integração ativa</p><p class="text-[10px] text-slate-400 mt-0.5">PIX e cobranças funcionando.</p>`;
+                const intg = rows[0];
+                const ok = intg.last_test_ok || intg.lastTestOk;
+                const env = intg.environment || 'sandbox';
+                const color = ok ? 'emerald' : 'amber';
+                const label = ok ? 'Online' : 'Atenção';
+                indicator.innerHTML = `<div class="w-2 h-2 rounded-full bg-${color}-400 animate-pulse"></div><span class="text-[10px] font-black text-${color}-600 uppercase tracking-wider">${label}</span>`;
+                if (detail) detail.innerHTML = `<p class="text-[10px] text-${color}-600 font-bold">${ok ? '✓ Integração ativa' : '⚠ Último teste falhou'}</p><p class="text-[10px] text-slate-400 mt-0.5">Ambiente: ${env === 'production' ? 'Produção' : 'Sandbox'}</p>`;
             }
-        } catch {
+        } catch (e) {
+            console.warn('ASAAS health check:', e);
             indicator.innerHTML = `<div class="w-2 h-2 rounded-full bg-amber-400"></div><span class="text-[10px] font-black text-amber-600 uppercase tracking-wider">Atenção</span>`;
             if (detail) detail.innerHTML = `<p class="text-[10px] text-amber-600">Não foi possível verificar.</p>`;
         }
