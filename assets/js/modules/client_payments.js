@@ -199,10 +199,16 @@ export default class ClientPaymentsModule {
                 // Chama Edge Function — retorna campos snake_case: qr_code_url, copy_paste
                 const charge = await storage.invoke('create-pix-charge', { installment_id: id });
 
-                // Exibir QR Code se disponível; caso contrário mostrar só o copia-cola
-                if (charge.qr_code_url) {
-                    qrContainer.innerHTML = `<img src="${charge.qr_code_url}" alt="QR Code PIX" class="w-full h-full object-contain rounded-xl">`;
-                } else if (charge.copy_paste) {
+                // storage.invoke() converte snake_case → camelCase automaticamente (StorageService.toCamelCase)
+                // Por isso: qr_code_url → qrCodeUrl,  copy_paste → copyPaste
+                const qrCodeUrl = charge.qrCodeUrl || charge.qr_code_url || null;
+                const copyPaste = charge.copyPaste || charge.copy_paste || '';
+
+                console.log('[PIX] charge recebido:', { qrCodeUrl: !!qrCodeUrl, copyPaste: !!copyPaste, keys: Object.keys(charge) });
+
+                if (qrCodeUrl) {
+                    qrContainer.innerHTML = `<img src="${qrCodeUrl}" alt="QR Code PIX" class="w-full h-full object-contain rounded-xl">`;
+                } else if (copyPaste) {
                     qrContainer.innerHTML = `
                         <div class="flex flex-col items-center gap-3 p-4 text-center">
                             <div class="text-3xl">📋</div>
@@ -213,7 +219,7 @@ export default class ClientPaymentsModule {
                 }
 
                 // Habilitar botão copiar
-                const pixCode = charge.copy_paste || '';
+                const pixCode = copyPaste;
                 if (copyBtn) {
                     copyBtn.disabled = !pixCode;
                     copyBtn.textContent = pixCode ? 'Copiar Código PIX' : 'Código indisponível';
