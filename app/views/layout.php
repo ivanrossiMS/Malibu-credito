@@ -200,7 +200,7 @@
     </aside>
 
     <!-- Main Content -->
-<main class="flex-1 overflow-x-hidden pt-4 pb-24 md:pb-8">
+<main class="flex-1 overflow-x-hidden pt-4 pb-8">
         <div class="container mx-auto px-4 md:px-8">
             <!-- Dynamic Content -->
             <div id="content" class="fade-in">
@@ -208,26 +208,7 @@
             </div>
         </div>
         
-        <!-- Bottom Nav (Mobile Only) -->
-        <nav class="md:hidden fixed bottom-6 left-6 right-6 bg-slate-900/90 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center rounded-3xl shadow-2xl z-[100]">
-            <a href="?page=client_dashboard" class="flex flex-col items-center gap-1 <?php echo $page === 'client_dashboard' || !$page ? 'text-primary' : 'text-slate-500'; ?>">
-                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
-            </a>
-            <a href="?page=client_loan_request" class="flex flex-col items-center gap-1 <?php echo $page === 'client_loan_request' ? 'text-primary' : 'text-slate-500'; ?>">
-                <i data-lucide="plus-circle" class="w-5 h-5"></i>
-            </a>
-            <div class="relative -top-10">
-                <button class="w-14 h-14 bg-gradient-to-br from-primary to-primary-light text-white rounded-full shadow-premium flex items-center justify-center border-4 border-slate-900">
-                    <i data-lucide="plus" class="w-8 h-8"></i>
-                </button>
-            </div>
-            <a href="?page=client_payments" class="flex flex-col items-center gap-1 <?php echo $page === 'client_payments' ? 'text-primary' : 'text-slate-500'; ?>">
-                <i data-lucide="receipt" class="w-5 h-5"></i>
-            </a>
-            <a href="?page=client_profile" class="flex flex-col items-center gap-1 <?php echo $page === 'client_profile' ? 'text-primary' : 'text-slate-500'; ?>">
-                <i data-lucide="user" class="w-5 h-5"></i>
-            </a>
-        </nav>
+
     </main>
 </div>
 
