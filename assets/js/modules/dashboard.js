@@ -4,72 +4,54 @@ import paymentService from '../PaymentService.js';
 import loanRequestService from '../LoanRequestService.js';
 import loanService from '../LoanService.js';
 import DateHelper from '../DateHelper.js';
+import storage from '../StorageService.js';
 
 export default class DashboardModule {
+    // ── STATE ─────────────────────────────────────────────────────
+    filters = { period: 'mes', dateFrom: '', dateTo: '', city: 'all', status: 'todos', search: '' };
+    data = { installments: [], clients: [], payments: [], requests: [], loans: [] };
+    ui = { tab: 'a-vencer', view: 'operational', page: 1, perPage: 25 };
+    _searchTimer = null;
+
+    // ── INIT ──────────────────────────────────────────────────────
     async init() {
-        this.currentMetric = 'receivable';
-        this.currentPeriod = 'hoje';
-        this.overdueDefaultPeriod = 'tudo'; // card em atraso usa 'tudo' por padrão
-        this.customDateFrom = '';
-        this.customDateTo = '';
-
-        this.currentCity = 'all';
-
-        this.installments = [];
-        this.clients = [];
-        this.payments = [];
-        this.requests = [];
-        this.loans = [];
-
-        // Pagination limit
-        this.listCurrentPage = 1;
-        this.listItemsPerPage = 30;
-
-        // Expose handlers to global scope for HTML inline calls
-        window.selectMetric = (metric, el) => this.selectMetric(metric, el);
-        window.selectPeriod = (period, el) => this.selectPeriod(period, el);
-        window.toggleCustomDate = (el) => this.toggleCustomDate(el);
-        window.applyCustomDate = () => this.applyCustomDate();
-        window.selectCity = (city) => this.selectCity(city);
-
-        window.approvePendingProof = (id) => this.approvePendingProof(id);
-        window.rejectPendingProof = (id) => this.rejectPendingProof(id);
-
-        window.prevDetailedPage = () => {
-            if (this.listCurrentPage > 1) {
-                this.listCurrentPage--;
-                this.renderDetailedList();
-            }
-        };
-
-        window.nextDetailedPage = () => {
-            this.listCurrentPage++;
-            this.renderDetailedList();
-        };
-
+        this._exposeGlobals();
         await this.loadData();
-        this.renderStats();
-
-        // Auto-select initial state
-        const firstCard = document.querySelector('[data-metric="receivable"]');
-        if (firstCard) this.selectMetric('receivable', firstCard);
-
-        const defaultPeriodBtn = document.querySelector('[data-period="hoje"]');
-        if (defaultPeriodBtn) this.selectPeriod('hoje', defaultPeriodBtn);
-
-        this.bindEvents();
-        // this.setupRealtime(); // Removido pois causa crash: this.setupRealtime is not a function
+        this._populateCities();
+        this._renderAll();
+        this.renderAsaasHealth();
     }
 
+    _exposeGlobals() {
+        window.dash_setPeriod = (p, el) => this.setPeriod(p, el);
+        window.dash_applyCustomDate = () => this.applyCustomDate();
+        window.dash_setCity = (v) => this.setFilter('city', v);
+        window.dash_setStatus = (v) => this.setFilter('status', v);
+        window.dash_onSearch = (v) => { clearTimeout(this._searchTimer); this._searchTimer = setTimeout(() => this.setFilter('search', v.trim().toLowerCase()), 300); };
+        window.dash_clearFilters = () => this.clearFilters();
+        window.dash_setTab = (t) => this.setTab(t);
+        window.dash_toggleView = (m) => this.toggleView(m);
+        window.dash_prevPage = () => { if (this.ui.page > 1) { this.ui.page--; this._renderTab(); } };
+        window.dash_nextPage = () => { this.ui.page++; this._renderTab(); };
+        window.dash_exportCSV = () => this.exportCSV();
+        window.dash_toggleMobileFilters = () => document.getElementById('mobile-filter-drawer')?.classList.toggle('hidden');
+        window.dash_openWhatsapp = (phone, name, amount, due) => {
+            const msg = encodeURIComponent(`Olá ${name}! Lembrando do pagamento de R$${amount} com venc. ${due}. Qualquer dúvida, estamos à disposição!`);
+            window.open(`https://wa.me/55${phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
+        };
+        window.dash_copyChargeMsg = (name, amount, due) => {
+            const msg = `Olá ${name}! Sua parcela de R$${amount} venceu em ${due}. Por favor, entre em contato para regularizar.`;
+            navigator.clipboard?.writeText(msg).catch(() => { });
+        };
+        window.dash_registerPayment = (id) => window.location.href = `?page=installments&highlight=${id}`;
+        window.approvePendingProof = (id) => this._approveProof(id);
+        window.rejectPendingProof = (id) => this._rejectProof(id);
+    }
+
+    // ── LOAD DATA ─────────────────────────────────────────────────
     async loadData() {
-        // Run daily heuristic trigger silently in background before loading analytical lists for true precision
-        await loanService.updateAllLoansStatus();
-
-        // Injetar Skeletons (Tratamento Anti-Bloqueio Visual / Lazy UI)
-        this.renderStatsSkeleton();
-
         try {
-            // Paraleliza eficientemente as 5 requisições atômicas de carga primária do dashboard (Tempo = 1x a maior request)
+            await loanService.updateAllLoansStatus().catch(() => { });
             const [installments, clients, payments, requests, loans] = await Promise.all([
                 installmentService.getAll(),
                 clientService.getAll(),
@@ -77,753 +59,731 @@ export default class DashboardModule {
                 loanRequestService.getAll(),
                 loanService.getAll()
             ]);
-
-            this.installments = installments;
-            this.clients = clients;
-            this.payments = payments;
-            this.requests = requests;
-            this.loans = loans;
-            this.populateCities();
-        } catch (error) {
-            console.error("Erro ao carregar dados do dashboard:", error);
-        }
+            this.data = { installments, clients, payments, requests, loans };
+        } catch (e) { console.error('Dashboard loadData:', e); }
     }
 
-    renderStatsSkeleton() {
-        // Mantém a experiência amigável na SPA antes dos dados chegarem do Banco (Prevenção Flash)
-        const selectors = [
-            'total-receivable', 'total-overdue', 'total-received', 'total-clients'
-        ];
-
-        selectors.forEach(id => {
-            const el = document.getElementById(`stat-${id}`);
-            if (el) el.innerHTML = `<div class="h-6 w-24 bg-slate-200 animate-pulse rounded"></div>`;
-        });
-
-        const listContainer = document.getElementById('details-list');
-        if (listContainer) {
-            listContainer.innerHTML = Array(5).fill(`
-                <div class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl animate-pulse">
-                    <div class="flex gap-4 items-center">
-                        <div class="w-12 h-12 bg-slate-100 rounded-xl"></div>
-                        <div class="space-y-2"><div class="h-4 w-32 bg-slate-100 rounded"></div><div class="h-3 w-20 bg-slate-50 rounded"></div></div>
-                    </div>
-                </div>
-            `).join('');
-        }
+    // ── DATE RANGE ────────────────────────────────────────────────
+    _getRange() {
+        const today = DateHelper.getTodayStr();
+        const add = (d, n) => DateHelper.addDays(d, n);
+        const p = this.filters.period;
+        if (p === 'hoje') return { s: today, e: today };
+        if (p === 'amanha') return { s: add(today, 1), e: add(today, 1) };
+        if (p === '7dias') return { s: today, e: add(today, 7) };
+        if (p === '30dias') return { s: today, e: add(today, 30) };
+        if (p === 'ano') { const y = new Date().getFullYear(); return { s: `${y}-01-01`, e: `${y}-12-31` }; }
+        if (p === 'personalizado') return { s: this.filters.dateFrom, e: this.filters.dateTo };
+        // mes (default)
+        const now = new Date();
+        return {
+            s: DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1)),
+            e: DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0))
+        };
     }
 
-    renderStats() {
-        const overdue = this.installments.filter(i => {
-            const status = (i.status || '').toUpperCase();
-            return status === 'OVERDUE' || (status === 'PENDING' && DateHelper.isPast(i.dueDate));
+    _inRange(dateStr, range) {
+        if (!dateStr) return false;
+        const d = DateHelper.toLocalYYYYMMDD(dateStr);
+        return d >= range.s && d <= range.e;
+    }
+
+    _matchSearch(item) {
+        if (!this.filters.search) return true;
+        const q = this.filters.search;
+        const c = item.client || this.data.clients.find(x => String(x.id) === String(item.clientId || item.client_id));
+        const name = (c?.name || item.name || '').toLowerCase();
+        const cpf = (c?.cpf || item.cpf || '').toLowerCase();
+        const loan = item.loan || this.data.loans.find(l => String(l.id) === String(item.loanid || item.loanId));
+        const code = (loan?.code || '').toLowerCase();
+        return name.includes(q) || cpf.includes(q) || code.includes(q);
+    }
+
+    _matchCity(item) {
+        if (this.filters.city === 'all') return true;
+        const c = item.client || this.data.clients.find(x => String(x.id) === String(item.clientId || item.client_id));
+        return c?.city === this.filters.city;
+    }
+
+    // ── FILTER SETS ───────────────────────────────────────────────
+    _getOverdue() {
+        return this.data.installments.filter(i => {
+            const st = (i.status || '').toUpperCase();
+            return (st === 'OVERDUE' || (st === 'PENDING' && DateHelper.isPast(i.dueDate))) && this._matchSearch(i) && this._matchCity(i);
         });
-        this.renderCriticalAlertsSidebar(overdue);
+    }
 
-        const totalClientsEl = document.getElementById('stat-total-clients');
-        if (totalClientsEl) totalClientsEl.textContent = this.clients.length.toString();
+    _getReceivable(range) {
+        return this.data.installments.filter(i => {
+            const st = (i.status || '').toUpperCase();
+            if (st !== 'PENDING') return false;
+            if (!DateHelper.isPast(i.dueDate) === false && st !== 'PENDING') return false;
+            return this._inRange(i.dueDate, range) && this._matchSearch(i) && this._matchCity(i);
+        }).filter(i => !DateHelper.isPast(i.dueDate));
+    }
 
-        // Set current username securely to the view
-        const user = window.auth ? window.auth.currentUser : null;
+    _getPaid(range) {
+        return this.data.payments.filter(p => this._inRange(p.paymentDate || p.createdAt, range) && this._matchSearch(p) && this._matchCity(p));
+    }
+
+    _getDue48h() {
+        const today = DateHelper.getTodayStr();
+        const in48 = DateHelper.addDays(today, 2);
+        return this.data.installments.filter(i => {
+            const st = (i.status || '').toUpperCase();
+            if (st !== 'PENDING') return false;
+            const d = DateHelper.toLocalYYYYMMDD(i.dueDate);
+            return d >= today && d <= in48;
+        });
+    }
+
+    // ── KPIs ──────────────────────────────────────────────────────
+    _computeKPIs() {
+        const range = this._getRange();
+        const receivable = this._getReceivable(range);
+        const overdue = this._getOverdue();
+        const paid = this._getPaid(range);
+        const due48h = this._getDue48h();
+
+        const sum = (arr, f = 'installmentValue') => arr.reduce((s, i) => s + (parseFloat(i[f] || i.amount || 0) || 0), 0);
+        const fmt = v => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        const allPending = this.data.installments.filter(i => (i.status || '').toUpperCase() === 'PENDING' && !DateHelper.isPast(i.dueDate));
+        const totalInstWithActive = new Set(allPending.map(i => i.clientId || i.client?.id)).size;
+
+        const avgTicket = paid.length > 0 ? sum(paid, 'amount') / paid.length : 0;
+
+        return {
+            receivable, overdue, paid, due48h,
+            kpiReceivable: { v: fmt(sum(receivable)), c: receivable.length },
+            kpiDue48h: { v: fmt(sum(due48h)), c: due48h.length },
+            kpiOverdue: { v: fmt(sum(overdue)), c: overdue.length },
+            kpiReceived: { v: fmt(sum(paid, 'amount')), c: paid.length },
+            kpiAvgTicket: fmt(avgTicket),
+            kpiClients: totalInstWithActive
+        };
+    }
+
+    // ── RENDER ALL ────────────────────────────────────────────────
+    _renderAll() {
+        this._renderHeader();
+        this._renderKPIs();
+        this._renderQuickActions();
+        this._renderTab();
+        this._renderRight();
+        if (this.ui.view === 'executive') this._renderExecutive();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    _renderHeader() {
+        const user = window.auth?.currentUser;
         if (user) {
-            const displayName = user.name || user.email || 'Usuário';
-            document.querySelectorAll('.user-name-welcome').forEach(el => el.textContent = displayName.split(' ')[0]);
+            const name = (user.name || user.email || 'Usuário').split(' ')[0];
+            document.querySelectorAll('.user-name-welcome').forEach(el => el.textContent = name);
+        }
+        // Company badge
+        const badge = document.getElementById('dash-company-badge');
+        if (badge && window.auth?.currentCompany?.name) {
+            badge.textContent = window.auth.currentCompany.name;
+            badge.classList.remove('hidden');
+        }
+        // Period label
+        const lbl = document.getElementById('dash-period-label');
+        if (lbl) {
+            const r = this._getRange();
+            const fmt = d => { if (!d) return ''; const [y, m, dy] = d.split('-'); return `${dy}/${m}/${y}`; };
+            const labels = { hoje: 'Hoje', amanha: 'Amanhã', '7dias': 'Próximos 7 Dias', '30dias': 'Próximos 30 Dias', mes: 'Este Mês', ano: 'Este Ano', personalizado: 'Personalizado' };
+            lbl.textContent = labels[this.filters.period] || `${fmt(r.s)} – ${fmt(r.e)}`;
+        }
+    }
 
-            // Se for MASTER, mudar o subtítulo de boas vindas
-            if (window.auth.isMaster()) {
-                const sub = document.querySelector('.text-slate-500.font-medium');
-                if (sub) sub.textContent = 'Visão Global de todas as Empresas do Ecossistema.';
+    _renderKPIs() {
+        const kpis = this._computeKPIs();
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+        set('kpi-receivable', kpis.kpiReceivable.v);
+        set('kpi-receivable-count', `${kpis.kpiReceivable.c} parcelas`);
+        set('kpi-due48h', kpis.kpiDue48h.v);
+        set('kpi-due48h-count', `${kpis.kpiDue48h.c} parcelas`);
+        set('kpi-overdue', kpis.kpiOverdue.v);
+        set('kpi-overdue-count', `${kpis.kpiOverdue.c} parcelas`);
+        set('kpi-received', kpis.kpiReceived.v);
+        set('kpi-received-count', `${kpis.kpiReceived.c} pagamentos`);
+        set('kpi-avg-ticket', kpis.kpiAvgTicket);
+        set('kpi-clients', kpis.kpiClients);
+
+        // Badge urgente 48h
+        const b48 = document.getElementById('kpi-due48h-badge');
+        if (b48) b48.classList.toggle('hidden', kpis.kpiDue48h.c === 0);
+
+        // Vencidos badge na tab
+        const tv = document.getElementById('tab-badge-vencidos');
+        if (tv && kpis.kpiOverdue.c > 0) { tv.textContent = kpis.kpiOverdue.c; tv.classList.remove('hidden'); }
+
+        // Requests badge na tab
+        const pending = this.data.requests.filter(r => r.status === 'pendente');
+        const tr = document.getElementById('tab-badge-solicitacoes');
+        if (tr && pending.length > 0) { tr.textContent = pending.length; tr.classList.remove('hidden'); }
+        const prEl = document.getElementById('stat-pending-requests');
+        if (prEl) prEl.textContent = pending.length;
+    }
+
+    // ── QUICK ACTIONS ─────────────────────────────────────────────
+    _renderQuickActions() {
+        const today = DateHelper.getTodayStr();
+        const fmt = v => `R$ ${parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+        // Cobrar agora: top 3 vencidos mais antigos
+        const overdue = this._getOverdue().sort((a, b) => DateHelper.toLocalYYYYMMDD(a.dueDate) < DateHelper.toLocalYYYYMMDD(b.dueDate) ? -1 : 1).slice(0, 3);
+        const collectEl = document.getElementById('qa-collect-list');
+        if (collectEl) {
+            if (!overdue.length) {
+                collectEl.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs"><i data-lucide="check-circle" class="w-5 h-5 mx-auto mb-1 text-emerald-300"></i>Sem pendências críticas</div>`;
+            } else {
+                collectEl.innerHTML = overdue.map(i => {
+                    const c = i.client || this.data.clients.find(x => String(x.id) === String(i.clientId));
+                    const name = c?.name || 'Cliente';
+                    const phone = c?.phone || '';
+                    const val = fmt(i.installmentValue || i.amount);
+                    const due = DateHelper.formatLocal(i.dueDate);
+                    const days = DateHelper.getDiffDays(today, DateHelper.toLocalYYYYMMDD(i.dueDate));
+                    return `<div class="flex items-center justify-between gap-2 p-3 bg-rose-50 rounded-xl border border-rose-100">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-black text-rose-900 truncate">${name}</p>
+                            <p class="text-[10px] text-rose-500 font-bold">${val} · ${days}d atraso</p>
+                        </div>
+                        <div class="flex gap-1.5 flex-shrink-0">
+                            ${phone ? `<button onclick="dash_openWhatsapp('${phone}','${name}','${val}','${due}')" class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all" title="WhatsApp"><i data-lucide="message-circle" class="w-3 h-3"></i></button>` : ''}
+                            <button onclick="dash_copyChargeMsg('${name}','${val}','${due}')" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-slate-50 transition-all" title="Copiar cobrança"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                        </div>
+                    </div>`;
+                }).join('');
             }
         }
 
-        this.renderPendingRequests();
-        this.renderPendingProofs();
-        this.updateCards();
-    }
+        // Vencem hoje e amanhã
+        const tomorrow = DateHelper.addDays(today, 1);
+        const dueSoon = this.data.installments.filter(i => {
+            const st = (i.status || '').toUpperCase();
+            if (st !== 'PENDING') return false;
+            const d = DateHelper.toLocalYYYYMMDD(i.dueDate);
+            return d === today || d === tomorrow;
+        }).slice(0, 3);
+        const dueEl = document.getElementById('qa-due-list');
+        if (dueEl) {
+            if (!dueSoon.length) {
+                dueEl.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs"><i data-lucide="calendar-check" class="w-5 h-5 mx-auto mb-1 text-slate-200"></i>Nenhum vencimento próximo</div>`;
+            } else {
+                dueEl.innerHTML = dueSoon.map(i => {
+                    const c = i.client || this.data.clients.find(x => String(x.id) === String(i.clientId));
+                    const name = c?.name || 'Cliente';
+                    const phone = c?.phone || '';
+                    const val = fmt(i.installmentValue || i.amount);
+                    const d = DateHelper.toLocalYYYYMMDD(i.dueDate);
+                    const tag = d === today ? '<span class="bg-amber-100 text-amber-700 text-[9px] font-black px-1.5 rounded">HOJE</span>' : '<span class="bg-blue-100 text-blue-600 text-[9px] font-black px-1.5 rounded">AMANHÃ</span>';
+                    return `<div class="flex items-center justify-between gap-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5 mb-0.5">${tag}<p class="text-xs font-black text-slate-800 truncate">${name}</p></div>
+                            <p class="text-[10px] text-amber-600 font-bold">${val}</p>
+                        </div>
+                        ${phone ? `<button onclick="dash_openWhatsapp('${phone}','${name}','${val}','${DateHelper.formatLocal(i.dueDate)}')" class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all flex-shrink-0"><i data-lucide="message-circle" class="w-3 h-3"></i></button>` : ''}
+                    </div>`;
+                }).join('');
+            }
+        }
 
-    renderPendingRequests() {
-        const statRequests = document.getElementById('stat-pending-requests');
-        if (statRequests) {
-            const pending = this.requests.filter(r => r.status === 'pendente');
-            statRequests.textContent = pending.length.toString();
+        // Pendências
+        const pendReqs = this.data.requests.filter(r => r.status === 'pendente');
+        const pendProofs = this.data.installments.filter(i => i.proof && (i.status || '').toUpperCase() !== 'PAID');
+        const pendEl = document.getElementById('qa-pending-list');
+        const pendBadge = document.getElementById('qa-pending-badge');
+        const total = pendReqs.length + pendProofs.length;
+        if (pendBadge) { pendBadge.textContent = total; pendBadge.classList.toggle('hidden', total === 0); }
+        if (pendEl) {
+            if (!total) {
+                pendEl.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs"><i data-lucide="shield-check" class="w-5 h-5 mx-auto mb-1 text-emerald-300"></i>Tudo em ordem</div>`;
+            } else {
+                let html = '';
+                if (pendReqs.length) html += `<div onclick="window.location.href='?page=loan_requests'" class="flex items-center gap-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition-colors"><i data-lucide="file-text" class="w-4 h-4 text-indigo-600 flex-shrink-0"></i><div><p class="text-xs font-black text-indigo-900">${pendReqs.length} Solicitação(ões)</p><p class="text-[10px] text-indigo-500">Aguardando análise</p></div></div>`;
+                if (pendProofs.length) html += `<div class="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100"><i data-lucide="upload" class="w-4 h-4 text-amber-600 flex-shrink-0"></i><div><p class="text-xs font-black text-amber-900">${pendProofs.length} Comprovante(s)</p><p class="text-[10px] text-amber-500">Aguardando aprovação</p></div></div>`;
+                pendEl.innerHTML = html;
+            }
         }
     }
 
-    renderAIInsights() {
-        // Encontrar parágrafo do insight
-        const insightCard = document.querySelector('.bg-slate-900.shadow-2xl');
-        if (!insightCard) return;
-        const msgEl = insightCard.querySelector('p.italic');
-        if (!msgEl) return;
-
-        const receivableVars = this.getFilteredData('receivable');
-        const overdueVars = this.getFilteredData('overdue');
-
-        const overdueCount = overdueVars.length;
-        const overdueValue = overdueVars.reduce((sum, i) => sum + (parseFloat(i.installmentValue || i.amount) || 0), 0);
-        const recCount = receivableVars.length;
-
-        let periodName = "neste período";
-        if (this.currentPeriod === 'hoje') periodName = "de hoje";
-        if (this.currentPeriod === 'amanha') periodName = "de amanhã";
-        if (this.currentPeriod === 'ontem') periodName = "de ontem";
-        if (this.currentPeriod === 'mes') periodName = "deste mês";
-
-        let insightText = '';
-        if (overdueCount > 0) {
-            insightText = `"Atenção: Você tem ${overdueCount} parcelas filtradas em atraso totalizando R$ ${overdueValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Priorize a renegociação para manter a saúde do caixa."`;
-        } else if (recCount > 0) {
-            insightText = `"Otimize seu fluxo focando nas cobranças ${periodName}. Há ${recCount} parcela(s) aguardando liquidação neste intervalo."`;
-        } else {
-            insightText = `"Excelente cenário! O filtro ${periodName} não possui pendências ou atrasos críticos. É um ótimo momento para prospectar novos clientes."`;
-        }
-
-        msgEl.textContent = insightText;
-
-        // Botão
-        const actionBtn = document.getElementById('action-plan-btn');
-        if (actionBtn) {
-            actionBtn.onclick = () => {
-                if (overdueCount > 0) {
-                    window.location.href = '?page=installments&status=atrasada';
-                } else if (recCount > 0) {
-                    window.location.href = '?page=installments&status=pendente';
-                } else {
-                    window.location.href = '?page=clients';
-                }
-            };
-        }
+    // ── TABS ──────────────────────────────────────────────────────
+    setTab(tab) {
+        this.ui.tab = tab;
+        this.ui.page = 1;
+        document.querySelectorAll('.dash-tab').forEach(btn => {
+            const active = btn.getAttribute('data-tab') === tab;
+            btn.classList.toggle('border-primary', active);
+            btn.classList.toggle('text-primary', active);
+            btn.classList.toggle('border-transparent', !active);
+            btn.classList.toggle('text-slate-500', !active);
+        });
+        this._renderTab();
     }
 
-    renderCriticalAlertsSidebar(overdue) {
-        const container = document.getElementById('critical-alerts');
-        if (!container) return;
-        const top = overdue.sort((a, b) => parseFloat(b.installmentValue || b.amount || 0) - parseFloat(a.installmentValue || a.amount || 0)).slice(0, 3);
+    _renderTab() {
+        const area = document.getElementById('tab-content-area');
+        if (!area) return;
 
-        if (top.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-10 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
-                    <i data-lucide="shield-check" class="w-10 h-10 text-slate-300 mx-auto mb-3"></i>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Sem alertas críticos</p>
-                </div>
-            `;
+        let data = [];
+        if (this.ui.tab === 'a-vencer') data = this._getReceivable(this._getRange());
+        else if (this.ui.tab === 'vencidos') data = this._getOverdue();
+        else if (this.ui.tab === 'pagos') data = this._getPaid(this._getRange());
+        else if (this.ui.tab === 'clientes') data = this._getFilteredClients();
+        else if (this.ui.tab === 'solicitacoes') data = this.data.requests.filter(r => this._matchSearch(r));
+
+        // Sort
+        if (this.ui.tab === 'vencidos') data.sort((a, b) => DateHelper.toLocalYYYYMMDD(a.dueDate) < DateHelper.toLocalYYYYMMDD(b.dueDate) ? -1 : 1);
+        if (this.ui.tab === 'a-vencer') data.sort((a, b) => DateHelper.toLocalYYYYMMDD(a.dueDate) < DateHelper.toLocalYYYYMMDD(b.dueDate) ? -1 : 1);
+        if (this.ui.tab === 'pagos') data.sort((a, b) => (b.paymentDate || b.createdAt) < (a.paymentDate || a.createdAt) ? -1 : 1);
+
+        // Record count
+        const rcEl = document.getElementById('tab-record-count');
+        if (rcEl) { rcEl.textContent = `${data.length} registros`; rcEl.classList.remove('hidden'); }
+
+        // Pagination
+        const total = data.length, pages = Math.ceil(total / this.ui.perPage) || 1;
+        if (this.ui.page > pages) this.ui.page = pages;
+        const start = (this.ui.page - 1) * this.ui.perPage;
+        const page = data.slice(start, start + this.ui.perPage);
+
+        const pagEl = document.getElementById('tab-pagination');
+        const prev = document.getElementById('btn-tab-prev');
+        const next = document.getElementById('btn-tab-next');
+        const info = document.getElementById('tab-page-info');
+        if (pagEl) pagEl.classList.toggle('hidden', total <= this.ui.perPage);
+        if (info) info.textContent = `Página ${this.ui.page} de ${pages}`;
+        if (prev) prev.disabled = this.ui.page === 1;
+        if (next) next.disabled = this.ui.page === pages;
+
+        if (!page.length) {
+            area.innerHTML = `<div class="flex flex-col items-center justify-center py-16 text-center"><div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3"><i data-lucide="inbox" class="w-6 h-6 text-slate-300"></i></div><h3 class="text-slate-700 font-black">Nenhum registro</h3><p class="text-slate-400 text-sm mt-1">Tente ajustar os filtros.</p></div>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
             return;
         }
 
-        container.innerHTML = top.map(i => {
-            const todayStr = DateHelper.getTodayStr();
-            const dueStr = DateHelper.toLocalYYYYMMDD(i.dueDate);
-            const diffDays = DateHelper.getDiffDays(dueStr, todayStr);
+        const rows = page.map(item => this._buildRow(item));
+        area.innerHTML = `<div class="divide-y divide-slate-50">${rows.join('')}</div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 
-            return `
-            <div class="flex gap-4 items-start p-4 bg-rose-50 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100 transition-colors shadow-sm" onclick="window.location.href='?page=installments&status=atrasada&client_id=${i.loan?.clientId || i.clientId || i.client?.id || ''}'">
-                <div class="bg-rose-100 p-2.5 rounded-xl text-rose-600 shadow-inner shrink-0"><i data-lucide="skull" class="w-5 h-5"></i></div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-start mb-1">
-                        <p class="text-sm font-black text-rose-900 truncate pr-2">${i.client?.name || 'Cliente Sem Nome'}</p>
-                        <p class="text-sm font-black text-rose-700 whitespace-nowrap">R$ ${parseFloat(i.installmentValue || i.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    </div>
-                    
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="bg-white/60 px-2 py-0.5 rounded text-[10px] font-bold text-rose-600 tracking-widest uppercase border border-rose-200 shadow-sm">
-                            PARCELA ${i.number} / ${i.loan?.numInstallments || '?'}
-                        </span>
-                    </div>
-                    
-                    <div class="flex justify-between items-center text-[10px] font-bold text-rose-500 uppercase tracking-widest w-full">
-                        <span class="flex items-center gap-1 opacity-80"><i data-lucide="calendar-x" class="w-3 h-3"></i> Vencido: ${DateHelper.formatLocal(i.dueDate)}</span>
-                        <span class="flex items-center gap-1 bg-rose-600 text-white px-2 py-0.5 rounded-full shadow-sm">
-                           <i data-lucide="clock-4" class="w-3 h-3"></i> ${diffDays} DIAS ATRASO
-                        </span>
+    _getFilteredClients() {
+        return this.data.clients.filter(c => {
+            if (!this._matchSearch(c)) return false;
+            if (this.filters.city !== 'all' && c.city !== this.filters.city) return false;
+            return true;
+        });
+    }
+
+    _buildRow(item) {
+        const fmt = v => `R$ ${parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        const tab = this.ui.tab;
+
+        // CLIENTS tab
+        if (tab === 'clientes') {
+            const initials = (item.name || '?').charAt(0).toUpperCase();
+            const activeInst = this.data.installments.filter(i => String(i.clientId || i.client?.id) === String(item.id) && (i.status || '').toUpperCase() === 'PENDING');
+            const balance = activeInst.reduce((s, i) => s + (parseFloat(i.installmentValue || 0) || 0), 0);
+            return `<div class="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors group">
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                    <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm shrink-0">${initials}</div>
+                    <div class="min-w-0">
+                        <p class="text-sm font-black text-slate-800 truncate">${item.name}</p>
+                        <p class="text-[10px] text-slate-400 font-bold">${item.city || ''} ${item.phone ? '· ' + item.phone : ''}</p>
                     </div>
                 </div>
+                <div class="flex items-center gap-4 ml-3">
+                    <div class="text-right hidden sm:block">
+                        <p class="text-xs font-black text-slate-700">${fmt(balance)}</p>
+                        <p class="text-[10px] text-slate-400">${activeInst.length} parc. ativas</p>
+                    </div>
+                    <button onclick="window.location.href='?page=clients'" class="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-primary hover:text-white transition-all opacity-0 group-hover:opacity-100"><i data-lucide="arrow-right" class="w-4 h-4"></i></button>
+                </div>
+            </div>`;
+        }
+
+        // SOLICITAÇÕES tab
+        if (tab === 'solicitacoes') {
+            const c = this.data.clients.find(x => String(x.id) === String(item.clientId));
+            const st = { pendente: 'bg-amber-100 text-amber-700', aprovado: 'bg-emerald-100 text-emerald-700', reprovado: 'bg-rose-100 text-rose-600' };
+            const stLabel = { pendente: 'Pendente', aprovado: 'Aprovado', reprovado: 'Reprovado' };
+            return `<div class="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors group">
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-black text-slate-800">${c?.name || 'Cliente'}</p>
+                    <p class="text-[10px] text-slate-400">${DateHelper.formatLocal(item.createdAt || item.requestDate)}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm font-black text-slate-700">${fmt(item.amount || item.requestedAmount)}</span>
+                    <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${st[item.status] || 'bg-slate-100 text-slate-500'}">${stLabel[item.status] || item.status}</span>
+                    <button onclick="window.location.href='?page=loan_requests'" class="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-primary hover:text-white transition-all opacity-0 group-hover:opacity-100"><i data-lucide="arrow-right" class="w-4 h-4"></i></button>
+                </div>
+            </div>`;
+        }
+
+        // PAGOS tab
+        if (tab === 'pagos') {
+            const inst = item.installment || this.data.installments.find(i => String(i.id) === String(item.installmentId));
+            const c = this.data.clients.find(x => String(x.id) === String(item.clientId || (inst?.clientId) || inst?.client?.id)) || inst?.client || { name: 'Desconhecido' };
+            const loan = this.data.loans.find(l => String(l.id) === String(inst?.loanid || inst?.loanId));
+            return `<div class="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors group">
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i></div>
+                    <div class="min-w-0">
+                        <p class="text-sm font-black text-slate-800 truncate">${c.name}</p>
+                        <p class="text-[10px] text-slate-400">Parc. ${inst?.number || '?'}/${loan?.numInstallments || '?'} · Pago ${DateHelper.formatLocal(item.paymentDate || item.createdAt)}</p>
+                    </div>
+                </div>
+                <p class="text-sm font-black text-emerald-700 ml-3">${fmt(item.amount || inst?.installmentValue)}</p>
+            </div>`;
+        }
+
+        // A VENCER e VENCIDOS
+        const c = item.client || this.data.clients.find(x => String(x.id) === String(item.clientId));
+        const loan = this.data.loans.find(l => String(l.id) === String(item.loanid || item.loanId));
+        const st = (item.status || '').toUpperCase();
+        const isLate = st === 'OVERDUE' || (st === 'PENDING' && DateHelper.isPast(item.dueDate));
+        const isToday = !isLate && DateHelper.isToday(item.dueDate);
+        const color = isLate ? 'rose' : (isToday ? 'amber' : 'blue');
+        const days = isLate ? DateHelper.getDiffDays(DateHelper.getTodayStr(), DateHelper.toLocalYYYYMMDD(item.dueDate)) : 0;
+        const phone = c?.phone || '';
+        const name = c?.name || 'Cliente';
+        const val = fmt(item.installmentValue || item.amount);
+        const due = DateHelper.formatLocal(item.dueDate);
+
+        return `<div class="flex items-center justify-between px-5 py-4 hover:bg-${color}-50 transition-colors group">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div class="w-8 h-8 rounded-xl bg-${color}-100 flex items-center justify-center shrink-0">
+                    <i data-lucide="${isLate ? 'alert-circle' : (isToday ? 'clock' : 'calendar')}" class="w-4 h-4 text-${color}-600"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-sm font-black text-slate-800 truncate">${name}</p>
+                    <p class="text-[10px] text-slate-400">Parc. ${item.number || '?'}/${loan?.numInstallments || '?'} · Venc. ${due}${isLate ? ` · <span class="text-rose-500 font-black">${days}d atraso</span>` : ''}</p>
+                </div>
             </div>
-            `;
+            <div class="flex items-center gap-2 ml-3">
+                <span class="text-sm font-black text-${color}-700 whitespace-nowrap">${val}</span>
+                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    ${phone ? `<button onclick="dash_openWhatsapp('${phone}','${name}','${val}','${due}')" class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all" title="WhatsApp"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i></button>` : ''}
+                    <button onclick="dash_copyChargeMsg('${name}','${val}','${due}')" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-slate-100 transition-all" title="Copiar cobrança"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="dash_registerPayment(${item.id})" class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all" title="Registrar pagamento"><i data-lucide="check" class="w-3.5 h-3.5"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // ── RIGHT PANEL ───────────────────────────────────────────────
+    _renderRight() {
+        this._renderPriorities();
+        this._renderComprovantes();
+        this._renderAIInsight();
+    }
+
+    _renderPriorities() {
+        const el = document.getElementById('priorities-list');
+        if (!el) return;
+        const overdue = this._getOverdue().sort((a, b) => parseFloat(b.installmentValue || 0) - parseFloat(a.installmentValue || 0)).slice(0, 5);
+        if (!overdue.length) {
+            el.innerHTML = `<div class="text-center py-6 text-slate-300"><i data-lucide="shield-check" class="w-8 h-8 mx-auto mb-2"></i><p class="text-xs font-bold text-slate-400">Sem alertas críticos</p></div>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            return;
+        }
+        const today = DateHelper.getTodayStr();
+        el.innerHTML = overdue.map(i => {
+            const c = i.client || this.data.clients.find(x => String(x.id) === String(i.clientId));
+            const days = DateHelper.getDiffDays(today, DateHelper.toLocalYYYYMMDD(i.dueDate));
+            const val = parseFloat(i.installmentValue || i.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' });
+            return `<div class="flex items-center justify-between p-3 bg-rose-50 rounded-xl border border-rose-100">
+                <div class="min-w-0">
+                    <p class="text-xs font-black text-rose-900 truncate">${c?.name || 'Cliente'}</p>
+                    <p class="text-[10px] text-rose-500">${val} · ${days}d atraso</p>
+                </div>
+                <span class="text-[9px] font-black bg-rose-500 text-white px-2 py-0.5 rounded-full ml-2 whitespace-nowrap">${days}d</span>
+            </div>`;
         }).join('');
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    /* Handlers */
-    selectMetric(metric, element) {
-        this.currentMetric = metric;
-        this.listCurrentPage = 1;
+    _renderComprovantes() {
+        const card = document.getElementById('pending-proofs-card');
+        const list = document.getElementById('pending-proofs-list');
+        const count = document.getElementById('pending-proofs-count');
+        if (!card || !list) return;
+        const pending = this.data.installments.filter(i => i.proof && (i.status || '').toUpperCase() !== 'PAID');
+        if (!pending.length) { card.classList.add('hidden'); return; }
+        card.classList.remove('hidden');
+        if (count) count.textContent = pending.length;
+        list.innerHTML = pending.slice(0, 3).map(i => {
+            const c = i.client || this.data.clients.find(x => String(x.id) === String(i.clientId)) || { name: 'Cliente' };
+            const val = parseFloat(i.installmentValue || i.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            return `<div class="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                <p class="text-xs font-black text-amber-900">${c.name} · Parc. ${i.number}</p>
+                <p class="text-[10px] text-amber-600 mb-2">R$ ${val}</p>
+                <div class="flex gap-2">
+                    <button onclick="approvePendingProof(${i.id})" class="flex-1 bg-amber-500 text-white text-[9px] font-black py-1.5 rounded-lg uppercase tracking-wider hover:bg-amber-600 transition-colors">Aprovar</button>
+                    <button onclick="rejectPendingProof(${i.id})" class="text-[9px] font-black text-slate-400 px-2 hover:text-rose-500 transition-colors">Rejeitar</button>
+                </div>
+            </div>`;
+        }).join('');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 
-        // Update UI
-        document.querySelectorAll('.filter-card').forEach(c => {
-            c.classList.remove('ring-primary/50');
-            c.classList.add('ring-transparent');
-        });
-        element.classList.remove('ring-transparent');
-        element.classList.add('ring-primary/50');
-
-        // Ocultar Div global de Períodos para a Base de Clientes (onde só a Cidade importa)
-        const periodFiltersGroup = document.querySelector('.filter-period')?.closest('div');
-        if (metric === 'clients') {
-            if (periodFiltersGroup) periodFiltersGroup.style.display = 'none';
+    _renderAIInsight() {
+        const el = document.getElementById('ai-insight-text');
+        const btn = document.getElementById('action-plan-btn');
+        const overdue = this._getOverdue();
+        const rng = this._getRange();
+        const rec = this._getReceivable(rng);
+        const overdueVal = overdue.reduce((s, i) => s + (parseFloat(i.installmentValue || i.amount) || 0), 0);
+        let text = '';
+        if (overdue.length > 0) {
+            text = `"Atenção: ${overdue.length} parcelas em atraso totalizando R$ ${overdueVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Priorize a cobrança dos mais antigos para minimizar perdas."`;
+        } else if (rec.length > 0) {
+            text = `"Ótimo! Sem atrasos. Foque na cobrança proativa: ${rec.length} parcela(s) a vencer no período."`;
         } else {
-            if (periodFiltersGroup) periodFiltersGroup.style.display = 'flex';
+            text = `"Excelente cenário! Nenhuma pendência crítica no período selecionado. Bom momento para visualizar novos clientes."`;
         }
+        if (el) el.textContent = text;
+        if (btn) btn.onclick = () => window.location.href = overdue.length ? '?page=installments&status=atrasada' : '?page=installments';
+    }
 
-        // Detail Filter Visibility Logic
-        const filterSets = {
-            'receivable': ['hoje', 'amanha', '7dias', 'mes', 'ano', 'personalizado'],
-            'overdue': ['tudo', 'hoje', 'ontem', 'mes', 'ano', 'personalizado'],
-            'received': ['hoje', 'ontem', 'mes', 'ano', 'personalizado'],
-            'clients': []
-        };
-
-        const allowedPeriods = filterSets[metric] || [];
-
-        document.querySelectorAll('.filter-period').forEach(btn => {
-            const period = btn.getAttribute('data-period');
-            if (allowedPeriods.includes(period)) {
-                btn.style.display = 'flex';
+    // ── ASAAS HEALTH ──────────────────────────────────────────────
+    async renderAsaasHealth() {
+        const indicator = document.getElementById('asaas-health-indicator');
+        const detail = document.getElementById('asaas-health-detail');
+        const cfgBtn = document.getElementById('asaas-config-btn');
+        if (!indicator) return;
+        try {
+            const integrations = await storage.from('company_integrations').select('*').limit(1);
+            const hasIntegration = integrations?.data?.length > 0;
+            if (!hasIntegration) {
+                indicator.innerHTML = `<div class="w-2 h-2 rounded-full bg-slate-300"></div><span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Não configurado</span>`;
+                if (detail) detail.innerHTML = `<p class="text-[10px] text-slate-400">Integração ASAAS não configurada.</p>`;
+                if (cfgBtn) cfgBtn.classList.remove('hidden');
             } else {
-                btn.style.display = 'none';
+                indicator.innerHTML = `<div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div><span class="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Online</span>`;
+                if (detail) detail.innerHTML = `<p class="text-[10px] text-emerald-600 font-bold">✓ Integração ativa</p><p class="text-[10px] text-slate-400 mt-0.5">PIX e cobranças funcionando.</p>`;
             }
-        });
-
-        // Ensure a valid period is selected if the current one becomes hidden
-        if (metric !== 'clients' && !allowedPeriods.includes(this.currentPeriod)) {
-            const defaultPeriod = allowedPeriods[0] || 'hoje';
-            const defaultBtn = document.querySelector(`.filter-period[data-period="${defaultPeriod}"]`);
-            this.selectPeriod(defaultPeriod, defaultBtn);
+        } catch {
+            indicator.innerHTML = `<div class="w-2 h-2 rounded-full bg-amber-400"></div><span class="text-[10px] font-black text-amber-600 uppercase tracking-wider">Atenção</span>`;
+            if (detail) detail.innerHTML = `<p class="text-[10px] text-amber-600">Não foi possível verificar.</p>`;
         }
-
-        // Ao entrar em 'em atraso', padrão sempre é 'tudo'
-        if (metric === 'overdue') {
-            const tudoBtn = document.querySelector('.filter-period[data-period="tudo"]');
-            this.selectPeriod('tudo', tudoBtn);
-        }
-
-        // Update titles
-        const titles = {
-            'receivable': { t: 'A Receber', s: 'Valores aguardando pagamento' },
-            'overdue': { t: 'Em Atraso', s: 'Status crítico de inadimplência' },
-            'received': { t: 'Pagamentos Recebidos', s: 'Entradas consolidadas no caixa' },
-            'clients': { t: 'Base de Clientes', s: 'Visão de perfis e cadastros' }
-        };
-        const titleEl = document.getElementById('detail-title');
-        const subtitleEl = document.getElementById('detail-subtitle');
-        if (titleEl) titleEl.textContent = titles[metric].t;
-        if (subtitleEl) subtitleEl.textContent = titles[metric].s;
-
-        this.renderDetailedList();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    selectPeriod(period, element) {
-        this.currentPeriod = period;
-        this.listCurrentPage = 1;
-
-        document.querySelectorAll('.filter-period').forEach(b => {
-            b.classList.remove('bg-white', 'text-primary', 'shadow-sm');
-            b.classList.add('text-slate-500');
-        });
-
-        if (element) {
-            element.classList.remove('text-slate-500');
-            element.classList.add('bg-white', 'text-primary', 'shadow-sm');
-        }
-
-        if (period !== 'personalizado') {
-            document.getElementById('custom-date-container').classList.add('hidden');
-            this.renderDetailedList();
-            this.updateCards();
-        }
+    // ── EXECUTIVE VIEW ────────────────────────────────────────────
+    _renderExecutive() {
+        this._renderDailyChart();
+        this._renderOverdueChart();
+        this._renderTop5();
+        this._renderForecast();
     }
 
-    toggleCustomDate(element) {
-        this.selectPeriod('personalizado', element);
-        document.getElementById('custom-date-container').classList.remove('hidden');
+    _renderDailyChart() {
+        const el = document.getElementById('exec-chart-daily');
+        if (!el) return;
+        const today = DateHelper.getTodayStr();
+        const days = Array.from({ length: 7 }, (_, i) => DateHelper.addDays(today, -6 + i));
+        const fmt = d => { const [, m, dy] = d.split('-'); return `${dy}/${m}`; };
+        const fmtV = v => v >= 1000 ? `R$ ${(v / 1000).toFixed(1)}k` : `R$ ${v.toFixed(0)}`;
+
+        const maxV = Math.max(...days.map(d => {
+            const rec = this.data.payments.filter(p => DateHelper.toLocalYYYYMMDD(p.paymentDate || p.createdAt) === d).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+            const due = this.data.installments.filter(i => (i.status || '').toUpperCase() === 'PENDING' && DateHelper.toLocalYYYYMMDD(i.dueDate) === d).reduce((s, i) => s + (parseFloat(i.installmentValue) || 0), 0);
+            return Math.max(rec, due);
+        }), 1);
+
+        el.innerHTML = days.map(d => {
+            const rec = this.data.payments.filter(p => DateHelper.toLocalYYYYMMDD(p.paymentDate || p.createdAt) === d).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+            const due = this.data.installments.filter(i => (i.status || '').toUpperCase() === 'PENDING' && DateHelper.toLocalYYYYMMDD(i.dueDate) === d).reduce((s, i) => s + (parseFloat(i.installmentValue) || 0), 0);
+            const pw = Math.round((rec / maxV) * 100);
+            const dw = Math.round((due / maxV) * 100);
+            return `<div class="flex items-center gap-3"><span class="text-[10px] font-bold text-slate-400 w-10 text-right shrink-0">${fmt(d)}</span><div class="flex-1 space-y-1"><div class="h-2 rounded-full bg-emerald-100 overflow-hidden"><div class="h-full bg-emerald-400 rounded-full transition-all" style="width:${pw}%"></div></div><div class="h-2 rounded-full bg-blue-100 overflow-hidden"><div class="h-full bg-blue-300 rounded-full transition-all" style="width:${dw}%"></div></div></div><span class="text-[10px] font-black text-slate-600 w-16 text-right shrink-0">${fmtV(rec || due)}</span></div>`;
+        }).join('');
+    }
+
+    _renderOverdueChart() {
+        const el = document.getElementById('exec-chart-overdue');
+        if (!el) return;
+        const today = DateHelper.getTodayStr();
+        const bands = [{ label: '0–3 dias', min: 0, max: 3, color: 'amber' }, { label: '4–7 dias', min: 4, max: 7, color: 'orange' }, { label: '8–15 dias', min: 8, max: 15, color: 'rose' }, { label: '16+ dias', min: 16, max: 9999, color: 'red' }];
+        const overdue = this._getOverdue();
+        const counts = bands.map(b => ({ ...b, n: overdue.filter(i => { const d = DateHelper.getDiffDays(today, DateHelper.toLocalYYYYMMDD(i.dueDate)); return d >= b.min && d <= b.max; }).length }));
+        const maxN = Math.max(...counts.map(b => b.n), 1);
+
+        el.innerHTML = counts.map(b => {
+            const pct = Math.round((b.n / maxN) * 100);
+            return `<div class="flex items-center gap-3"><span class="text-[10px] font-bold text-slate-400 w-16 shrink-0">${b.label}</span><div class="flex-1 h-4 rounded-full bg-${b.color}-100 overflow-hidden"><div class="h-full bg-${b.color}-400 rounded-full transition-all" style="width:${pct}%"></div></div><span class="text-xs font-black text-${b.color}-600 w-6 text-right">${b.n}</span></div>`;
+        }).join('');
+    }
+
+    _renderTop5() {
+        const el = document.getElementById('exec-top5');
+        if (!el) return;
+        const byClient = {};
+        this._getOverdue().forEach(i => {
+            const cid = i.clientId || i.client?.id;
+            if (!byClient[cid]) byClient[cid] = { c: i.client || this.data.clients.find(x => String(x.id) === String(cid)), v: 0 };
+            byClient[cid].v += parseFloat(i.installmentValue || i.amount || 0);
+        });
+        const top5 = Object.values(byClient).sort((a, b) => b.v - a.v).slice(0, 5);
+        if (!top5.length) { el.innerHTML = `<p class="text-slate-400 text-sm text-center py-4">Sem inadimplentes</p>`; return; }
+        const max = top5[0].v;
+        el.innerHTML = top5.map((x, idx) => {
+            const pct = Math.round((x.v / max) * 100);
+            return `<div class="flex items-center gap-3"><span class="text-xs font-black text-slate-400 w-4">${idx + 1}</span><div class="flex-1"><p class="text-xs font-black text-slate-800 truncate mb-1">${x.c?.name || '—'}</p><div class="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-rose-400 rounded-full" style="width:${pct}%"></div></div></div><span class="text-xs font-black text-rose-600 whitespace-nowrap">R$ ${x.v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>`;
+        }).join('');
+    }
+
+    _renderForecast() {
+        const el = document.getElementById('exec-forecast');
+        if (!el) return;
+        const today = DateHelper.getTodayStr();
+        const fmt = v => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        const weeks = [
+            { label: 'Esta semana', s: today, e: DateHelper.addDays(today, 7) },
+            { label: 'Próximas 2 semanas', s: DateHelper.addDays(today, 8), e: DateHelper.addDays(today, 14) },
+            { label: 'Próximos 30 dias', s: today, e: DateHelper.addDays(today, 30) }
+        ];
+        el.innerHTML = weeks.map(w => {
+            const total = this.data.installments.filter(i => {
+                const st = (i.status || '').toUpperCase(); if (st !== 'PENDING') return false;
+                const d = DateHelper.toLocalYYYYMMDD(i.dueDate); return d >= w.s && d <= w.e;
+            }).reduce((s, i) => s + (parseFloat(i.installmentValue) || 0), 0);
+            return `<div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100"><p class="text-xs font-bold text-slate-600">${w.label}</p><p class="text-sm font-black text-primary">${fmt(total)}</p></div>`;
+        }).join('');
+    }
+
+    // ── FILTER ACTIONS ────────────────────────────────────────────
+    setPeriod(period, el) {
+        this.filters.period = period;
+        this.ui.page = 1;
+        document.querySelectorAll('.dash-period-btn').forEach(btn => {
+            const active = btn.getAttribute('data-period') === period;
+            btn.classList.toggle('bg-white', active);
+            btn.classList.toggle('text-primary', active);
+            btn.classList.toggle('shadow-sm', active);
+            btn.classList.toggle('text-slate-500', !active);
+        });
+        const customBar = document.getElementById('custom-date-bar');
+        if (customBar) customBar.classList.toggle('hidden', period !== 'personalizado');
+        this._renderAll();
     }
 
     applyCustomDate() {
-        this.customDateFrom = document.getElementById('date-from').value;
-        this.customDateTo = document.getElementById('date-to').value;
-        if (!this.customDateFrom || !this.customDateTo) {
-            alert('Por favor, preencha ambas as datas!');
-            return;
+        this.filters.dateFrom = document.getElementById('date-from-bar')?.value || '';
+        this.filters.dateTo = document.getElementById('date-to-bar')?.value || '';
+        if (this.filters.dateFrom && this.filters.dateTo) {
+            this.ui.page = 1;
+            this._renderAll();
         }
-        this.listCurrentPage = 1;
-        this.renderDetailedList();
-        this.updateCards();
     }
 
-    populateCities() {
-        const cityFilter = document.getElementById('city-filter');
-        if (!cityFilter) return;
+    setFilter(key, val) {
+        this.filters[key] = val;
+        this.ui.page = 1;
+        this._renderAll();
+    }
 
-        const cities = [...new Set(this.clients.map(c => c.city).filter(Boolean))].sort();
-
-        let html = '<option value="all">Todas Cidades</option>';
-        cities.forEach(city => {
-            html += `<option value="${city}">${city}</option>`;
+    clearFilters() {
+        this.filters = { period: 'mes', dateFrom: '', dateTo: '', city: 'all', status: 'todos', search: '' };
+        this.ui.page = 1;
+        // Reset UI controls
+        document.querySelectorAll('.dash-period-btn').forEach(btn => {
+            const active = btn.getAttribute('data-period') === 'mes';
+            btn.classList.toggle('bg-white', active);
+            btn.classList.toggle('text-primary', active);
+            btn.classList.toggle('shadow-sm', active);
+            btn.classList.toggle('text-slate-500', !active);
         });
-
-        cityFilter.innerHTML = html;
-        cityFilter.value = this.currentCity;
+        const cityEl = document.getElementById('dash-city-filter');
+        const statusEl = document.getElementById('dash-status-filter');
+        const searchEl = document.getElementById('dash-search');
+        if (cityEl) cityEl.value = 'all';
+        if (statusEl) statusEl.value = 'todos';
+        if (searchEl) searchEl.value = '';
+        document.getElementById('custom-date-bar')?.classList.add('hidden');
+        this._renderAll();
     }
 
-    selectCity(city) {
-        this.currentCity = city;
-        this.listCurrentPage = 1;
-        this.renderDetailedList();
-        this.updateCards();
-    }
-
-    getFilteredData(metric) {
-        let baseData = [];
-        if (metric === 'receivable') {
-            baseData = this.installments.filter(i => (i.status || '').toUpperCase() === 'PENDING');
-        } else if (metric === 'overdue') {
-            baseData = this.installments.filter(i => {
-                const status = (i.status || '').toUpperCase();
-                return status === 'OVERDUE' || (status === 'PENDING' && DateHelper.isPast(i.dueDate));
-            });
-        } else if (metric === 'received') {
-            baseData = this.payments;
-        } else if (metric === 'clients') {
-            baseData = this.clients;
-        }
-
-        // [PRIVACIDADE] Remover Master Admin de qualquer métrica ou lista no dashboard
-        baseData = baseData.filter(item => {
-            const email = item.email || (item.client && item.client.email);
-            return email !== 'ivanrossi@outlook.com';
+    toggleView(mode) {
+        this.ui.view = mode;
+        const opEl = document.getElementById('view-operational');
+        const exEl = document.getElementById('view-executive');
+        const opBtn = document.getElementById('btn-view-operational');
+        const exBtn = document.getElementById('btn-view-executive');
+        if (opEl) opEl.classList.toggle('hidden', mode !== 'operational');
+        if (exEl) exEl.classList.toggle('hidden', mode !== 'executive');
+        [opBtn, exBtn].forEach(btn => {
+            if (!btn) return;
+            const active = btn.id.includes(mode);
+            btn.classList.toggle('bg-white', active);
+            btn.classList.toggle('text-primary', active);
+            btn.classList.toggle('shadow-sm', active);
+            btn.classList.toggle('text-slate-500', !active);
         });
+        if (mode === 'executive') this._renderExecutive();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 
-        // Apply city filter
-        let data = baseData;
-        if (this.currentCity !== 'all') {
-            data = data.filter(item => {
-                if (metric === 'clients') {
-                    return item.city === this.currentCity;
-                } else {
-                    let clientId = item.clientId;
-                    if (!clientId && item.client && item.client.id) clientId = item.client.id; // handle nested client
-                    if (!clientId && item.installment && item.installment.loan) clientId = item.installment.loan.clientId; // handle legacy nested payment structure
-                    const c = this.clients.find(x => String(x.id) === String(clientId));
-                    return c && c.city === this.currentCity;
-                }
-            });
-        }
-
-        if (metric === 'clients') {
-            return data;
-        }
-
-        const todayStr = DateHelper.getTodayStr();
-        const tomorrowStr = DateHelper.addDays(todayStr, 1);
-        const yesterdayStr = DateHelper.addDays(todayStr, -1);
-
-        let startFilter, endFilter;
-        let actualPeriod = this.currentPeriod;
-
-        if (actualPeriod === 'hoje') {
-            startFilter = todayStr; endFilter = todayStr;
-        } else if (actualPeriod === 'ontem') {
-            startFilter = yesterdayStr; endFilter = yesterdayStr;
-        } else if (actualPeriod === '3dias') {
-            startFilter = DateHelper.addDays(todayStr, -3);
-            endFilter = yesterdayStr;
-        } else if (actualPeriod === 'amanha') {
-            startFilter = tomorrowStr; endFilter = tomorrowStr;
-        } else if (actualPeriod === '7dias') {
-            startFilter = todayStr;
-            endFilter = DateHelper.addDays(todayStr, 7);
-        } else if (actualPeriod === 'mes') {
-            const now = new Date();
-            startFilter = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
-            endFilter = DateHelper.toLocalYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-        } else if (actualPeriod === 'ano') {
-            const now = new Date();
-            startFilter = `${now.getFullYear()}-01-01`;
-            endFilter = `${now.getFullYear()}-12-31`;
-        } else if (actualPeriod === 'personalizado') {
-            startFilter = this.customDateFrom;
-            endFilter = this.customDateTo;
-        } else if (actualPeriod === 'tudo') {
-            // Sem filtro de data: retorna todos os registros do métric atual
-            return data;
-        }
-
-        return data.filter(item => {
-            let itemDateStr = metric === 'received' ? (item.paymentDate || item.createdAt) : item.dueDate;
-            if (!itemDateStr) return false;
-            const itemDateLocal = DateHelper.toLocalYYYYMMDD(itemDateStr);
-
-            // Fix for overdue metric: it should show items up to today if we are in "Today" period
-            // OR simply follow the period filters. The getFilteredData(overdue) already includes items where isPast(dueDate)
-            return itemDateLocal >= startFilter && itemDateLocal <= endFilter;
+    // ── CITIES ────────────────────────────────────────────────────
+    _populateCities() {
+        const cities = [...new Set(this.data.clients.map(c => c.city).filter(Boolean))].sort();
+        const html = '<option value="all">Todas Cidades</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('');
+        ['dash-city-filter', 'dash-city-mobile'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
         });
     }
 
-    updateCards() {
-        if (this.installments.length === 0 && this.payments.length === 0) return;
+    // ── EXPORT CSV ────────────────────────────────────────────────
+    exportCSV() {
+        let data = [];
+        const rng = this._getRange();
+        if (this.ui.tab === 'a-vencer') data = this._getReceivable(rng);
+        else if (this.ui.tab === 'vencidos') data = this._getOverdue();
+        else if (this.ui.tab === 'pagos') data = this._getPaid(rng);
+        else if (this.ui.tab === 'clientes') data = this._getFilteredClients();
 
-        const receivableData = this.getFilteredData('receivable');
-        const overdueData = this.getFilteredData('overdue');
-        const receivedData = this.getFilteredData('received');
+        if (!data.length) { alert('Nenhum dado para exportar.'); return; }
 
-        const receivableTotal = receivableData.reduce((sum, i) => sum + (parseFloat(i.installmentValue || i.amount) || 0), 0);
-        const overdueTotal = overdueData.reduce((sum, i) => sum + (parseFloat(i.installmentValue || i.amount) || 0), 0);
-        const receivedTotal = receivedData.reduce((sum, p) => sum + (parseFloat(p.amount || p.installmentValue) || 0), 0);
-
-        // Puxa a base de clientes com o filtro atual (Cidade)
-        const clientsData = this.getFilteredData('clients');
-        const clientsTotal = clientsData.length;
-
-        const recTodayEl = document.getElementById('stat-receivable-today');
-        const overCountEl = document.getElementById('stat-overdue-count');
-        const overTotalEl = document.getElementById('stat-overdue-total');
-        const recMonthEl = document.getElementById('stat-received-month');
-        const clientsTotalEl = document.getElementById('stat-total-clients');
-
-        if (recTodayEl) recTodayEl.textContent = `R$ ${receivableTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        if (overTotalEl) overTotalEl.textContent = `R$ ${overdueTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        if (recMonthEl) recMonthEl.textContent = `R$ ${receivedTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        if (overCountEl) overCountEl.textContent = `${overdueData.length} parcelas`;
-        if (clientsTotalEl) clientsTotalEl.textContent = clientsTotal;
-
-        let periodLabel = 'ESTE MÊS';
-        if (this.currentPeriod === 'hoje') periodLabel = 'HOJE';
-        else if (this.currentPeriod === 'ontem') periodLabel = 'ONTEM';
-        else if (this.currentPeriod === '3dias') periodLabel = 'ATÉ 3 DIAS';
-        else if (this.currentPeriod === 'amanha') periodLabel = 'AMANHÃ';
-        else if (this.currentPeriod === '7dias') periodLabel = '7 DIAS';
-        else if (this.currentPeriod === 'mes') periodLabel = 'ESTE MÊS';
-        else if (this.currentPeriod === 'ano') periodLabel = 'ESTE ANO';
-        else if (this.currentPeriod === 'personalizado') periodLabel = 'CUSTOM';
-        else if (this.currentPeriod === 'tudo') periodLabel = 'TUDO';
-
-        const badgeReceivable = document.getElementById('badge-receivable');
-        const badgeOverdue = document.getElementById('badge-overdue');
-        const badgeReceived = document.getElementById('badge-received');
-
-        if (badgeReceivable) badgeReceivable.textContent = periodLabel;
-        if (badgeOverdue) badgeOverdue.textContent = periodLabel;
-        if (badgeReceived) {
-            badgeReceived.textContent = (this.currentPeriod === 'personalizado') ? 'CUSTOM' : periodLabel;
-        }
-
-        // Executar Insight IA Baseado no array Filtrado
-        this.renderAIInsights();
-    }
-
-    /* Render Logic engine */
-    renderDetailedList() {
-        const listEl = document.getElementById('detailed-results-list');
-        if (!listEl) return;
-        listEl.innerHTML = '<div class="text-center text-slate-400 py-10 font-bold">Processando...</div>';
-
-        let data = this.getFilteredData(this.currentMetric);
-
-        // 3. RENDER UI
-        if (data.length === 0) {
-            listEl.innerHTML = `
-                <div class="text-center py-16 flex flex-col items-center justify-center gap-3">
-                    <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-2">
-                         <i data-lucide="inbox" class="w-8 h-8 text-slate-300"></i>
-                    </div>
-                    <h3 class="text-slate-800 font-black text-lg">Nenhum registro</h3>
-                    <p class="text-slate-500 text-sm font-medium">Não há dados que correspondam a este filtro.</p>
-                </div>
-            `;
-            lucide.createIcons();
-
-            const paginationEl = document.getElementById('detailed-list-pagination');
-            if (paginationEl) paginationEl.classList.add('hidden');
-            return;
-        }
-
-        // Sort Data
-        if (this.currentMetric !== 'clients') {
-            data.sort((a, b) => {
-                const dA = DateHelper.toLocalYYYYMMDD(a.paymentDate || a.createdAt || a.dueDate);
-                const dB = DateHelper.toLocalYYYYMMDD(b.paymentDate || b.createdAt || b.dueDate);
-                return this.currentMetric === 'received' ? (dB < dA ? -1 : 1) : (dA < dB ? -1 : 1);
-            });
-        }
-
-        // Pagination logic
-        const totalItems = data.length;
-        const totalPages = Math.ceil(totalItems / this.listItemsPerPage) || 1;
-        if (this.listCurrentPage > totalPages) this.listCurrentPage = totalPages;
-
-        const startIdx = (this.listCurrentPage - 1) * this.listItemsPerPage;
-        const pageItems = data.slice(startIdx, startIdx + this.listItemsPerPage);
-
-        // Update pagination UI
-        const paginationEl = document.getElementById('detailed-list-pagination');
-        const prevBtn = document.getElementById('list-prev');
-        const nextBtn = document.getElementById('list-next');
-        const pageInfo = document.getElementById('list-page-info');
-
-        if (paginationEl) {
-            paginationEl.classList.remove('hidden');
-            if (totalItems <= this.listItemsPerPage) {
-                paginationEl.classList.add('hidden');
-            } else {
-                if (pageInfo) pageInfo.textContent = `Página ${this.listCurrentPage} de ${totalPages}`;
-                if (prevBtn) prevBtn.disabled = this.listCurrentPage === 1;
-                if (nextBtn) nextBtn.disabled = this.listCurrentPage === totalPages || totalItems === 0;
-            }
-        }
-
-        let html = '';
-
-        pageItems.forEach(item => {
-            if (this.currentMetric === 'clients') {
-                const cityDisplay = item.city ? ` - ${item.city}` : '';
-                html += `
-                    <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 transition-colors shadow-sm">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-sm uppercase border border-primary/20 overflow-hidden shadow-sm shrink-0">
-                                ${item.avatar ? `<img src="${item.avatar}" class="w-full h-full object-cover">` : (item.name ? item.name.charAt(0) : '?')}
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-slate-800">${item.name}<span class="text-slate-500 font-medium">${cityDisplay}</span></p>
-                                <p class="text-xs text-slate-500">${item.phone || 'Sem telefone'}</p>
-                            </div>
-                        </div>
-                        <button onclick="window.location.href='?page=clients'" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-primary hover:text-white transition-all">
-                            <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                `;
-            } else if (this.currentMetric === 'received') {
-                // ... logic to find inst and loan ...
-                const inst = item.installment || this.installments.find(i => String(i.id) === String(item.installmentId || item.installment_id));
-                const loanId = inst ? (inst.loanid || inst.loanId || (inst.loan && inst.loan.id)) : null;
-                const loan = loanId ? this.loans.find(l => String(l.id) === String(loanId)) : (inst && inst.loan ? inst.loan : null);
-                const cId = item.clientId || (item.client && item.client.id) || (loan && loan.clientId) || (inst && inst.client && inst.client.id);
-                const c = this.clients.find(x => String(x.id) === String(cId)) || item.client || (inst && inst.client) || { name: 'Desconhecido', city: '' };
-
-                const instNumber = inst ? inst.number : '?';
-                const instTotal = loan ? loan.numInstallments : '?';
-
-                const dtPaid = DateHelper.formatLocal(item.paymentDate || item.createdAt);
-                const dtDue = DateHelper.formatLocal(inst?.dueDate);
-                const cityDisplay = c.city ? ` - ${c.city}` : '';
-
-                html += `
-                    <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-emerald-100 transition-colors shadow-sm">
-                        <div class="flex items-center gap-3">
-                            <div class="bg-emerald-50 p-2.5 rounded-xl text-emerald-600 shadow-inner shrink-0"><i data-lucide="check-circle" class="w-5 h-5"></i></div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-black text-emerald-900 truncate pr-2">${c.name || 'Cliente Sem Nome'}<span class="text-slate-500 font-medium ml-1">${cityDisplay}</span></p>
-                                
-                                <div class="flex items-center gap-2 mt-1 mb-1">
-                                    <span class="bg-white/60 px-2 py-0.5 rounded text-[10px] font-bold text-emerald-600 tracking-widest uppercase border border-emerald-200 shadow-sm">
-                                        PARCELA ${instNumber} / ${instTotal}
-                                    </span>
-                                }
-                                
-                                <div class="flex items-center text-[10px] font-bold text-emerald-600/80 uppercase tracking-widest gap-3">
-                                    <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-3 h-3"></i> PAGO: ${dtPaid}</span>
-                                    <span class="flex items-center gap-1 opacity-70"><i data-lucide="calendar-clock" class="w-3 h-3"></i> VENC: ${dtDue}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right flex items-center gap-4">
-                             <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.amount || item.installmentValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                             <button onclick="window.location.href='?page=installments'" class="w-8 h-8 rounded-full bg-slate-50 text-emerald-500 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all shadow-sm">
-                                <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            } else {
-                const c = item.client || this.clients.find(x => String(x.id) === String(item.clientId)) || { name: 'Desconhecido', city: '' };
-                const dt = DateHelper.formatLocal(item.dueDate);
-                const status = (item.status || '').toUpperCase();
-                const isLate = status === 'OVERDUE' || (status === 'PENDING' && DateHelper.isPast(item.dueDate));
-                const isToday = !isLate && status === 'PENDING' && DateHelper.isToday(item.dueDate);
-
-                const color = isLate ? 'rose' : (isToday ? 'amber' : 'blue');
-                const icon = isLate ? 'alert-circle' : (isToday ? 'clock' : 'calendar-clock');
-
-                const loan = this.loans.find(l => String(l.id) === String(item.loanid || item.loanId));
-                const totalInstCount = loan ? loan.numInstallments : '?';
-                const cityDisplay = c.city ? ` - ${c.city}` : '';
-
-                // Exibição da empresa para o Master
-                let companyBadge = '';
-                if (window.auth.isMaster() && (item.company_id || item.companyId)) {
-                    companyBadge = `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-slate-200">Empresa ID: ${item.company_id || item.companyId}</span>`;
-                }
-
-                html += `
-                    <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-${color}-100 transition-all shadow-sm hover:shadow-md group">
-                        <div class="flex items-center gap-3">
-                            <div class="bg-${color}-50 p-2.5 rounded-xl text-${color}-600 shadow-inner shrink-0 group-hover:scale-110 transition-transform">
-                                <i data-lucide="${icon}" class="w-5 h-5"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-black text-slate-800 truncate pr-2 group-hover:text-${color}-700 transition-colors">
-                                    ${c.name || 'Cliente Sem Nome'}<span class="text-slate-500 font-medium ml-1">${cityDisplay}</span>
-                                </p>
-                                
-                                <div class="flex items-center gap-2 mt-1 mb-1">
-                                    <span class="bg-${color}-50 px-2 py-0.5 rounded text-[10px] font-bold text-${color}-600 tracking-widest uppercase border border-${color}-100 shadow-sm">
-                                        PARCELA ${item.number} / ${totalInstCount}
-                                    </span>
-                                    ${companyBadge}
-                                </div>
-                                
-                                <div class="flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest gap-3">
-                                    <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3 text-${color}-500"></i> VENCIMENTO: ${dt}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right flex items-center gap-4">
-                             <div class="flex flex-col items-end">
-                                 <p class="text-sm font-black text-slate-900">R$ ${parseFloat(item.installmentValue || item.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                 <span class="text-[9px] font-black uppercase tracking-tighter text-${color}-500">${isLate ? 'Vencida' : (isToday ? 'Hoje' : 'Disponível')}</span>
-                             </div>
-                             <button onclick="window.location.href='?page=installments'" class="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-${color}-500 hover:text-white transition-all shadow-sm">
-                                <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }
+        const rows = [['Cliente', 'Vencimento', 'Valor', 'Status']];
+        data.forEach(item => {
+            const c = item.client || this.data.clients.find(x => String(x.id) === String(item.clientId)) || { name: '?' };
+            const val = parseFloat(item.installmentValue || item.amount || 0).toFixed(2);
+            rows.push([c.name, DateHelper.formatLocal(item.dueDate || item.paymentDate || ''), val, item.status || '']);
         });
 
-        listEl.innerHTML = html;
-        lucide.createIcons();
+        const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `dashboard-${this.ui.tab}-${DateHelper.getTodayStr()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
-    bindEvents() {
-        const newLoanBtn = document.getElementById('new-loan-btn');
-        if (newLoanBtn) {
-            newLoanBtn.onclick = () => window.location.href = '?page=loans';
-        }
-    }
-
-    renderPendingProofs() {
-        const container = document.getElementById('pending-proofs-card');
-        const listContainer = document.getElementById('pending-proofs-list');
-        const countBadge = document.getElementById('pending-proofs-count');
-
-        if (!container || !listContainer) return;
-
-        // Filter installments that have proof and are not paid
-        const pending = this.installments.filter(i => {
-            const status = (i.status || '').toUpperCase();
-            return i.proof && status !== 'PAID';
-        });
-
-        if (pending.length === 0) {
-            container.classList.add('hidden');
-            return;
-        }
-
-        container.classList.remove('hidden');
-        if (countBadge) countBadge.textContent = pending.length;
-
-        listContainer.innerHTML = pending.map(i => {
-            const client = i.client || this.clients.find(c => String(c.id) === String(i.loan?.clientId || i.clientId)) || { name: 'Cliente Desconhecido' };
-            const amount = parseFloat(i.installmentValue || i.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const whatsappLink = `https://wa.me/55${(client.phone || '').replace(/\D/g, '')}`;
-
-            return `
-                <div class="p-5 bg-amber-50/50 rounded-2xl border border-amber-100/50 hover:bg-amber-100/50 transition-all group">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-amber-600 border border-amber-100">
-                                <i data-lucide="file-text" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-black text-slate-900 truncate max-w-[150px]">${client.name}</p>
-                                <p class="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Parcela ${i.number} • R$ ${amount}</p>
-                                
-                                ${window.auth.isMaster() && (i.company_id || i.companyId) ? `
-                                    <div class="mb-1">
-                                        <span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-slate-200">
-                                            Empresa ID: ${i.company_id || i.companyId}
-                                        </span>
-                                    </div>
-                                ` : ''}
-
-                                <div class="flex flex-col gap-0.5">
-                                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
-                                        <i data-lucide="calendar" class="w-2.5 h-2.5"></i> Vencimento: ${DateHelper.formatLocal(i.dueDate)}
-                                    </p>
-                                    <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-tighter flex items-center gap-1">
-                                        <i data-lucide="clock" class="w-2.5 h-2.5"></i> Envio: ${DateHelper.formatLocal(i.updatedAt || i.createdAt)}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <a href="${whatsappLink}" target="_blank" class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all shadow-sm" title="Falar no WhatsApp">
-                            <i data-lucide="message-circle" class="w-4 h-4"></i>
-                        </a>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-2">
-                        <button data-id="${i.id}" class="view-pending-proof bg-white border border-slate-200 text-slate-600 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Ver
-                        </button>
-                        <button onclick="approvePendingProof(${i.id})" class="bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2">
-                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Aprovar
-                        </button>
-                    </div>
-                    
-                    <button onclick="rejectPendingProof(${i.id})" class="w-full mt-2 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-rose-500 transition-colors py-1">Descartar Comprovante</button>
-                </div>
-            `;
-        }).join('');
-
-        // Bind view events safely
-        listContainer.querySelectorAll('.view-pending-proof').forEach(btn => {
-            btn.onclick = () => {
-                const id = btn.getAttribute('data-id');
-                const inst = this.installments.find(x => String(x.id) === String(id));
-                if (inst && inst.proof) window.viewProof(inst.proof);
-            };
-        });
-
-        lucide.createIcons();
-    }
-
-    async approvePendingProof(id) {
-        if (!confirm('Deseja aprovar este pagamento e dar baixa na parcela?')) return;
-
+    // ── PROOF ACTIONS ─────────────────────────────────────────────
+    async _approveProof(id) {
+        if (!confirm('Aprovar pagamento e dar baixa na parcela?')) return;
         try {
-            const inst = this.installments.find(i => String(i.id) === String(id));
+            const inst = this.data.installments.find(i => String(i.id) === String(id));
             if (!inst) return;
-
-            await paymentService.registerPayment({
-                installmentId: inst.id,
-                amount: inst.installmentValue || inst.amount || 0,
-                method: 'pix',
-                notes: 'Aprovação de comprovante enviado pelo cliente (Dashboard)',
-                paymentDate: DateHelper.getTodayStr()
-            });
-
-            // Refresh data locally
+            await paymentService.registerPayment({ installmentId: inst.id, amount: inst.installmentValue || inst.amount || 0, method: 'pix', notes: 'Aprovação de comprovante (Dashboard)', paymentDate: DateHelper.getTodayStr() });
             await this.loadData();
-            this.renderStats();
-            alert('Pagamento aprovado com sucesso!');
-        } catch (error) {
-            console.error(error);
-            alert('Erro ao aprovar pagamento.');
-        }
+            this._renderAll();
+        } catch { alert('Erro ao aprovar pagamento.'); }
     }
 
-    async rejectPendingProof(id) {
-        if (!confirm('Deseja descartar este comprovante? O cliente precisará enviar novamente.')) return;
+    async _rejectProof(id) {
+        if (!confirm('Descartar comprovante?')) return;
         try {
-            const inst = this.installments.find(i => String(i.id) === String(id));
-            if (!inst) return;
-            inst.proof = null;
-            await installmentService.updateProof(id, null);
-            await this.loadData();
-            this.renderStats();
-            alert('Comprovante descartado.');
-        } catch (error) {
-            alert('Erro ao descartar.');
-        }
+            await installmentService.update(id, { proof: null });
+            this.data.installments = this.data.installments.map(i => String(i.id) === String(id) ? { ...i, proof: null } : i);
+            this._renderAll();
+        } catch { alert('Erro ao rejeitar comprovante.'); }
     }
 }
