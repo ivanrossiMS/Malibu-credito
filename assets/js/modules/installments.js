@@ -126,21 +126,17 @@ export default class InstallmentsModule {
         }
 
         // Calculate counts for status buttons based on current filters 1-3
+        // Helper: normalize status for comparison
+        const isPend = s => { const v = (s || '').toLowerCase(); return v === 'pending' || v === 'pendente' || v === 'vencendo' || v === 'avencer'; };
+        const isPaga = s => { const v = (s || '').toLowerCase(); return v === 'paid' || v === 'paga' || v === 'pago'; };
+        const isAtras = s => { const v = (s || '').toLowerCase(); return v === 'overdue' || v === 'atrasada'; };
+
         const counts = {
             todas: allItems.length,
-            pendente: allItems.filter(i => {
-                const status = (i.status || '').toLowerCase();
-                return (status === 'pendente') && DateHelper.isToday(i.dueDate);
-            }).length,
-            atrasada: allItems.filter(i => {
-                const status = (i.status || '').toLowerCase();
-                return status === 'atrasada' || ((status === 'pendente' || status === 'vendedora_pendente') && DateHelper.isPast(i.dueDate));
-            }).length,
-            avencer: allItems.filter(i => {
-                const status = (i.status || '').toLowerCase();
-                return (status === 'pendente' || status === 'vencendo') && DateHelper.isFuture(i.dueDate);
-            }).length,
-            paga: allItems.filter(i => (i.status || '').toLowerCase() === 'paga' || (i.status === 'pago')).length
+            pendente: allItems.filter(i => isPend(i.status) && DateHelper.isToday(i.dueDate)).length,
+            atrasada: allItems.filter(i => isAtras(i.status) || (isPend(i.status) && DateHelper.isPast(i.dueDate))).length,
+            avencer: allItems.filter(i => isPend(i.status) && DateHelper.isFuture(i.dueDate)).length,
+            paga: allItems.filter(i => isPaga(i.status)).length
         };
 
         document.querySelectorAll('.filter-status').forEach(btn => {
@@ -154,19 +150,13 @@ export default class InstallmentsModule {
         // 4. Finally Filter by status
         let installments = allItems;
         if (this.currentStatus === 'avencer') {
-            installments = installments.filter(i => (i.status || '').toLowerCase() === 'pendente' && DateHelper.isFuture(i.dueDate));
+            installments = installments.filter(i => isPend(i.status) && DateHelper.isFuture(i.dueDate));
         } else if (this.currentStatus === 'pendente') {
-            installments = installments.filter(i => (i.status || '').toLowerCase() === 'pendente' && DateHelper.isToday(i.dueDate));
+            installments = installments.filter(i => isPend(i.status) && DateHelper.isToday(i.dueDate));
         } else if (this.currentStatus === 'atrasada') {
-            installments = installments.filter(i => {
-                const status = (i.status || '').toLowerCase();
-                return status === 'atrasada' || (status === 'pendente' && DateHelper.isPast(i.dueDate));
-            });
+            installments = installments.filter(i => isAtras(i.status) || (isPend(i.status) && DateHelper.isPast(i.dueDate)));
         } else if (this.currentStatus === 'paga') {
-            installments = installments.filter(i => {
-                const status = (i.status || '').toLowerCase();
-                return status === 'paga' || status === 'pago';
-            });
+            installments = installments.filter(i => isPaga(i.status));
         } else if (this.currentStatus !== 'todas') {
             installments = installments.filter(i => (i.status || '').toLowerCase() === this.currentStatus.toLowerCase());
         }
@@ -294,23 +284,18 @@ export default class InstallmentsModule {
     }
 
     getDisplayStatus(status, dueDate) {
-        status = String(status || '').toUpperCase();
-        if (status === 'PAID') return 'PAGA';
-
-        if (DateHelper.isPast(dueDate)) return 'ATRASADA';
+        const s = String(status || '').toUpperCase();
+        if (s === 'PAID' || s === 'PAGA' || s === 'PAGO') return 'PAGA';
+        if (s === 'OVERDUE' || DateHelper.isPast(dueDate)) return 'ATRASADA';
         if (DateHelper.isToday(dueDate)) return 'VENCE HOJE';
-
         return 'A VENCER';
     }
 
     getStatusBadgeClass(status, dueDate) {
-        status = String(status || '').toUpperCase();
-
-        if (status === 'PAID') return 'bg-emerald-50 text-emerald-600';
-
-        if (DateHelper.isPast(dueDate)) return 'bg-rose-50 text-rose-600 border border-rose-100';
+        const s = String(status || '').toUpperCase();
+        if (s === 'PAID' || s === 'PAGA' || s === 'PAGO') return 'bg-emerald-50 text-emerald-600';
+        if (s === 'OVERDUE' || DateHelper.isPast(dueDate)) return 'bg-rose-50 text-rose-600 border border-rose-100';
         if (DateHelper.isToday(dueDate)) return 'bg-amber-100/50 text-amber-600 border border-amber-200 shadow-sm';
-
         return 'bg-slate-100 text-slate-500';
     }
 

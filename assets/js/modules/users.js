@@ -8,67 +8,92 @@ import billingService from '../BillingService.js';
 export default class UsersModule {
     async init() {
         this.currentTab = 'ativo';
-        this.adminFilter = 'all';
+        this.searchQuery = '';
         this.isMaster = auth.isMaster();
+        this.allUsers = [];
         this.bindEvents();
-
-        this.bindEvents();
-        this.renderUsers();
+        window.usersModule = this; // expoem para oninput inline
+        await this.renderUsers();
     }
 
     async renderUsers() {
         const listContainer = document.getElementById('users-list');
+        const emptyEl = document.getElementById('users-empty');
         if (!listContainer) return;
 
-        const allUsers = await storage.getAll('users');
-        let users;
-
         const adminRoles = ['ADMIN', 'MASTER'];
-        const isLoggedMaster = auth.isMaster();
+        this.allUsers = await storage.getAll('users');
+        const allUsers = this.allUsers;
 
+        // Update stat cards
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('stat-users-active', allUsers.filter(u => u.status === 'ativo' && !adminRoles.includes(String(u.role).toUpperCase())).length);
+        set('stat-users-blocked', allUsers.filter(u => u.status === 'bloqueado' && !adminRoles.includes(String(u.role).toUpperCase())).length);
+        set('stat-users-admin', allUsers.filter(u => adminRoles.includes(String(u.role).toUpperCase()) && u.email !== 'ivanrossi@outlook.com').length);
+        set('stat-users-rejected', allUsers.filter(u => u.status === 'rejeitado').length);
+
+        let users;
         if (this.currentTab === 'admin') {
             users = allUsers.filter(u => adminRoles.includes(String(u.role).toUpperCase()));
-            // REGRAS DE VISIBILIDADE: Master Admin (ivanrossi) nunca aparece na lista para ninguém
             users = users.filter(u => u.email !== 'ivanrossi@outlook.com' && String(u.role).toUpperCase() !== 'MASTER');
         } else {
-            // Filtro por status e garantindo que não pegue admins nas outras abas
             users = allUsers.filter(u =>
                 (u.status === this.currentTab) &&
                 !adminRoles.includes(String(u.role).toUpperCase())
             );
         }
 
+        // Apply search
+        if (this.searchQuery) {
+            const q = this.searchQuery.toLowerCase();
+            users = users.filter(u => (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q));
+        }
+
         if (users.length === 0) {
-            listContainer.innerHTML = `
-                <tr>
-                    <td colspan="4" class="px-6 py-12 text-center text-slate-400">
-                        <p>Nenhum usuário ${this.currentTab} encontrado.</p>
-                    </td>
-                </tr>
-            `;
+            listContainer.innerHTML = `<tr><td colspan="6" class="py-2"></td></tr>`;
+            if (emptyEl) emptyEl.classList.remove('hidden');
             return;
         }
+        if (emptyEl) emptyEl.classList.add('hidden');
+
+        const roleLabel = role => {
+            const r = String(role || '').toUpperCase();
+            if (r === 'MASTER') return `<span class="bg-violet-100 text-violet-700 text-[9px] font-black px-2 py-0.5 rounded-full">MASTER</span>`;
+            if (r === 'ADMIN') return `<span class="bg-indigo-100 text-indigo-700 text-[9px] font-black px-2 py-0.5 rounded-full">ADMIN</span>`;
+            return `<span class="bg-slate-100 text-slate-500 text-[9px] font-black px-2 py-0.5 rounded-full">USUÁRIO</span>`;
+        };
+        const statusDot = status => {
+            if (status === 'ativo') return `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>`;
+            if (status === 'bloqueado') return `<span class="w-1.5 h-1.5 rounded-full bg-rose-400 inline-block"></span>`;
+            if (status === 'rejeitado') return `<span class="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block"></span>`;
+            return `<span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>`;
+        };
 
         const rows = [];
         for (const user of users) {
             const initials = user.name ? user.name.substring(0, 2).toUpperCase() : 'U';
             const avatarHtml = user.avatar
-                ? `<img src="${user.avatar}" alt="${user.name}" class="w-10 h-10 rounded-xl object-cover shadow-sm">`
-                : `<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-inner">${initials}</div>`;
-
-            let billingCols = ``;
+                ? `<img src="${user.avatar}" alt="${user.name}" class="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0">`
+                : `<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-inner shrink-0">${initials}</div>`;
 
             rows.push(`
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4">
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-3">
                         ${avatarHtml}
-                        <span class="font-bold text-slate-900">${user.name}</span>
+                        <div>
+                            <div class="flex items-center gap-1.5 mb-0.5">
+                                ${statusDot(user.status)}
+                                <span class="font-black text-slate-900 text-sm">${user.name || 'Sem nome'}</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 sm:hidden">${user.email}</span>
+                        </div>
                     </div>
                 </td>
-                <td class="px-6 py-4 text-sm text-slate-600">${user.email}</td>
-                ${billingCols}
-                <td class="px-6 py-4 text-sm text-slate-500">${DateHelper.formatLocal(user.createdAt)}</td>
+                <td class="px-6 py-4 text-sm text-slate-500 hidden sm:table-cell">${user.email}</td>
+                <td class="px-6 py-4 hidden md:table-cell">${roleLabel(user.role)}</td>
+                <td class="px-6 py-4 text-xs text-slate-500 hidden lg:table-cell">${user.cargo || user.position || '—'}</td>
+                <td class="px-6 py-4 text-xs text-slate-400 hidden md:table-cell">${DateHelper.formatLocal(user.createdAt)}</td>
                 <td class="px-6 py-4 text-right">
                     <div class="flex justify-end gap-1">
                         ${this.getActionButtons(user)}
@@ -79,8 +104,12 @@ export default class UsersModule {
         }
 
         listContainer.innerHTML = rows.join('');
-
         lucide.createIcons();
+    }
+
+    filterBySearch(query) {
+        this.searchQuery = (query || '').trim();
+        this.renderUsers();
     }
 
     getActionButtons(user) {
