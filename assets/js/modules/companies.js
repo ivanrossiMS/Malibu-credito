@@ -403,7 +403,9 @@ class Companies {
         try {
             // Importar auth para obter user_id — necessário para autorização server-side
             const auth = (await import('../AuthService.js')).default;
-            const requestingUserId = auth.profile?.id;
+            // CORRETO: currentUser.id = ID da tabela `users` (tem o role MASTER)
+            // Errado seria: auth.profile?.id = ID da tabela `clients`
+            const requestingUserId = auth.currentUser?.id;
 
             if (!requestingUserId) {
                 throw new Error("Não foi possível identificar o usuário logado. Faça login novamente.");
@@ -502,7 +504,8 @@ class Companies {
 
         try {
             const auth = (await import('../AuthService.js')).default;
-            const requestingUserId = auth.profile?.id;
+            // CORRETO: currentUser.id = ID da tabela `users`
+            const requestingUserId = auth.currentUser?.id;
 
             await storage.invoke('save-company-integration', {
                 company_id: parseInt(companyId),
