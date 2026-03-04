@@ -432,8 +432,8 @@ class Companies {
                 keyStatusEl.className = 'text-[10px] ml-1 font-bold text-emerald-600';
             }
 
-            await this.loadCompanies();
-            alert("Integração ASAAS salva com sucesso!\nAgora clique em 'Testar Conexão' e copie a Webhook URL para o painel ASAAS.");
+            // ✔ Banner de sucesso inline — sem alert
+            this._showAsaasSuccessBanner(environment);
         } catch (err) {
             // Extrair mensagem real de erros da Edge Function (403, 400, etc)
             let msg = err.message || 'Erro desconhecido';
@@ -450,6 +450,57 @@ class Companies {
             if (window.lucide) lucide.createIcons();
         }
     }
+
+    // Notificação de sucesso inline (substitui alert genérico)
+    _showAsaasSuccessBanner(environment) {
+        const envLabel = environment === 'production' ? 'Produção (Real)' : 'Sandbox (Testes)';
+
+        // Remover banner anterior
+        document.getElementById('asaas-success-banner')?.remove();
+
+        const banner = document.createElement('div');
+        banner.id = 'asaas-success-banner';
+        banner.className = 'mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3 animate-pulse-once';
+        banner.innerHTML = `
+            <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-emerald-700">✓ Integração ASAAS salva com sucesso!</p>
+                <p class="text-xs text-emerald-600 mt-0.5">Ambiente: <strong>${envLabel}</strong> • API Key criptografada (AES-256-GCM)</p>
+                <p class="text-[10px] text-emerald-500 mt-1">
+                    Próximos passos: <strong>Testar Conexão</strong> → copiar <strong>Webhook URL</strong> → colar no painel ASAAS.
+                </p>
+            </div>
+            <div class="flex flex-col gap-1.5 shrink-0">
+                <button onclick="document.getElementById('asaas-success-banner').remove()"
+                    class="text-[10px] px-2.5 py-1 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 rounded-lg transition-colors whitespace-nowrap">
+                    Fechar aviso
+                </button>
+                <button onclick="closeCompanyModal()"
+                    class="text-[10px] px-2.5 py-1 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-colors font-bold whitespace-nowrap">
+                    Fechar Modal
+                </button>
+            </div>
+        `;
+
+        // Inserir após os botões de ação
+        const actionRow = document.querySelector('#panel-asaas .flex.gap-3');
+        if (actionRow) {
+            actionRow.insertAdjacentElement('afterend', banner);
+        } else {
+            document.getElementById('panel-asaas')?.appendChild(banner);
+        }
+
+        if (window.lucide) lucide.createIcons();
+
+        // Auto-remover após 30s
+        setTimeout(() => document.getElementById('asaas-success-banner')?.remove(), 30000);
+
+        // Recarregar lista de empresas em background (para atualizar badge de status)
+        this.loadCompanies();
+    }
+
 
     async testAsaasConnection() {
         const companyId = document.getElementById('company-id').value;
