@@ -24,8 +24,11 @@ export default class MasterDashboardModule {
             const admins = users.filter(u => u.role === 'admin' || u.role === 'ADMIN');
 
             // Update Stats
-            document.getElementById('master-stat-companies').textContent = activeCompanies.length;
-            document.getElementById('master-stat-admins').textContent = admins.length;
+            const elCompanies = document.getElementById('master-stat-companies');
+            const elAdmins = document.getElementById('master-stat-admins');
+
+            if (elCompanies) elCompanies.textContent = activeCompanies.length;
+            if (elAdmins) elAdmins.textContent = admins.length;
 
             // Calculate Billing (Total paid in the current month - Cash Flow)
             const now = new Date();
@@ -54,9 +57,13 @@ export default class MasterDashboardModule {
 
             const fmt = (val) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
-            document.getElementById('master-stat-billing').textContent = fmt(monthlyBilling);
-            document.getElementById('master-stat-forecast').textContent = fmt(forecast);
-            document.getElementById('master-stat-overdue-month').textContent = fmt(overdueMonth);
+            const elBilling = document.getElementById('master-stat-billing');
+            const elForecast = document.getElementById('master-stat-forecast');
+            const elOverdue = document.getElementById('master-stat-overdue-month');
+
+            if (elBilling) elBilling.textContent = fmt(monthlyBilling);
+            if (elForecast) elForecast.textContent = fmt(forecast);
+            if (elOverdue) elOverdue.textContent = fmt(overdueMonth);
 
             this.renderRecentCompanies(companies);
             this.renderPendingActions(allInstallments, companies);
@@ -69,6 +76,7 @@ export default class MasterDashboardModule {
     renderRecentCompanies(companies) {
         const container = document.getElementById('master-recent-companies');
         if (!container) return;
+        container.innerHTML = '';
 
         if (companies.length === 0) {
             container.innerHTML = `<p class="text-slate-400 text-center py-10 font-bold uppercase tracking-widest text-xs">Nenhuma empresa cadastrada</p>`;
@@ -113,6 +121,7 @@ export default class MasterDashboardModule {
     renderPendingActions(installments, companies) {
         const container = document.getElementById('master-pending-actions');
         if (!container) return;
+        container.innerHTML = '';
 
         // Filtrar parcelas vencidas
         const overdue = installments.filter(i => i.status === 'VENCIDA');

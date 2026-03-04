@@ -9,111 +9,202 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Webhook ASAAS por empresa — Multi-Tenant Seguro
+ *
+ * URL esperada:
+ *   POST /webhook-pix?company_id=<ID>&token=<WEBHOOK_TOKEN>
+ *
+ * O token é validado contra company_integrations.webhook_token.
+ * Nenhum dado de outra empresa é modificado.
+ */
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
 
+    const url = new URL(req.url);
+    const companyId = url.searchParams.get("company_id");
+    const token = url.searchParams.get("token");
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // ─── Variáveis para log ────────────────────────────────────────────────
+    let eventType = "UNKNOWN";
+    let asaasEventId = `evt_${Date.now()}`;
+    let rawPayload: unknown = null;
+
     try {
-        const payload = await req.json();
+        rawPayload = await req.json();
 
-        // Asaas Webhook Event Structure: { event: "PAYMENT_RECEIVED", payment: { id: "pay_...", ... } }
-        const eventType = payload.event;
-        const payment = payload.payment;
-        const event_id = payload.id || `evt_${Date.now()}`;
+        eventType = (rawPayload as Record<string, string>)?.event || "UNKNOWN";
+        asaasEventId = (rawPayload as Record<string, string>)?.id || asaasEventId;
+        const payment = (rawPayload as Record<string, unknown>)?.payment as Record<string, unknown> | undefined;
 
-        console.log(`Received Webhook Event: ${eventType} for Payment ID: ${payment?.id}`);
-
-        // 1. Idempotency Check (Optional logging to webhook_events if exists)
-        try {
-            const { data: existingEvent } = await supabase
-                .from("webhook_events")
-                .select("*")
-                .eq("event_id", event_id)
-                .maybeSingle();
-
-            if (existingEvent) {
-                return new Response("OK (Duplicate)", { status: 200, headers: corsHeaders });
-            }
-
-            // Log Event
-            await supabase.from("webhook_events").insert({
-                provider: "ASAAS",
-                event_id: event_id,
-                payload: payload,
-                status: "PENDING"
-            });
-        } catch (e) {
-            console.warn("webhook_events table might be missing, skipping log:", e.message);
+        // ─── 1. Validar company_id e token (OBRIGATÓRIO para segurança) ─────
+        if (!companyId || !token) {
+            await logWebhook(supabase, null, eventType, asaasEventId, rawPayload, false,
+                "company_id ou token ausente na URL do webhook.");
+            return new Response("Unauthorized: company_id e token são obrigatórios.", { status: 401 });
         }
 
-        // 2. Process ONLY payment confirmation events
+        const { data: integration, error: intErr } = await supabase
+            .from("company_integrations")
+            .select("webhook_token, is_enabled")
+            .eq("company_id", companyId)
+            .eq("provider", "asaas")
+            .maybeSingle();
+
+        if (intErr || !integration) {
+            await logWebhook(supabase, Number(companyId), eventType, asaasEventId, rawPayload, false,
+                `Integração ASAAS não encontrada para empresa ${companyId}.`);
+            return new Response("Unauthorized: empresa não encontrada.", { status: 401 });
+        }
+
+        if (!integration.is_enabled) {
+            await logWebhook(supabase, Number(companyId), eventType, asaasEventId, rawPayload, false,
+                `Integração ASAAS desabilitada para empresa ${companyId}.`);
+            return new Response("Forbidden: integração desabilitada.", { status: 403 });
+        }
+
+        // Comparação timing-safe para evitar timing attacks
+        if (!timingSafeEqual(token, integration.webhook_token || '')) {
+            await logWebhook(supabase, Number(companyId), eventType, asaasEventId, rawPayload, false,
+                "Token de webhook inválido.");
+            return new Response("Unauthorized: token inválido.", { status: 401 });
+        }
+
+        // ─── 2. Idempotência: verificar se este evento já foi processado ────
+        const { data: existingLog } = await supabase
+            .from("logs_webhook")
+            .select("id, processed_ok")
+            .eq("provider", "asaas")
+            .eq("asaas_event_id", asaasEventId)
+            .eq("company_id", companyId)
+            .maybeSingle();
+
+        if (existingLog?.processed_ok) {
+            console.log(`[Webhook] Evento duplicado ignorado: ${asaasEventId} (company: ${companyId})`);
+            return new Response("OK (duplicate)", { status: 200 });
+        }
+
+        // ─── 3. Processar eventos de pagamento ──────────────────────────────
+        let processedOk = true;
+        let errorMsg: string | null = null;
+
         if (eventType === "PAYMENT_RECEIVED" || eventType === "PAYMENT_CONFIRMED") {
-            const asaasPaymentId = payment.id;
+            try {
+                const asaasPaymentId = payment?.id as string;
+                if (!asaasPaymentId) throw new Error("payment.id ausente no payload.");
 
-            // Find our local charge with related info
-            const { data: charge, error: chargeError } = await supabase
-                .from("pix_charges")
-                .select("*, installment:installments(*, loan:loans(*))")
-                .eq("txid", asaasPaymentId)
-                .maybeSingle();
+                // Buscar cobrança LOCAL filtrando SOMENTE pela empresa correta (isolamento total)
+                const { data: charge, error: chargeErr } = await supabase
+                    .from("pix_charges")
+                    .select("*, installment:installments(*, loan:loans(*))")
+                    .eq("asaas_payment_id", asaasPaymentId)
+                    .eq("company_id", companyId)       // ← nunca atualiza outra empresa
+                    .maybeSingle();
 
-            if (chargeError || !charge) {
-                console.warn("Charge not found locally for Asaas payment:", asaasPaymentId);
-                return new Response("OK (Not Found Locally)", { status: 200, headers: corsHeaders });
-            }
+                if (chargeErr) throw new Error(`Erro ao buscar cobrança: ${chargeErr.message}`);
 
-            if (charge.status !== "PAID") {
-                // 3. Update Charge Status
-                await supabase.from("pix_charges").update({
-                    status: "PAID",
-                    paid_at: new Date().toISOString()
-                }).eq("id", charge.id);
+                if (!charge) {
+                    console.warn(`[Webhook] Cobrança ASAAS ${asaasPaymentId} não encontrada para empresa ${companyId}.`);
+                    // Retornar 200 para ASAAS não reenviar; mas logamos como warning
+                    processedOk = true;
+                    errorMsg = `Cobrança ${asaasPaymentId} não encontrada localmente para empresa ${companyId}`;
+                } else if (charge.status !== "PAID") {
 
-                // 4. Update Installment Status
-                await supabase.from("installments").update({
-                    status: "PAID"
-                }).eq("id", charge.installment_id);
+                    // 3a. Atualizar status da cobrança
+                    await supabase.from("pix_charges")
+                        .update({ status: "PAID", paid_at: new Date().toISOString() })
+                        .eq("id", charge.id);
 
-                // 5. Register Payment Record (with company_id from charge context)
-                const paymentDate = payment.paymentDate || new Date().toISOString().split('T')[0];
-                const amount = payment.value || charge.amount;
+                    // 3b. Atualizar status da parcela (SOMENTE desta empresa)
+                    await supabase.from("installments")
+                        .update({ status: "paga" })
+                        .eq("id", charge.installment_id)
+                        .eq("company_id", companyId);   // ← dupla proteção
 
-                // Get ID references from charge relations
-                const loanId = charge.installment?.loanid || charge.installment?.loan_id || charge.installment?.loan?.id;
-                const clientId = charge.installment?.loan?.clientid || charge.installment?.loan?.client_id;
-                const companyId = charge.installment?.company_id || charge.installment?.loan?.company_id;
+                    // 3c. Registrar pagamento
+                    const paymentDate = (payment?.paymentDate as string) || new Date().toISOString().split('T')[0];
+                    const amount = (payment?.value as number) || charge.amount;
+                    const loanId = charge.installment?.loanid || charge.installment?.loan_id || charge.installment?.loan?.id;
+                    const clientId = charge.installment?.loan?.clientid || charge.installment?.loan?.client_id;
 
-                await supabase.from("payments").insert({
-                    installment_id: charge.installment_id,
-                    installmentid: charge.installment_id,
-                    loan_id: loanId,
-                    client_id: clientId,
-                    company_id: companyId,
-                    amount: amount,
-                    payment_date: paymentDate,
-                    method: 'PIX',
-                    created_at: new Date().toISOString()
-                });
+                    await supabase.from("payments").insert({
+                        installment_id: charge.installment_id,
+                        installmentid: charge.installment_id,
+                        loan_id: loanId,
+                        client_id: clientId,
+                        company_id: companyId,           // ← isolamento garantido
+                        amount,
+                        payment_date: paymentDate,
+                        method: 'PIX',
+                        created_at: new Date().toISOString()
+                    });
 
-                console.log(`Successfully settled installment ${charge.installment_id} for Company ${companyId} via Asaas Webhook.`);
+                    console.log(`[Webhook] ✅ Parcela ${charge.installment_id} baixada para empresa ${companyId}.`);
+                } else {
+                    console.log(`[Webhook] Parcela ${charge.installment_id} já estava paga.`);
+                }
+            } catch (e) {
+                processedOk = false;
+                errorMsg = e.message;
+                console.error(`[Webhook] Erro ao processar ${eventType}:`, e.message);
             }
         }
 
-        // 6. Finalize Log if table exists
-        try {
-            await supabase.from("webhook_events").update({ status: "PROCESSED" }).eq("event_id", event_id);
-        } catch (e) { /* ignore missing table */ }
+        // ─── 4. Registrar log do webhook ────────────────────────────────────
+        await logWebhook(supabase, Number(companyId), eventType, asaasEventId, rawPayload, processedOk, errorMsg);
 
         return new Response("OK", { status: 200, headers: corsHeaders });
 
     } catch (err) {
-        console.error("Webhook processing error:", err.message);
-        return new Response(JSON.stringify({ error: err.message }), {
-            status: 200, // Return 200 to Asaas to avoid retries on code errors, but log it
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+        console.error("[Webhook] Erro crítico:", err.message);
+        // Tentar logar mesmo em caso de erro crítico
+        try {
+            await logWebhook(supabase, companyId ? Number(companyId) : null, eventType, asaasEventId,
+                rawPayload, false, err.message);
+        } catch (_) { /* silenciar erros de log para não mascarar o erro original */ }
+
+        // Retornar 200 para ASAAS não reenfileirar (erro está no log)
+        return new Response("OK (with internal error)", { status: 200 });
     }
 });
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function logWebhook(
+    supabase: ReturnType<typeof createClient>,
+    companyId: number | null,
+    eventType: string,
+    asaasEventId: string,
+    payload: unknown,
+    processedOk: boolean,
+    errorMessage: string | null = null
+): Promise<void> {
+    try {
+        await supabase.from("logs_webhook").upsert([{
+            company_id: companyId,
+            provider: "asaas",
+            event_type: eventType,
+            asaas_event_id: asaasEventId,
+            payload,
+            received_at: new Date().toISOString(),
+            processed_ok: processedOk,
+            error_message: errorMessage
+        }], { onConflict: 'provider,asaas_event_id' });
+    } catch (e) {
+        console.warn("[Webhook Log] Falha ao salvar log:", e.message);
+    }
+}
+
+/** Comparação timing-safe simples para tokens de comprimento fixo */
+function timingSafeEqual(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+        result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return result === 0;
+}

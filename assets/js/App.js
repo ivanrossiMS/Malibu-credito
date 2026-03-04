@@ -73,7 +73,8 @@ class App {
             if (auth.isAuthenticated()) {
                 // Se for Master e estiver na dashboard comum, redireciona para a Master
                 if (auth.isMaster() && this.config.currentPage === 'dashboard') {
-                    this.config.currentPage = 'master_dashboard';
+                    window.location.href = '?page=master_dashboard';
+                    return; // Interrompe para evitar carregar módulo errado
                 }
 
                 // SPA Injector - Injeta HTML da pagina ANTES do setupUI ler os seletores CSS

@@ -143,27 +143,72 @@ export default class ClientPaymentsModule {
             amountEl.textContent = `R$ ${parseFloat(inst.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
             modal.classList.remove('hidden');
 
+            // Estado de loading
+            qrContainer.innerHTML = `
+                <div class="flex flex-col items-center justify-center w-full h-full gap-3 text-slate-400">
+                    <svg class="w-8 h-8 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707"/>
+                    </svg>
+                    <span class="text-xs font-bold">Gerando QR Code PIX...</span>
+                    <span class="text-[9px] text-slate-300">Aguarde, conectando ao ASAAS</span>
+                </div>`;
+            if (copyBtn) {
+                copyBtn.disabled = true;
+                copyBtn.textContent = 'Carregando...';
+            }
+
             try {
-                // Call Edge Function
+                // Chama Edge Function — retorna campos snake_case: qr_code_url, copy_paste
                 const charge = await storage.invoke('create-pix-charge', { installment_id: id });
 
-                qrContainer.innerHTML = `<img src="${charge.qrCodeUrl}" class="w-full h-full object-contain rounded-xl">`;
+                // Exibir QR Code se disponível; caso contrário mostrar só o copia-cola
+                if (charge.qr_code_url) {
+                    qrContainer.innerHTML = `<img src="${charge.qr_code_url}" alt="QR Code PIX" class="w-full h-full object-contain rounded-xl">`;
+                } else if (charge.copy_paste) {
+                    qrContainer.innerHTML = `
+                        <div class="flex flex-col items-center gap-3 p-4 text-center">
+                            <div class="text-3xl">📋</div>
+                            <p class="text-xs font-bold text-slate-600">QR Code indisponível — use o código copia e cola abaixo</p>
+                        </div>`;
+                } else {
+                    qrContainer.innerHTML = `<div class="text-xs text-slate-400 text-center p-4">Cobrança criada. Use o código PIX abaixo.</div>`;
+                }
 
-                copyBtn.onclick = () => {
-                    navigator.clipboard.writeText(charge.copyPaste);
-                    alert("Código PIX copiado!");
-                };
+                // Habilitar botão copiar
+                const pixCode = charge.copy_paste || '';
+                if (copyBtn) {
+                    copyBtn.disabled = !pixCode;
+                    copyBtn.textContent = pixCode ? 'Copiar Código PIX' : 'Código indisponível';
+                    copyBtn.onclick = () => {
+                        if (!pixCode) return;
+                        navigator.clipboard.writeText(pixCode).then(() => {
+                            const original = copyBtn.textContent;
+                            copyBtn.textContent = '✓ Copiado!';
+                            setTimeout(() => { copyBtn.textContent = original; }, 2000);
+                        }).catch(() => {
+                            // Fallback sem clipboard API
+                            const tmp = document.createElement('textarea');
+                            tmp.value = pixCode;
+                            document.body.appendChild(tmp);
+                            tmp.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(tmp);
+                            alert('Código PIX copiado!');
+                        });
+                    };
+                }
+
             } catch (err) {
-                console.error("Error creating PIX charge details:", err);
+                console.error("Error creating PIX charge:", err);
 
                 let errorMsg = "Erro ao conectar com o servidor de pagamento.";
 
-                // Try to extract real error message from Supabase FunctionsHttpError
+                // Extrair mensagem real do Supabase FunctionsHttpError
                 if (err.context && typeof err.context.json === 'function') {
                     try {
                         const errorData = await err.context.json();
                         errorMsg = errorData.error || errorMsg;
-                    } catch (e) {
+                    } catch (_) {
                         errorMsg = err.message || errorMsg;
                     }
                 } else {
@@ -171,10 +216,15 @@ export default class ClientPaymentsModule {
                 }
 
                 qrContainer.innerHTML = `<div class="text-rose-500 text-xs font-bold text-center p-4">
-                    <p class="mb-2">❌ Falha na Cobrança</p>
-                    <p class="text-[10px] opacity-70 leading-relaxed">${errorMsg}</p>
+                    <p class="mb-2 text-sm">❌ Falha na Cobrança</p>
+                    <p class="text-[10px] opacity-70 leading-relaxed font-normal">${errorMsg}</p>
                     <button onclick="location.reload()" class="mt-3 px-3 py-1 bg-rose-500 text-white rounded-lg text-[9px] hover:bg-rose-600 transition-colors">Tentar Novamente</button>
                 </div>`;
+
+                if (copyBtn) {
+                    copyBtn.disabled = true;
+                    copyBtn.textContent = 'Indisponível';
+                }
             }
         };
 
