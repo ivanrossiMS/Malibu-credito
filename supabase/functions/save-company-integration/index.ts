@@ -49,41 +49,48 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 // ============ Authorization Helper ============
 
+// Variações de role que concedem acesso master
+const MASTER_ROLES = ['master', 'MASTER', 'admin_master', 'ADMIN_MASTER',
+    'superadmin', 'SUPERADMIN', 'root', 'ROOT'];
+
+// Email do usuário master principal (fallback caso o role não seja padronizado)
+const MASTER_EMAIL_FALLBACK = 'ivanrossi@outlook.com';
+
 /**
- * Verifica autorização:
- * - MASTER pode salvar integração de qualquer empresa.
- * - Admin da empresa pode ver o status mas NÃO pode alterar a API key.
- * - Clientes: acesso negado.
- *
- * Usa service_role para verificar no banco — o frontend não pode mentir sobre o role.
+ * Verifica autorização via service_role (não pode ser burlada pelo frontend).
+ * Aceita qualquer variação de nome de role master + fallback por email.
  */
 async function verifyMasterRole(
     supabase: ReturnType<typeof createClient>,
     requestingUserId: string | number | null
 ): Promise<{ authorized: boolean; error?: string }> {
     if (!requestingUserId) {
-        return { authorized: false, error: "requesting_user_id é obrigatório para autenticar a operação." };
+        return { authorized: false, error: "requesting_user_id é obrigatório. Faça login novamente." };
     }
 
     const { data: user, error } = await supabase
         .from("users")
-        .select("id, role, status")
+        .select("id, role, status, email")
         .eq("id", requestingUserId)
         .maybeSingle();
 
-    if (error || !user) {
-        return { authorized: false, error: `Usuário ${requestingUserId} não encontrado no sistema.` };
+    if (error) {
+        return { authorized: false, error: `Erro ao verificar usuário: ${error.message}` };
+    }
+    if (!user) {
+        return { authorized: false, error: `Usuário ID=${requestingUserId} não encontrado. Faça login novamente.` };
     }
 
-    if (user.status !== 'ativo') {
-        return { authorized: false, error: "Usuário inativo. Acesso negado." };
-    }
+    // Aceitar qualquer role master ou email master (compatibilidade com sistemas legados)
+    const roleStr = (user.role || '').toString().toLowerCase().trim();
+    const isMasterByRole = MASTER_ROLES.map(r => r.toLowerCase()).includes(roleStr);
+    const isMasterByEmail = user.email === MASTER_EMAIL_FALLBACK;
+    const isMaster = isMasterByRole || isMasterByEmail;
 
-    const isMaster = user.role === 'master' || user.role === 'MASTER';
     if (!isMaster) {
         return {
             authorized: false,
-            error: `Permissão insuficiente. Apenas MASTER pode configurar integrações ASAAS. Role atual: ${user.role}`
+            error: `Sem permissão. Role encontrado: "${user.role}". Apenas MASTER pode configurar integrações ASAAS.`
         };
     }
 

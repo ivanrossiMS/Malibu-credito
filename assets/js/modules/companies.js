@@ -433,7 +433,15 @@ class Companies {
             await this.loadCompanies();
             alert("Integração ASAAS salva com sucesso!\nAgora clique em 'Testar Conexão' e copie a Webhook URL para o painel ASAAS.");
         } catch (err) {
-            alert("Erro ao salvar integração: " + (err.message || err));
+            // Extrair mensagem real de erros da Edge Function (403, 400, etc)
+            let msg = err.message || 'Erro desconhecido';
+            try {
+                if (err.context && typeof err.context.json === 'function') {
+                    const body = await err.context.json();
+                    msg = body.error || body.message || msg;
+                }
+            } catch (_) { /* usar msg original */ }
+            alert('Erro ao salvar integração: ' + msg);
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i data-lucide="save" class="w-4 h-4 inline mr-1"></i> Salvar Integração';
