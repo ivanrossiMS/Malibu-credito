@@ -8,7 +8,7 @@ import storage from '../StorageService.js';
 
 export default class DashboardModule {
     // ── STATE ─────────────────────────────────────────────────────
-    filters = { period: 'mes', dateFrom: '', dateTo: '', city: 'all', status: 'todos', search: '' };
+    filters = { period: 'tudo', dateFrom: '', dateTo: '', city: 'all', status: 'todos', search: '' };
     data = { installments: [], clients: [], payments: [], requests: [], loans: [] };
     ui = { tab: 'a-vencer', view: 'operational', page: 1, perPage: 25 };
     _searchTimer = null;
@@ -65,6 +65,7 @@ export default class DashboardModule {
 
     // ── DATE RANGE ────────────────────────────────────────────────
     _getRange() {
+        if (this.filters.period === 'tudo') return { s: '', e: '' };
         const today = DateHelper.getTodayStr();
         const add = (d, n) => DateHelper.addDays(d, n);
         const p = this.filters.period;
@@ -83,6 +84,7 @@ export default class DashboardModule {
     }
 
     _inRange(dateStr, range) {
+        if (!range.s && !range.e) return true; // 'tudo' — sem filtro de data
         if (!dateStr) return false;
         const d = DateHelper.toLocalYYYYMMDD(dateStr);
         return d >= range.s && d <= range.e;
@@ -192,8 +194,8 @@ export default class DashboardModule {
         if (lbl) {
             const r = this._getRange();
             const fmt = d => { if (!d) return ''; const [y, m, dy] = d.split('-'); return `${dy}/${m}/${y}`; };
-            const labels = { hoje: 'Hoje', amanha: 'Amanhã', '7dias': 'Próximos 7 Dias', '30dias': 'Próximos 30 Dias', mes: 'Este Mês', ano: 'Este Ano', personalizado: 'Personalizado' };
-            lbl.textContent = labels[this.filters.period] || `${fmt(r.s)} – ${fmt(r.e)}`;
+            const labels = { tudo: 'Tudo', hoje: 'Hoje', amanha: 'Amanhã', '7dias': 'Próximos 7 Dias', '30dias': 'Próximos 30 Dias', mes: 'Este Mês', ano: 'Este Ano', personalizado: 'Personalizado' };
+            lbl.textContent = labels[this.filters.period] || 'Tudo';
         }
     }
 
@@ -393,7 +395,7 @@ export default class DashboardModule {
                     <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm shrink-0">${initials}</div>
                     <div class="min-w-0">
                         <p class="text-sm font-black text-slate-800 truncate">${item.name}</p>
-                        <p class="text-[10px] text-slate-400 font-bold">${item.city || ''} ${item.phone ? '· ' + item.phone : ''}</p>
+                        <p class="text-[10px] text-slate-400">${item.city || ''} ${item.phone ? '· ' + item.phone : ''}</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-4 ml-3">
@@ -689,11 +691,11 @@ export default class DashboardModule {
     }
 
     clearFilters() {
-        this.filters = { period: 'mes', dateFrom: '', dateTo: '', city: 'all', status: 'todos', search: '' };
+        this.filters = { period: 'tudo', dateFrom: '', dateTo: '', city: 'all', status: 'todos', search: '' };
         this.ui.page = 1;
         // Reset UI controls
         document.querySelectorAll('.dash-period-btn').forEach(btn => {
-            const active = btn.getAttribute('data-period') === 'mes';
+            const active = btn.getAttribute('data-period') === 'tudo';
             btn.classList.toggle('bg-white', active);
             btn.classList.toggle('text-primary', active);
             btn.classList.toggle('shadow-sm', active);

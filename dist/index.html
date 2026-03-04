@@ -2127,11 +2127,12 @@
     <div class="hidden lg:flex items-center gap-3 flex-wrap">
       <!-- Period buttons -->
       <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+        <button onclick="dash_setPeriod('tudo', this)" data-period="tudo" class="dash-period-btn px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all bg-white text-primary shadow-sm flex items-center gap-1"><i data-lucide="infinity" class="w-3 h-3"></i> Tudo</button>
         <button onclick="dash_setPeriod('hoje', this)" data-period="hoje" class="dash-period-btn px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all text-slate-500 hover:bg-white">Hoje</button>
         <button onclick="dash_setPeriod('amanha', this)" data-period="amanha" class="dash-period-btn px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all text-slate-500 hover:bg-white">Amanhã</button>
         <button onclick="dash_setPeriod('7dias', this)" data-period="7dias" class="dash-period-btn px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all text-slate-500 hover:bg-white">7 Dias</button>
         <button onclick="dash_setPeriod('30dias', this)" data-period="30dias" class="dash-period-btn px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all text-slate-500 hover:bg-white">30 Dias</button>
-        <button onclick="dash_setPeriod('mes', this)" data-period="mes" class="dash-period-btn px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all bg-white text-primary shadow-sm">Mês</button>
+        <button onclick="dash_setPeriod('mes', this)" data-period="mes" class="dash-period-btn px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all text-slate-500 hover:bg-white">Mês</button>
         <button onclick="dash_setPeriod('ano', this)" data-period="ano" class="dash-period-btn px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all text-slate-500 hover:bg-white">Ano</button>
         <button onclick="dash_setPeriod('personalizado', this)" data-period="personalizado" class="dash-period-btn flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all text-slate-500 hover:bg-white"><i data-lucide="calendar" class="w-3 h-3"></i>Custom</button>
       </div>
@@ -2168,12 +2169,6 @@
         <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400 absolute right-2.5 pointer-events-none"></i>
       </div>
 
-      <!-- Search -->
-      <div class="relative flex-1 min-w-[180px]">
-        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-        <input id="dash-search" type="text" placeholder="Cliente, CPF, contrato..." oninput="dash_onSearch(this.value)" class="w-full pl-8 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 placeholder:text-slate-400 outline-none focus:border-primary transition-colors">
-      </div>
-
       <!-- Clear -->
       <button onclick="dash_clearFilters()" class="flex items-center gap-1 text-[11px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-wider transition-colors px-2">
         <i data-lucide="x" class="w-3.5 h-3.5"></i> Limpar
@@ -2182,10 +2177,6 @@
 
     <!-- Mobile: compact filter row -->
     <div class="flex lg:hidden items-center gap-3">
-      <div class="relative flex-1">
-        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-        <input id="dash-search-mobile" type="text" placeholder="Buscar..." oninput="dash_onSearch(this.value)" class="w-full pl-8 pr-4 py-2 bg-slate-100 rounded-xl text-xs text-slate-700 outline-none">
-      </div>
       <button onclick="dash_toggleMobileFilters()" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-black text-slate-600 transition-colors">
         <i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filtros
         <span id="dash-filter-count" class="hidden bg-primary text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">0</span>
