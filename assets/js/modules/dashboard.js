@@ -19,7 +19,6 @@ export default class DashboardModule {
         await this.loadData();
         this._populateCities();
         this._renderAll();
-        this.renderAsaasHealth();
     }
 
     _exposeGlobals() {
@@ -119,9 +118,9 @@ export default class DashboardModule {
         return this.data.installments.filter(i => {
             const st = (i.status || '').toUpperCase();
             if (st !== 'PENDING') return false;
-            if (!DateHelper.isPast(i.dueDate) === false && st !== 'PENDING') return false;
+            if (DateHelper.isPast(i.dueDate)) return false; // exclui vencidos
             return this._inRange(i.dueDate, range) && this._matchSearch(i) && this._matchCity(i);
-        }).filter(i => !DateHelper.isPast(i.dueDate));
+        });
     }
 
     _getPaid(range) {
@@ -303,21 +302,28 @@ export default class DashboardModule {
             }
         }
 
-        // Pendências
-        const pendReqs = this.data.requests.filter(r => r.status === 'pendente');
-        const pendProofs = this.data.installments.filter(i => i.proof && (i.status || '').toUpperCase() !== 'PAID');
-        const pendEl = document.getElementById('qa-pending-list');
-        const pendBadge = document.getElementById('qa-pending-badge');
-        const total = pendReqs.length + pendProofs.length;
-        if (pendBadge) { pendBadge.textContent = total; pendBadge.classList.toggle('hidden', total === 0); }
-        if (pendEl) {
-            if (!total) {
-                pendEl.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs"><i data-lucide="shield-check" class="w-5 h-5 mx-auto mb-1 text-emerald-300"></i>Tudo em ordem</div>`;
+        // Solicitações pendentes (terceiro card)
+        const pendReqs = this.data.requests.filter(r => (r.status || '').toLowerCase() === 'pendente');
+        const reqEl = document.getElementById('qa-requests-list');
+        const reqBadge = document.getElementById('qa-requests-badge');
+        if (reqBadge) { reqBadge.textContent = pendReqs.length; reqBadge.classList.toggle('hidden', pendReqs.length === 0); }
+        if (reqEl) {
+            if (!pendReqs.length) {
+                reqEl.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs"><i data-lucide="check-circle" class="w-5 h-5 mx-auto mb-1 text-emerald-300"></i>Sem solicitações pendentes</div>`;
             } else {
-                let html = '';
-                if (pendReqs.length) html += `<div onclick="window.location.href='?page=loan_requests'" class="flex items-center gap-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition-colors"><i data-lucide="file-text" class="w-4 h-4 text-indigo-600 flex-shrink-0"></i><div><p class="text-xs font-black text-indigo-900">${pendReqs.length} Solicitação(ões)</p><p class="text-[10px] text-indigo-500">Aguardando análise</p></div></div>`;
-                if (pendProofs.length) html += `<div class="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100"><i data-lucide="upload" class="w-4 h-4 text-amber-600 flex-shrink-0"></i><div><p class="text-xs font-black text-amber-900">${pendProofs.length} Comprovante(s)</p><p class="text-[10px] text-amber-500">Aguardando aprovação</p></div></div>`;
-                pendEl.innerHTML = html;
+                reqEl.innerHTML = pendReqs.slice(0, 3).map(r => {
+                    const c = this.data.clients.find(x => String(x.id) === String(r.clientId || r.client_id));
+                    const name = c?.name || 'Cliente';
+                    const val = parseFloat(r.amount || r.requestedAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' });
+                    const date = DateHelper.formatLocal(r.createdAt || r.requestDate);
+                    return `<div class="flex items-center justify-between gap-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition-colors" onclick="window.location.href='?page=loan_requests'">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-black text-indigo-900 truncate">${name}</p>
+                            <p class="text-[10px] text-indigo-500">${val} · ${date}</p>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-indigo-400 flex-shrink-0"></i>
+                    </div>`;
+                }).join('');
             }
         }
     }
