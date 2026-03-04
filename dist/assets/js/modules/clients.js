@@ -4,9 +4,7 @@ import storage from '../StorageService.js';
 
 export default class ClientsModule {
     async init() {
-        this.allClients = await clientService.getAll(); // Cache local para filtros
-        this.populateCities();
-        this.renderClients();
+        await this.renderClients();
         this.bindEvents();
     }
 
@@ -26,12 +24,19 @@ export default class ClientsModule {
         const listContainer = document.getElementById('clients-list');
         if (!listContainer) return;
 
+        // Sempre buscar dados frescos para respeitar o isolamento de company_id
+        let clients = query ? await clientService.search(query) : await clientService.getAll();
+
+        // Atualizar cidades baseadas nos clientes VISÍVEIS (da empresa)
+        // [PRIVACIDADE] Remover Master Admin da lista de clientes se ele existir acidentalmente
+        clients = clients.filter(c => c.email !== 'ivanrossi@outlook.com');
+
+        this.allClients = clients;
+        this.populateCities();
+
         // Recupera os valores dos filtros
         const cityFilterVal = document.getElementById('client-city-filter')?.value || 'all';
         const statusFilterVal = document.getElementById('client-status-filter')?.value || '';
-
-        // Se houver query ele faz o search principal, se não pega todos
-        let clients = query ? await clientService.search(query) : this.allClients || await clientService.getAll();
 
         // Aplica filtro de cidade
         if (cityFilterVal !== 'all') {

@@ -8,22 +8,26 @@ import ClientLoanRequestModule from './modules/client_loan_request.js';
 
 // Module Dynamic Imports
 const modules = {
-    clients: () => import('./modules/clients.js'),
-    loans: () => import('./modules/loans.js'),
-    installments: () => import('./modules/installments.js'),
-    templates: () => import('./modules/templates.js'),
-    users: () => import('./modules/users.js'),
-    settings: () => import('./modules/settings.js'),
-    dashboard: () => import('./modules/dashboard.js'),
-    client_dashboard: () => import('./modules/client_dashboard.js'),
-    client_profile: () => import('./modules/client_profile.js'),
-    client_loan_request: () => import('./modules/client_loan_request.js'),
-    loan_requests: () => import('./modules/loan_requests.js'),
-    payments: () => import('./modules/payments.js'),
-    payment_history: () => import('./modules/payment_history.js'),
-    client_payments: () => import('./modules/client_payments.js'),
-    client_loans: () => import('./modules/client_loans.js'),
-    client_profile: () => import('./modules/client_profile.js')
+    clients: () => import('./modules/clients.js?v=2'),
+    loans: () => import('./modules/loans.js?v=2'),
+    installments: () => import('./modules/installments.js?v=2'),
+    templates: () => import('./modules/templates.js?v=2'),
+    users: () => import('./modules/users.js?v=2'),
+    settings: () => import('./modules/settings.js?v=2'),
+    dashboard: () => import('./modules/dashboard.js?v=2'),
+    client_dashboard: () => import('./modules/client_dashboard.js?v=2'),
+    client_profile: () => import('./modules/client_profile.js?v=2'),
+    client_loan_request: () => import('./modules/client_loan_request.js?v=2'),
+    loan_requests: () => import('./modules/loan_requests.js?v=2'),
+    payments: () => import('./modules/payments.js?v=2'),
+    payment_history: () => import('./modules/payment_history.js?v=2'),
+    client_payments: () => import('./modules/client_payments.js?v=2'),
+    client_loans: () => import('./modules/client_loans.js?v=2'),
+    client_profile: () => import('./modules/client_profile.js?v=2'),
+    master_billing: () => import('./modules/master_billing.js?v=2'),
+    companies: () => import('./modules/companies.js?v=2'),
+    master_dashboard: () => import('./modules/master_dashboard.js?v=2'),
+    master_users: () => import('./modules/master_users.js?v=2')
 };
 
 class App {
@@ -36,25 +40,43 @@ class App {
 
         // Se PHP não substituiu, ou URL pede outra coisa, manda a SPA
         if (urlPage || this.config.currentPage === '<?php echo $page; ?>') {
-            this.config.currentPage = urlPage || 'dashboard';
+            const defaultPage = 'dashboard';
+            this.config.currentPage = urlPage || defaultPage;
         }
     }
 
     async init() {
         console.log("Initializing Malibu Crédito...");
+        window.auth = auth; // Expor globalmente para módulos como Dashboard
 
         try {
             await storage.init();
             await auth.init();
-            await templateService.init();
+            try {
+                await templateService.init();
+            } catch (e) {
+                console.warn("TemplateService failed to init (likely missing company_id column in templates table):", e);
+            }
+
+            // Check Access Status for ADMINS
+            if (auth.isAuthenticated()) {
+                const access = await auth.checkAccessStatus();
+                if (!access.allowed) {
+                    this.config.currentReason = access.reason;
+                    this.config.currentPage = 'blocked';
+                }
+            }
 
             // Register PWA
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').then(() => console.log("SW Registered")).catch(e => console.error("SW Erro:", e));
-            }
 
             // Load specific module if authenticated e injeta HTML
             if (auth.isAuthenticated()) {
+                // Se for Master e estiver na dashboard comum, redireciona para a Master
+                if (auth.isMaster() && this.config.currentPage === 'dashboard') {
+                    window.location.href = '?page=master_dashboard';
+                    return; // Interrompe para evitar carregar módulo errado
+                }
+
                 // SPA Injector - Injeta HTML da pagina ANTES do setupUI ler os seletores CSS
                 this.renderSPAPage(this.config.currentPage);
 
@@ -140,9 +162,45 @@ class App {
                     document.querySelectorAll('.user-email').forEach(el => el.textContent = user.email);
                 }
 
+                // Update company info in sidebar
+                const companyBadgeContainer = document.getElementById('sidebar-company-badge');
+                const companyBadgeName = document.getElementById('sidebar-company-name');
+
+                if (auth.isMaster()) {
+                    if (companyBadgeContainer) companyBadgeContainer.classList.add('hidden');
+                } else {
+                    if (companyBadgeContainer) companyBadgeContainer.classList.remove('hidden');
+                    if (companyBadgeName) {
+                        const companyId = user.company_id || user.companyId || 1;
+                        const CompanyService = (await import('./CompanyService.js')).default;
+                        const company = await CompanyService.getById(companyId).catch(() => ({ name: 'Empresa Padrão' }));
+                        companyBadgeName.textContent = company.name || 'Empresa Padrão';
+                    }
+                }
+
                 // Visibility based on roles
+                if (auth.isMaster()) {
+                    document.querySelectorAll('.master-only').forEach(el => el.classList.remove('hidden'));
+                }
+
                 if (auth.isAdmin()) {
                     document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+
+                    // Specific logic for MASTER vs Regular ADMIN
+                    if (auth.isMaster()) {
+                        document.querySelectorAll('.master-only').forEach(el => el.classList.remove('hidden'));
+                        document.querySelectorAll('.non-master-only').forEach(el => el.classList.add('hidden'));
+                        // Hide operational menu for Master as requested
+                        const opMenu = document.getElementById('admin-operational-menu');
+                        if (opMenu) opMenu.classList.add('hidden');
+                    } else {
+                        // Ensure master-only is hidden for regular admin
+                        document.querySelectorAll('.master-only').forEach(el => el.classList.add('hidden'));
+                        document.querySelectorAll('.non-master-only').forEach(el => el.classList.remove('hidden'));
+                        // Show operational menu for regular admin
+                        const opMenu = document.getElementById('admin-operational-menu');
+                        if (opMenu) opMenu.classList.remove('hidden');
+                    }
                 } else {
                     document.querySelectorAll('.client-only').forEach(el => el.classList.remove('hidden'));
                 }
@@ -267,6 +325,21 @@ class App {
                         
                         <form id="register-form" class="space-y-8 text-left">
                             
+                            <!-- Bloco Empresa (Multi-Tenant) -->
+                            <div class="space-y-4">
+                                <h3 class="text-slate-800 font-bold border-b border-slate-100 pb-2 flex items-center gap-2"><i data-lucide="building" class="w-5 h-5 text-primary"></i> Selecione sua Empresa</h3>
+                                <div class="space-y-1">
+                                    <label class="block text-[10px] font-black text-slate-400 uppercase ml-1">Empresa</label>
+                                    <div class="relative">
+                                        <i data-lucide="briefcase" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                        <select id="reg-company-id" required class="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm font-bold text-slate-700 appearance-none cursor-pointer">
+                                            <option value="" disabled selected>Carregando empresas...</option>
+                                        </select>
+                                        <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Bloco Identidade -->
                             <div class="space-y-5">
                                 <h3 class="text-slate-800 font-bold border-b border-slate-100 pb-3 flex items-center gap-2"><i data-lucide="fingerprint" class="w-5 h-5 text-primary"></i> Identidade Pessoal</h3>
@@ -452,7 +525,37 @@ class App {
         }
 
         lucide.createIcons();
+
+        // Populate Companies Select dinamicamente se estiver no registro
+        if (view === 'register') {
+            this.populateRegisterCompanies();
+        }
+
         this.bindAuthEvents();
+    }
+
+    async populateRegisterCompanies() {
+        const select = document.getElementById('reg-company-id');
+        if (!select) return;
+
+        try {
+            const CompanyService = (await import('./CompanyService.js')).default;
+            const companies = await CompanyService.getAll();
+
+            const cleanName = (name) => name.replace(/\s*\(Padrão\)/gi, '').trim();
+
+            let optionsHtml = '<option value="" disabled selected>Selecione sua empresa</option>';
+
+            if (companies && companies.length > 0) {
+                optionsHtml += companies.map(c => `<option value="${c.id}">${cleanName(c.name)}</option>`).join('');
+            } else {
+                optionsHtml += '<option value="1">Malibu Crédito</option>';
+            }
+            select.innerHTML = optionsHtml;
+        } catch (err) {
+            console.error("Erro ao carregar empresas para registro:", err);
+            select.innerHTML = '<option value="" disabled selected>Selecione sua empresa</option><option value="1">Malibu Crédito</option>';
+        }
     }
 
     bindAuthEvents() {
@@ -465,8 +568,13 @@ class App {
 
                 try {
                     const user = await auth.login(email, password);
-                    if (user.role === 'admin') {
-                        window.location.href = '?page=dashboard';
+                    const isAdmin = user.role === 'admin' || user.role === 'ADMIN' || user.role === 'MASTER';
+                    if (isAdmin) {
+                        if (user.role === 'MASTER') {
+                            window.location.href = '?page=master_dashboard';
+                        } else {
+                            window.location.href = '?page=dashboard';
+                        }
                     } else {
                         window.location.href = '?page=client_dashboard';
                     }
@@ -496,6 +604,7 @@ class App {
                     state: document.getElementById('reg-state').value.trim(),
                     occupation: document.getElementById('reg-occupation').value.trim(),
                     company: document.getElementById('reg-company').value.trim(),
+                    company_id: document.getElementById('reg-company-id').value
                 };
 
                 try {

@@ -9,6 +9,7 @@ export default class DashboardModule {
     async init() {
         this.currentMetric = 'receivable';
         this.currentPeriod = 'hoje';
+        this.overdueDefaultPeriod = 'tudo'; // card em atraso usa 'tudo' por padrão
         this.customDateFrom = '';
         this.customDateTo = '';
 
@@ -266,7 +267,7 @@ export default class DashboardModule {
         // Detail Filter Visibility Logic
         const filterSets = {
             'receivable': ['hoje', 'amanha', '7dias', 'mes', 'ano', 'personalizado'],
-            'overdue': ['hoje', 'ontem', 'mes', 'ano', 'personalizado'],
+            'overdue': ['tudo', 'hoje', 'ontem', 'mes', 'ano', 'personalizado'],
             'received': ['hoje', 'ontem', 'mes', 'ano', 'personalizado'],
             'clients': []
         };
@@ -287,6 +288,12 @@ export default class DashboardModule {
             const defaultPeriod = allowedPeriods[0] || 'hoje';
             const defaultBtn = document.querySelector(`.filter-period[data-period="${defaultPeriod}"]`);
             this.selectPeriod(defaultPeriod, defaultBtn);
+        }
+
+        // Ao entrar em 'em atraso', padrão sempre é 'tudo'
+        if (metric === 'overdue') {
+            const tudoBtn = document.querySelector('.filter-period[data-period="tudo"]');
+            this.selectPeriod('tudo', tudoBtn);
         }
 
         // Update titles
@@ -435,6 +442,9 @@ export default class DashboardModule {
         } else if (actualPeriod === 'personalizado') {
             startFilter = this.customDateFrom;
             endFilter = this.customDateTo;
+        } else if (actualPeriod === 'tudo') {
+            // Sem filtro de data: retorna todos os registros do métric atual
+            return data;
         }
 
         return data.filter(item => {
@@ -484,6 +494,7 @@ export default class DashboardModule {
         else if (this.currentPeriod === 'mes') periodLabel = 'ESTE MÊS';
         else if (this.currentPeriod === 'ano') periodLabel = 'ESTE ANO';
         else if (this.currentPeriod === 'personalizado') periodLabel = 'CUSTOM';
+        else if (this.currentPeriod === 'tudo') periodLabel = 'TUDO';
 
         const badgeReceivable = document.getElementById('badge-receivable');
         const badgeOverdue = document.getElementById('badge-overdue');

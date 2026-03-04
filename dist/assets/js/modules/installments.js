@@ -33,7 +33,7 @@ export default class InstallmentsModule {
         }
 
         await this.populateFilters();
-        this.renderInstallments();
+        await this.renderInstallments();
         this.bindEvents();
     }
 
@@ -60,8 +60,13 @@ export default class InstallmentsModule {
         const listContainer = document.getElementById('installments-list');
         if (!listContainer) return;
 
+        // Recarregar dados frescos para isolamento multi-tenant
         let allItems = await installmentService.getAll();
         const payments = await paymentService.getAll();
+        const clients = await clientService.getAll();
+
+        // Re-popular filtros de cidade se necessário (para manter sincronia)
+        this.repopulateCityFilter(clients);
 
         // Map payment data to all items immediately
         allItems.forEach(item => {
@@ -707,6 +712,16 @@ export default class InstallmentsModule {
         periodEl.className = `bg-${colorClass}-50 text-${colorClass}-600 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-${colorClass}-100`;
 
         lucide.createIcons();
+    }
+
+    repopulateCityFilter(clients) {
+        const citySelect = document.getElementById('city-filter');
+        if (citySelect) {
+            const currentCity = citySelect.value;
+            const cities = [...new Set(clients.map(c => c.city).filter(Boolean))].sort();
+            citySelect.innerHTML = '<option value="">Todas as Cidades</option>' +
+                cities.map(city => `<option value="${city}" ${city === currentCity ? 'selected' : ''}>${city}</option>`).join('');
+        }
     }
 }
 

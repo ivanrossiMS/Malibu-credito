@@ -6,7 +6,7 @@ class PaymentService {
     async getAll() {
         // Query de 3º Grau: Pagamento -> Parcela -> Empréstimo -> Cliente. Resolvido pelo Supabase em 1 único passe.
         const items = await storage.getAdvanced('payments', {
-            select: '*, installment:installments(*, loan:loans(*, client:clients(*)))'
+            select: '*, installment:installments(*, loan:loans!loanid(*, client:clients(*)))'
         });
 
         // Achatar os objetos para manter a reatividade da casca original
@@ -25,14 +25,23 @@ class PaymentService {
         paymentData.createdAt = paymentData.createdAt || new Date().toISOString();
         paymentData.paymentDate = paymentData.paymentDate || DateHelper.toLocalYYYYMMDD(paymentData.createdAt);
 
-        // Ensure clientId is present for easy filtering in client view
-        if (!paymentData.clientId && paymentData.installmentId) {
+        // Ensure clientId and company_id is present for easy filtering and RLS
+        if (paymentData.installmentId && (!paymentData.clientId || !paymentData.company_id)) {
             const inst = await storage.getById('installments', paymentData.installmentId);
-            const refLoanId = inst ? (inst.loanid || inst.loanId) : null;
-            if (refLoanId) {
-                const loan = await storage.getById('loans', refLoanId);
-                if (loan) {
-                    paymentData.clientId = loan.clientId;
+            if (inst) {
+                const refLoanId = inst.loanid || inst.loanId;
+                if (!paymentData.company_id) {
+                    paymentData.company_id = inst.company_id || inst.companyId;
+                }
+
+                if (refLoanId && !paymentData.clientId) {
+                    const loan = await storage.getById('loans', refLoanId);
+                    if (loan) {
+                        paymentData.clientId = loan.clientId || loan.clientid;
+                        if (!paymentData.company_id) {
+                            paymentData.company_id = loan.company_id || loan.companyId;
+                        }
+                    }
                 }
             }
         }
@@ -46,7 +55,7 @@ class PaymentService {
 
         // Update installment status
         if (paymentData.installmentId) {
-            await installmentService.updateStatus(paymentData.installmentId, 'paga');
+            await installmentService.updateStatus(paymentData.installmentId, 'PAID');
         }
 
         return id;

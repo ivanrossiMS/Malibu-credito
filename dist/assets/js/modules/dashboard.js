@@ -9,6 +9,7 @@ export default class DashboardModule {
     async init() {
         this.currentMetric = 'receivable';
         this.currentPeriod = 'hoje';
+        this.overdueDefaultPeriod = 'tudo'; // card em atraso usa 'tudo' por padrão
         this.customDateFrom = '';
         this.customDateTo = '';
 
@@ -57,7 +58,7 @@ export default class DashboardModule {
         if (defaultPeriodBtn) this.selectPeriod('hoje', defaultPeriodBtn);
 
         this.bindEvents();
-        this.setupRealtime();
+        // this.setupRealtime(); // Removido pois causa crash: this.setupRealtime is not a function
     }
 
     async loadData() {
@@ -114,8 +115,8 @@ export default class DashboardModule {
 
     renderStats() {
         const overdue = this.installments.filter(i => {
-            const status = (i.status || '').toLowerCase();
-            return status === 'atrasada' || (status === 'pendente' && DateHelper.isPast(i.dueDate));
+            const status = (i.status || '').toUpperCase();
+            return status === 'OVERDUE' || (status === 'PENDING' && DateHelper.isPast(i.dueDate));
         });
         this.renderCriticalAlertsSidebar(overdue);
 
@@ -123,9 +124,16 @@ export default class DashboardModule {
         if (totalClientsEl) totalClientsEl.textContent = this.clients.length.toString();
 
         // Set current username securely to the view
-        const user = window.auth ? window.auth.getCurrentUser() : null;
+        const user = window.auth ? window.auth.currentUser : null;
         if (user) {
-            document.querySelectorAll('.user-name').forEach(el => el.textContent = user.name.split(' ')[0]);
+            const displayName = user.name || user.email || 'Usuário';
+            document.querySelectorAll('.user-name-welcome').forEach(el => el.textContent = displayName.split(' ')[0]);
+
+            // Se for MASTER, mudar o subtítulo de boas vindas
+            if (window.auth.isMaster()) {
+                const sub = document.querySelector('.text-slate-500.font-medium');
+                if (sub) sub.textContent = 'Visão Global de todas as Empresas do Ecossistema.';
+            }
         }
 
         this.renderPendingRequests();
@@ -259,7 +267,7 @@ export default class DashboardModule {
         // Detail Filter Visibility Logic
         const filterSets = {
             'receivable': ['hoje', 'amanha', '7dias', 'mes', 'ano', 'personalizado'],
-            'overdue': ['hoje', 'ontem', 'mes', 'ano', 'personalizado'],
+            'overdue': ['tudo', 'hoje', 'ontem', 'mes', 'ano', 'personalizado'],
             'received': ['hoje', 'ontem', 'mes', 'ano', 'personalizado'],
             'clients': []
         };
@@ -280,6 +288,12 @@ export default class DashboardModule {
             const defaultPeriod = allowedPeriods[0] || 'hoje';
             const defaultBtn = document.querySelector(`.filter-period[data-period="${defaultPeriod}"]`);
             this.selectPeriod(defaultPeriod, defaultBtn);
+        }
+
+        // Ao entrar em 'em atraso', padrão sempre é 'tudo'
+        if (metric === 'overdue') {
+            const tudoBtn = document.querySelector('.filter-period[data-period="tudo"]');
+            this.selectPeriod('tudo', tudoBtn);
         }
 
         // Update titles
@@ -360,10 +374,10 @@ export default class DashboardModule {
     getFilteredData(metric) {
         let baseData = [];
         if (metric === 'receivable') {
-            baseData = this.installments.filter(i => i.status === 'PENDING');
+            baseData = this.installments.filter(i => (i.status || '').toUpperCase() === 'PENDING');
         } else if (metric === 'overdue') {
             baseData = this.installments.filter(i => {
-                const status = (i.status || '').toUpperCase(); // Ensure status is uppercase for comparison
+                const status = (i.status || '').toUpperCase();
                 return status === 'OVERDUE' || (status === 'PENDING' && DateHelper.isPast(i.dueDate));
             });
         } else if (metric === 'received') {
@@ -371,6 +385,12 @@ export default class DashboardModule {
         } else if (metric === 'clients') {
             baseData = this.clients;
         }
+
+        // [PRIVACIDADE] Remover Master Admin de qualquer métrica ou lista no dashboard
+        baseData = baseData.filter(item => {
+            const email = item.email || (item.client && item.client.email);
+            return email !== 'ivanrossi@outlook.com';
+        });
 
         // Apply city filter
         let data = baseData;
@@ -422,6 +442,9 @@ export default class DashboardModule {
         } else if (actualPeriod === 'personalizado') {
             startFilter = this.customDateFrom;
             endFilter = this.customDateTo;
+        } else if (actualPeriod === 'tudo') {
+            // Sem filtro de data: retorna todos os registros do métric atual
+            return data;
         }
 
         return data.filter(item => {
@@ -471,6 +494,7 @@ export default class DashboardModule {
         else if (this.currentPeriod === 'mes') periodLabel = 'ESTE MÊS';
         else if (this.currentPeriod === 'ano') periodLabel = 'ESTE ANO';
         else if (this.currentPeriod === 'personalizado') periodLabel = 'CUSTOM';
+        else if (this.currentPeriod === 'tudo') periodLabel = 'TUDO';
 
         const badgeReceivable = document.getElementById('badge-receivable');
         const badgeOverdue = document.getElementById('badge-overdue');
@@ -612,9 +636,9 @@ export default class DashboardModule {
             } else {
                 const c = item.client || this.clients.find(x => String(x.id) === String(item.clientId)) || { name: 'Desconhecido', city: '' };
                 const dt = DateHelper.formatLocal(item.dueDate);
-                const status = (item.status || '').toLowerCase();
-                const isLate = status === 'overdue' || ((status === 'pending' || status === 'vendedora_pendente') && DateHelper.isPast(item.dueDate));
-                const isToday = !isLate && (status === 'pending' || status === 'vencendo') && DateHelper.isToday(item.dueDate);
+                const status = (item.status || '').toUpperCase();
+                const isLate = status === 'OVERDUE' || (status === 'PENDING' && DateHelper.isPast(item.dueDate));
+                const isToday = !isLate && status === 'PENDING' && DateHelper.isToday(item.dueDate);
 
                 const color = isLate ? 'rose' : (isToday ? 'amber' : 'blue');
                 const icon = isLate ? 'alert-circle' : (isToday ? 'clock' : 'calendar-clock');
@@ -622,6 +646,12 @@ export default class DashboardModule {
                 const loan = this.loans.find(l => String(l.id) === String(item.loanid || item.loanId));
                 const totalInstCount = loan ? loan.numInstallments : '?';
                 const cityDisplay = c.city ? ` - ${c.city}` : '';
+
+                // Exibição da empresa para o Master
+                let companyBadge = '';
+                if (window.auth.isMaster() && (item.company_id || item.companyId)) {
+                    companyBadge = `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-slate-200">Empresa ID: ${item.company_id || item.companyId}</span>`;
+                }
 
                 html += `
                     <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-${color}-100 transition-all shadow-sm hover:shadow-md group">
@@ -638,10 +668,11 @@ export default class DashboardModule {
                                     <span class="bg-${color}-50 px-2 py-0.5 rounded text-[10px] font-bold text-${color}-600 tracking-widest uppercase border border-${color}-100 shadow-sm">
                                         PARCELA ${item.number} / ${totalInstCount}
                                     </span>
+                                    ${companyBadge}
                                 </div>
                                 
                                 <div class="flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest gap-3">
-                                    <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3 text-${color}-500"></i> VENCMENTO: ${dt}</span>
+                                    <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3 text-${color}-500"></i> VENCIMENTO: ${dt}</span>
                                 </div>
                             </div>
                         </div>
@@ -679,8 +710,8 @@ export default class DashboardModule {
 
         // Filter installments that have proof and are not paid
         const pending = this.installments.filter(i => {
-            const status = (i.status || '').toLowerCase();
-            return i.proof && status !== 'paid'; // Changed 'paga' to 'paid'
+            const status = (i.status || '').toUpperCase();
+            return i.proof && status !== 'PAID';
         });
 
         if (pending.length === 0) {
@@ -706,6 +737,15 @@ export default class DashboardModule {
                             <div>
                                 <p class="text-sm font-black text-slate-900 truncate max-w-[150px]">${client.name}</p>
                                 <p class="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Parcela ${i.number} • R$ ${amount}</p>
+                                
+                                ${window.auth.isMaster() && (i.company_id || i.companyId) ? `
+                                    <div class="mb-1">
+                                        <span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border border-slate-200">
+                                            Empresa ID: ${i.company_id || i.companyId}
+                                        </span>
+                                    </div>
+                                ` : ''}
+
                                 <div class="flex flex-col gap-0.5">
                                     <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
                                         <i data-lucide="calendar" class="w-2.5 h-2.5"></i> Vencimento: ${DateHelper.formatLocal(i.dueDate)}
@@ -774,15 +814,16 @@ export default class DashboardModule {
 
     async rejectPendingProof(id) {
         if (!confirm('Deseja descartar este comprovante? O cliente precisará enviar novamente.')) return;
-
         try {
+            const inst = this.installments.find(i => String(i.id) === String(id));
+            if (!inst) return;
+            inst.proof = null;
             await installmentService.updateProof(id, null);
             await this.loadData();
             this.renderStats();
+            alert('Comprovante descartado.');
         } catch (error) {
-            console.error(error);
-            alert('Erro ao descartar comprovante.');
+            alert('Erro ao descartar.');
         }
     }
 }
-

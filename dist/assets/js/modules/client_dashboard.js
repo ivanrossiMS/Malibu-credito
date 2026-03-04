@@ -30,7 +30,7 @@ export default class ClientDashboardModule {
         window.sendReceiptToWhatsApp = (id) => this.sendReceiptToWhatsApp(id);
 
         await this.renderDashboard();
-        this.bindGlobalEvents();
+        this.bindEvents();
     }
 
     async getCurrentClient() {
@@ -40,47 +40,75 @@ export default class ClientDashboardModule {
     }
 
     async renderDashboard() {
-        const allLoans = await loanService.getAll();
-        const loans = allLoans.filter(l => String(l.clientId || l.clientid) === String(this.client.id));
+        try {
+            // Step 1: Get client loans
+            const loans = await storage.getAdvanced('loans', {
+                eq: { clientid: this.client.id }
+            });
+            this.loans = loans;
+            const loanIds = loans.map(l => l.id);
 
-        const allInstallments = await installmentService.getAll();
-        const installments = allInstallments.filter(i => i.loan && String(i.loan.clientId || i.loan.clientid) === String(this.client.id));
+            // Step 2: Get installments for these loans
+            let installments = [];
+            if (loanIds.length > 0) {
+                const allInst = await storage.getAdvanced('installments', {
+                    in: { loanid: loanIds }
+                });
+                // Map loan back for UI consistency
+                installments = allInst.map(inst => {
+                    const loan = loans.find(l => l.id === (inst.loanid || inst.loanId));
+                    return { ...inst, loan: loan };
+                });
+            }
 
-        // Also fetch payments to cross-reference proofs
-        const allPayments = await paymentService.getAll();
-        this.clientPayments = allPayments.filter(p => {
-            const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
-            return String(pClientId) === String(this.client.id);
-        });
+            // Step 3: Get payments
+            const allPayments = await paymentService.getAll();
+            this.clientPayments = allPayments.filter(p => {
+                const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
+                return String(pClientId) === String(this.client.id);
+            });
 
-        // Calculate Totals
-        const totalLoaned = loans.reduce((sum, l) => sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0)), 0);
-        const totalPaid = installments.filter(i => i.status === 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
-        const balanceDue = installments.filter(i => i.status !== 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+            // Helpers for robust status checking
+            const isPagaStatus = (s) => ['PAID', 'PAGA', 'PAGO'].includes(String(s || '').toUpperCase());
 
-        // Update UI Cards
-        if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
-        if (document.getElementById('total-paid')) document.getElementById('total-paid').textContent = this.formatCurrency(totalPaid);
-        if (document.getElementById('balance-due')) document.getElementById('balance-due').textContent = this.formatCurrency(balanceDue);
+            // Calculate Totals with Fallbacks
+            const totalLoaned = loans.reduce((sum, l) => {
+                const status = String(l.status || '').toUpperCase();
+                if (['CANCELADO', 'CANCELADA', 'REJEITADO', 'CANCELLED', 'REJECTED'].includes(status)) return sum;
+                const val = parseFloat(l.installmentValue || l.installment_value || l.amount || 0);
+                const count = parseInt(l.numInstallments || l.installments || 0);
+                return sum + (val * count);
+            }, 0);
 
-        // Render Notifications
-        await this.renderNotifications();
+            const totalPaid = installments.filter(i => isPagaStatus(i.status))
+                .reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
-        // Render Financial Insight
-        this.renderFinancialInsight(installments);
+            const balanceDue = installments.filter(i => {
+                const isPaga = isPagaStatus(i.status);
+                return !isPaga && i.dueDate && DateHelper.isPast(i.dueDate);
+            }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
-        // Store installments globally for pagination/filters
-        this.installments = installments;
+            // Update UI Cards
+            if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
+            if (document.getElementById('total-paid')) document.getElementById('total-paid').textContent = this.formatCurrency(totalPaid);
+            if (document.getElementById('balance-due')) document.getElementById('balance-due').textContent = this.formatCurrency(balanceDue);
 
-        // Render Installments List
-        this.renderInstallmentsTable();
+            // Render Notifications
+            await this.renderNotifications();
 
-        // Check if onboarding is needed (Disabled by Admin request)
-        // if (!this.client.cpf_cnpj || this.client.cpf_cnpj === 'null' || this.client.cpf_cnpj === '') {
-        //     this.showOnboarding();
-        // }
+            // Render Financial Insight
+            this.renderFinancialInsight(installments);
 
-        lucide.createIcons();
+            // Store installments globally for pagination/filters
+            this.installments = installments;
+
+            // Render Installments List
+            this.renderInstallmentsTable();
+
+            lucide.createIcons();
+        } catch (err) {
+            console.error("Error rendering dashboard:", err);
+        }
     }
 
     setupRealtime() {
@@ -101,25 +129,55 @@ export default class ClientDashboardModule {
     }
 
     async loadData() {
-        // This method is called by setupRealtime, it should reload all necessary data
-        const allLoans = await loanService.getAll();
-        this.loans = allLoans.filter(l => String(l.clientId || l.clientid) === String(this.client.id));
+        try {
+            // Step 1: Get client loans
+            const loans = await storage.getAdvanced('loans', {
+                eq: { clientid: this.client.id }
+            });
+            this.loans = loans;
+            const loanIds = loans.map(l => l.id);
 
-        const allInstallments = await installmentService.getAll();
-        this.installments = allInstallments.filter(i => i.loan && String(i.loan.clientId || i.loan.clientid) === String(this.client.id));
+            // Step 2: Get installments for these loans
+            if (loanIds.length > 0) {
+                const allInst = await storage.getAdvanced('installments', {
+                    in: { loanid: loanIds }
+                });
+                this.installments = allInst.map(inst => {
+                    const loan = loans.find(l => l.id === (inst.loanid || inst.loanId));
+                    return { ...inst, loan: loan };
+                });
+            } else {
+                this.installments = [];
+            }
 
-        const allPayments = await paymentService.getAll();
-        this.clientPayments = allPayments.filter(p => {
-            const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
-            return String(pClientId) === String(this.client.id);
-        });
+            // Step 3: Get payments
+            const allPayments = await paymentService.getAll();
+            this.clientPayments = allPayments.filter(p => {
+                const pClientId = p.clientId || p.clientid || (p.client && p.client.id) || (p.loan && (p.loan.clientId || p.loan.clientid));
+                return String(pClientId) === String(this.client.id);
+            });
+        } catch (err) {
+            console.error("Error in loadData (Dashboard):", err);
+        }
     }
 
     renderStats() {
+        const isPagaStatus = (s) => ['PAID', 'PAGA', 'PAGO'].includes(String(s || '').toUpperCase());
+
         // Recalculate and update UI Cards
-        const totalLoaned = this.loans.reduce((sum, l) => sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0)), 0);
-        const totalPaid = this.installments.filter(i => i.status === 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
-        const balanceDue = this.installments.filter(i => i.status !== 'paga').reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+        const totalLoaned = this.loans.reduce((sum, l) => {
+            const status = String(l.status || '').toUpperCase();
+            if (['CANCELADO', 'CANCELADA', 'REJEITADO', 'CANCELLED', 'REJECTED'].includes(status)) return sum;
+            return sum + (parseFloat(l.installmentValue || l.installment_value || l.amount || 0) * parseInt(l.numInstallments || l.installments || 0));
+        }, 0);
+
+        const totalPaid = this.installments.filter(i => isPagaStatus(i.status))
+            .reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
+
+        const balanceDue = this.installments.filter(i => {
+            const isPaga = isPagaStatus(i.status);
+            return !isPaga && i.dueDate && DateHelper.isPast(i.dueDate);
+        }).reduce((sum, i) => sum + parseFloat(i.installmentValue || i.installment_amount || i.amount || 0), 0);
 
         if (document.getElementById('total-loaned')) document.getElementById('total-loaned').textContent = this.formatCurrency(totalLoaned);
         if (document.getElementById('total-paid')) document.getElementById('total-paid').textContent = this.formatCurrency(totalPaid);
@@ -134,8 +192,10 @@ export default class ClientDashboardModule {
 
         const todayStr = DateHelper.getTodayStr();
 
+        const isPagaStatus = (s) => ['PAID', 'PAGA', 'PAGO'].includes(String(s || '').toUpperCase());
+
         filtered = filtered.filter(inst => {
-            const isPaga = inst.status === 'paga' || inst.status === 'pago';
+            const isPaga = isPagaStatus(inst.status);
             const isLate = !isPaga && DateHelper.isPast(inst.dueDate);
 
             if (this.currentFilter === 'todas') return true;
@@ -181,8 +241,8 @@ export default class ClientDashboardModule {
                         <td class="px-8 py-5 text-[11px] font-bold text-slate-500 uppercase tracking-widest">${this.formatDate(inst.dueDate)}</td>
                         <td class="px-8 py-5 text-sm font-black text-emerald-600">${this.formatCurrency(inst.installmentValue || inst.amount)}</td>
                         <td class="px-8 py-5">
-                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${this.getStatusClass(inst.status)}">
-                            ${this.translateStatus(inst.status)}
+                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${this.getStatusClass(inst.status, inst.dueDate)}">
+                            ${this.translateStatus(inst.status, inst.dueDate)}
                         </span>
                     </td>
                     <td class="px-8 py-5 text-right">
@@ -449,6 +509,29 @@ export default class ClientDashboardModule {
                 alert("Chave PIX copiada!");
             };
         }
+
+        // Password Reset
+        const resetBtn = document.getElementById('btn-reset-password');
+        if (resetBtn) {
+            resetBtn.onclick = async () => {
+                const newPass = prompt("Digite sua nova senha:");
+                if (!newPass || newPass.trim().length < 4) {
+                    if (newPass !== null) alert("A senha deve ter pelo menos 4 caracteres.");
+                    return;
+                }
+
+                if (confirm("Confirmar alteração de senha?")) {
+                    try {
+                        const user = await storage.getById('users', auth.currentUser.id);
+                        user.password = newPass.trim();
+                        await storage.put('users', user);
+                        alert("Senha atualizada com sucesso! Use a nova senha no próximo login.");
+                    } catch (error) {
+                        alert("Erro ao atualizar senha: " + error.message);
+                    }
+                }
+            };
+        }
     }
 
     formatDateTime(dateStr) {
@@ -456,27 +539,36 @@ export default class ClientDashboardModule {
     }
 
     formatCurrency(val) {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        const n = parseFloat(val);
+        if (isNaN(n)) return 'R$ 0,00';
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
     }
 
     formatDate(dateStr) {
         return DateHelper.formatLocal(dateStr);
     }
 
-    translateStatus(status) {
-        switch (status) {
-            case 'PAID': return 'Paga';
-            case 'OVERDUE': return 'Atrasada';
-            default: return 'Pendente';
+    translateStatus(status, dueDate) {
+        const s = String(status || '').toUpperCase();
+        if (s === 'PAID' || s === 'PAGA' || s === 'PAGO') return 'Paga';
+
+        // Check if overdue regardless of "pendente" status in DB
+        if (dueDate && DateHelper.isPast(dueDate)) {
+            return 'Atrasada';
         }
+
+        return 'Pendente';
     }
 
-    getStatusClass(status) {
-        switch (status) {
-            case 'PAID': return 'bg-emerald-50 text-emerald-600';
-            case 'OVERDUE': return 'bg-rose-50 text-rose-600';
-            default: return 'bg-amber-50 text-amber-600';
+    getStatusClass(status, dueDate) {
+        const s = String(status || '').toUpperCase();
+        if (s === 'PAID' || s === 'PAGA' || s === 'PAGO') return 'bg-emerald-50 text-emerald-600';
+
+        if (dueDate && DateHelper.isPast(dueDate)) {
+            return 'bg-rose-50 text-rose-600';
         }
+
+        return 'bg-amber-50 text-amber-600';
     }
 
     async fileToBase64(file) {

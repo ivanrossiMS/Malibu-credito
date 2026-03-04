@@ -110,6 +110,13 @@ export default class LoanRequestsModule {
                 ? `<img src="${client.avatar}" class="w-10 h-10 rounded-full object-cover border-2 border-slate-100 shadow-sm shrink-0">`
                 : `<div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-sm uppercase shrink-0">${client?.name ? client.name.charAt(0) : '?'}</div>`;
 
+            // Extract PIX key from description
+            let pixKey = '---';
+            if (req.description) {
+                const pixMatch = req.description.match(/CHAVE PIX:\s*(.*)/);
+                if (pixMatch) pixKey = pixMatch[1];
+            }
+
             html += `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-8 py-4 text-sm text-slate-500 text-center border-l-2 ${req.status === 'pendente' ? 'border-amber-400 bg-amber-50/10' : (req.status === 'aprovado' ? 'border-emerald-400' : 'border-rose-400')}">
@@ -123,6 +130,9 @@ export default class LoanRequestsModule {
                             <p class="text-xs text-slate-400 mt-0.5">${client?.phone || ''}</p>
                         </div>
                     </div>
+                </td>
+                <td class="px-8 py-4 text-xs font-black text-emerald-600 text-left">
+                    ${pixKey}
                 </td>
                 <td class="px-8 py-4 text-sm font-medium text-slate-600 text-left">
                     ${req.client?.city || '<span class="italic text-slate-400">Não informada</span>'}
@@ -179,6 +189,15 @@ export default class LoanRequestsModule {
             document.getElementById('req-amount').value = req.amount;
             document.getElementById('req-installments').value = req.installments;
             document.getElementById('req-frequency').value = req.frequency === 'diaria' ? 'diario' : 'mensal';
+            document.getElementById('req-interest').value = '';
+
+            // Extract PIX key from description for display
+            let pixKey = '---';
+            if (req.description) {
+                const pixMatch = req.description.match(/CHAVE PIX:\s*(.*)/);
+                if (pixMatch) pixKey = pixMatch[1];
+            }
+            document.getElementById('req-pix-display').textContent = pixKey;
 
             // Set start date: Stored field > Parse from description > Default tomorrow
             let startDate = req.startDate || req.start_date;
@@ -310,8 +329,10 @@ export default class LoanRequestsModule {
                     if (req.client && req.client.phone) {
                         const phone = String(req.client.phone).replace(/\D/g, '');
                         if (phone) {
+                            const amountFormatted = amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            const totalAmountFormatted = totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             const msg = encodeURIComponent(
-                                `Olá ${req.client.name.split(' ')[0]} O seu empréstimo de *R$ ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}* acaba de ser *Aprovado*! As parcelas já foram geradas no sistema. Acesse o seu painel em nosso site para conferir. Qualquer dúvida, estamos à disposição!`
+                                `Olá ${req.client.name.split(' ')[0]} O seu empréstimo de *R$ ${amountFormatted}* (total com juros R$ ${totalAmountFormatted}) acaba de ser *Aprovado*! As parcelas já foram geradas no sistema. Acesse o seu painel em nosso site para conferir. Qualquer dúvida, estamos à disposição!`
                             );
                             const url = `https://wa.me/${phone}?text=${msg}`;
                             window.open(url, '_blank');

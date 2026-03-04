@@ -3,11 +3,16 @@ import auth from '../AuthService.js';
 import clientService from '../ClientService.js';
 import loanService from '../LoanService.js';
 import DateHelper from '../DateHelper.js';
+import billingService from '../BillingService.js';
 
 export default class UsersModule {
     async init() {
         this.currentTab = 'ativo';
-        this.bindEvents(); // Bind events FIRST so they are available
+        this.adminFilter = 'all';
+        this.isMaster = auth.isMaster();
+        this.bindEvents();
+
+        this.bindEvents();
         this.renderUsers();
     }
 
@@ -16,12 +21,21 @@ export default class UsersModule {
         if (!listContainer) return;
 
         const allUsers = await storage.getAll('users');
-
         let users;
+
+        const adminRoles = ['ADMIN', 'MASTER'];
+        const isLoggedMaster = auth.isMaster();
+
         if (this.currentTab === 'admin') {
-            users = allUsers.filter(u => u.role === 'admin');
+            users = allUsers.filter(u => adminRoles.includes(String(u.role).toUpperCase()));
+            // REGRAS DE VISIBILIDADE: Master Admin (ivanrossi) nunca aparece na lista para ninguém
+            users = users.filter(u => u.email !== 'ivanrossi@outlook.com' && String(u.role).toUpperCase() !== 'MASTER');
         } else {
-            users = allUsers.filter(u => u.status === this.currentTab && u.role !== 'admin');
+            // Filtro por status e garantindo que não pegue admins nas outras abas
+            users = allUsers.filter(u =>
+                (u.status === this.currentTab) &&
+                !adminRoles.includes(String(u.role).toUpperCase())
+            );
         }
 
         if (users.length === 0) {
@@ -35,13 +49,16 @@ export default class UsersModule {
             return;
         }
 
-        listContainer.innerHTML = users.map(user => {
+        const rows = [];
+        for (const user of users) {
             const initials = user.name ? user.name.substring(0, 2).toUpperCase() : 'U';
             const avatarHtml = user.avatar
                 ? `<img src="${user.avatar}" alt="${user.name}" class="w-10 h-10 rounded-xl object-cover shadow-sm">`
                 : `<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-inner">${initials}</div>`;
 
-            return `
+            let billingCols = ``;
+
+            rows.push(`
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-4">
@@ -50,6 +67,7 @@ export default class UsersModule {
                     </div>
                 </td>
                 <td class="px-6 py-4 text-sm text-slate-600">${user.email}</td>
+                ${billingCols}
                 <td class="px-6 py-4 text-sm text-slate-500">${DateHelper.formatLocal(user.createdAt)}</td>
                 <td class="px-6 py-4 text-right">
                     <div class="flex justify-end gap-1">
@@ -57,16 +75,32 @@ export default class UsersModule {
                     </div>
                 </td>
             </tr>
-            `;
-        }).join('');
+            `);
+        }
+
+        listContainer.innerHTML = rows.join('');
 
         lucide.createIcons();
     }
 
     getActionButtons(user) {
-        if (user.role === 'admin') {
+        const isAdmin = user.role === 'admin' || user.role === 'ADMIN' || user.role === 'MASTER';
+        if (isAdmin) {
+            if (user.role === 'MASTER') return '';
+
+            let masterActions = '';
+            if (this.isMaster) {
+                masterActions = `
+                    <button onclick="deleteUserPermanently(${user.id})" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                `;
+            }
+
             return `
-                <button onclick="demoteUser(${user.id})" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Remover Admin</button>
+                <div class="flex items-center gap-1">
+                    ${this.isMaster ? `<button onclick="loginAsUser(${user.id})" class="text-indigo-600 border border-indigo-200 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2 flex items-center gap-1"><i data-lucide="log-in" class="w-3 h-3"></i> Acessar Painel</button>` : ''}
+                    ${masterActions}
+                    <button onclick="demoteUser(${user.id})" class="text-slate-400 hover:text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Remover Admin</button>
+                </div>
             `;
         } else if (user.status === 'pendente') {
             return `
@@ -77,6 +111,7 @@ export default class UsersModule {
             return `
                 <button onclick="loginAsUser(${user.id})" class="text-emerald-600 border border-emerald-200 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2 flex items-center gap-1"><i data-lucide="log-in" class="w-3 h-3"></i> Acessar Cliente</button>
                 <button onclick="promoteUser(${user.id})" class="text-indigo-600 border border-indigo-200 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2">Promover a Admin</button>
+                <button onclick="resetUserPassword(${user.id})" class="text-slate-500 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2" title="Redefinir Senha"><i data-lucide="key" class="w-3 h-3"></i></button>
                 <button onclick="updateUserStatus(${user.id}, 'bloqueado')" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all mr-2">Bloquear</button>
                 <button onclick="deleteUserPermanently(${user.id})" class="text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Excluir</button>
             `;
@@ -131,6 +166,7 @@ export default class UsersModule {
             }
         };
 
+        // Tab binding
         document.querySelectorAll('.user-tab').forEach(btn => {
             btn.onclick = () => {
                 document.querySelectorAll('.user-tab').forEach(b => {
@@ -153,15 +189,7 @@ export default class UsersModule {
             }
         };
 
-        window.promoteUser = async (id) => {
-            if (confirm('Este usuário passará a ter acesso total ao Painel Administrativo. Confirmar?')) {
-                const user = await storage.getById('users', id);
-                user.role = 'admin';
-                await storage.put('users', user);
-                this.renderUsers();
-                alert('Usuário promovido com sucesso.');
-            }
-        };
+        window.promoteUser = async (id) => this.promoteUser(id);
 
         window.demoteUser = async (id) => {
             if (confirm('Este usuário perderá o acesso ao Painel Administrativo. Confirmar?')) {
@@ -174,7 +202,7 @@ export default class UsersModule {
         };
 
         window.loginAsUser = async (id) => {
-            if (confirm('Você será levado ao painel deste cliente para visualizar seus dados. Deseja continuar?')) {
+            if (confirm('Deseja acessar o painel deste usuário? Você será redirecionado para a visão dele.')) {
                 try {
                     await auth.impersonate(id);
                 } catch (error) {
@@ -182,5 +210,32 @@ export default class UsersModule {
                 }
             }
         };
+
+        window.resetUserPassword = async (id) => {
+            const user = await storage.getById('users', id);
+            if (!user) return;
+
+            if (confirm(`Deseja gerar uma nova senha aleatória para ${user.name}?`)) {
+                try {
+                    const newPass = Math.random().toString(36).slice(-8);
+                    user.password = newPass;
+                    await storage.put('users', user);
+                    alert(`Senha redefinida com sucesso!\n\nNova senha: ${newPass}\n\nEnvie esta senha para o cliente.`);
+                } catch (error) {
+                    alert("Erro ao redefinir senha: " + error.message);
+                }
+            }
+        };
+    }
+
+    async promoteUser(id) {
+        if (confirm('Este usuário passará a ter acesso ao Painel Administrativo. Confirmar?')) {
+            const user = await storage.getById('users', id);
+            user.role = 'admin';
+            user.accessEnabled = false; // Começa bloqueado até o master liberar
+            await storage.put('users', user);
+            this.renderUsers();
+            alert('Candidato promovido! Agora o Master deve liberar o acesso em "Controle de Acessos".');
+        }
     }
 }

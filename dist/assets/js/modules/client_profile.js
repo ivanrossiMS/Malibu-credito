@@ -139,6 +139,7 @@ export default class ClientProfileModule {
                         neighborhood: document.getElementById('edit-neighborhood').value.trim(),
                         city: document.getElementById('edit-city').value.trim(),
                         state: document.getElementById('edit-state').value.trim(),
+                        phone: document.getElementById('edit-phone').value.trim(),
                         occupation: document.getElementById('edit-occupation').value.trim(),
                         company: document.getElementById('edit-company').value.trim()
                     };

@@ -66,29 +66,33 @@ class AuthService {
     async init() {
         console.log("AUTH LOADING:", this.authLoading);
 
-        // Check for admin user presence
         const users = await storage.getAll('users');
-        const adminExists = users.find(u => u.email === 'ivanrossi@outlook.com');
+        const masterEmail = 'ivanrossi@outlook.com';
+        const adminExists = users.find(u => u.email === masterEmail);
 
         if (!adminExists) {
-            const adminId = await storage.add('users', {
-                name: 'Ivan Rossi',
-                email: 'ivanrossi@outlook.com',
-                password: 'admin',
-                role: 'admin',
-                status: 'ativo',
-                createdAt: new Date().toISOString()
-            });
-
-            // Criar perfil de cliente para o admin para evitar erro de fetchProfile
-            await storage.add('clients', {
-                userId: adminId,
-                name: 'Ivan Rossi',
-                email: 'ivanrossi@outlook.com',
-                status: 'ativo',
-                createdAt: new Date().toISOString()
-            });
-            console.log("Admin user and profile created.");
+            try {
+                await storage.add('users', {
+                    name: 'Ivan Rossi',
+                    email: masterEmail,
+                    password: 'admin',
+                    role: 'MASTER',
+                    status: 'ativo',
+                    createdAt: new Date().toISOString()
+                });
+                console.log("Master Admin user created.");
+            } catch (e) {
+                if (e.code === '23505' || e.message?.includes('unique constraint')) {
+                    console.log("Master Admin specifically confirmed in remote (23505).");
+                } else {
+                    console.warn("Master Admin creation issue:", e.message);
+                }
+            }
+        } else if (adminExists.role !== 'MASTER') {
+            // Garantir que ele seja MASTER se já existir mas com outro role
+            adminExists.role = 'MASTER';
+            await storage.put('users', adminExists);
+            console.log("Existing user promoted to MASTER.");
         }
 
         // Check for active session
@@ -124,10 +128,16 @@ class AuthService {
         if (user.status !== 'ativo') throw new Error(`Conta ${user.status}.`);
 
         this.currentUser = user;
-        localStorage.setItem('malibu_session', JSON.stringify({ id: user.id, email: user.email }));
+        localStorage.setItem('malibu_session', JSON.stringify({
+            id: user.id,
+            email: user.email,
+            companyId: user.company_id || user.companyId
+        }));
 
         // Garantir que o admin tenha um perfil se ele não tiver (correção para base existente)
-        if (user.role === 'admin') {
+        // Garantir que o admin tenha um perfil se ele não tiver (correção para base existente)
+        const isRegularAdmin = user.role === 'admin' || user.role === 'ADMIN';
+        if (isRegularAdmin) {
             const profile = await this.fetchProfile(user.id);
             if (!profile) {
                 await storage.add('clients', {
@@ -166,6 +176,7 @@ class AuthService {
             password: userData.password,
             role: 'user',
             status: 'ativo',
+            company_id: userData.company_id || 1, // Fallback para 1 se não vier do form (retrocompatibilidade)
             createdAt: new Date().toISOString()
         };
         if (userData.id) newUser.id = userData.id;
@@ -190,6 +201,7 @@ class AuthService {
             occupation: userData.occupation || '',
             company: userData.company || '',
             status: 'ativo',
+            companyId: newUser.company_id,
             createdAt: new Date().toISOString()
         });
 
@@ -207,24 +219,86 @@ class AuthService {
     }
 
     isAdmin() {
-        return this.currentUser && this.currentUser.role === 'admin';
+        return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'ADMIN' || this.currentUser.role === 'MASTER');
+    }
+
+    isMaster() {
+        return this.currentUser && (this.currentUser.role === 'MASTER' || this.currentUser.email === 'ivanrossi@outlook.com');
+    }
+
+    /**
+     * Verifica se o acesso está liberado para o usuário atual.
+     * Retorna { allowed: boolean, reason: string|null }
+     */
+    async checkAccessStatus() {
+        if (!this.currentUser) return { allowed: false, reason: 'not_logged_in' };
+
+        // MASTER sempre tem acesso
+        if (this.isMaster()) return { allowed: true };
+
+        // Somente ADMINS normais passam pela regra de mensalidade
+        if (this.currentUser.role !== 'admin' && this.currentUser.role !== 'ADMIN') {
+            return { allowed: true };
+        }
+
+        // 1. Verificar Override da Empresa (Se o Master liberou a empresa toda)
+        const CompanyService = (await import('./CompanyService.js')).default;
+        const company = await CompanyService.getById(this.currentUser.company_id || this.currentUser.companyId);
+
+        if (company && (company.access_override || company.accessOverride)) {
+            return { allowed: true };
+        }
+
+        // 2. Se o MASTER deu override individual no usuário, entra tbm
+        if (this.currentUser.accessOverride) return { allowed: true };
+
+        // 3. Se o acesso ainda não foi habilitado pelo MASTER (primeira vez)
+        if (!this.currentUser.accessEnabled) return { allowed: false, reason: 'pending_master' };
+
+        // 4. Verificar mensalidades da Empresa (Bloqueio Coletivo)
+        const billingService = (await import('./BillingService.js')).default;
+        const hasOverdue = await billingService.hasCompanyOverdue(this.currentUser.company_id || this.currentUser.companyId);
+
+        if (hasOverdue) return { allowed: false, reason: 'overdue_billing' };
+
+        return { allowed: true };
     }
 
     async impersonate(targetUserId) {
-        if (!this.isAdmin()) throw new Error("Apenas administradores podem acessar contas de clientes.");
+        if (!this.isAdmin()) throw new Error("Acesso negado.");
 
         const users = await storage.getAll('users');
         const targetUser = users.find(u => String(u.id) === String(targetUserId));
 
         if (!targetUser) throw new Error("Usuário não encontrado.");
-        if (targetUser.role === 'admin') throw new Error("Não é possível assumir a conta de outro administrador.");
 
-        // Salvar a sessão atual do admin como backup
+        const isTargetAdmin = targetUser.role === 'admin' || targetUser.role === 'ADMIN' || targetUser.role === 'MASTER';
+
+        // Regra: Apenas Master pode assumir Admin. Admin comum só assume Cliente.
+        if (isTargetAdmin && !this.isMaster()) {
+            throw new Error("Apenas o Administrador Master pode acessar outros painéis administrativos.");
+        }
+
+        if (targetUser.email === 'ivanrossi@outlook.com' && this.currentUser.email !== 'ivanrossi@outlook.com') {
+            throw new Error("Não é possível assumir a conta do Administrador Master.");
+        }
+
+        // Salvar a sessão atual (do admin/master) como backup
         localStorage.setItem('malibu_admin_session', localStorage.getItem('malibu_session'));
 
-        // Logar como o cliente
-        localStorage.setItem('malibu_session', JSON.stringify({ id: targetUser.id, email: targetUser.email }));
-        window.location.href = '?page=client_dashboard';
+        // Logar como o alvo
+        localStorage.setItem('malibu_session', JSON.stringify({
+            id: targetUser.id,
+            email: targetUser.email,
+            companyId: targetUser.company_id || targetUser.companyId
+        }));
+
+        // Redirecionamento inteligente
+        if (isTargetAdmin) {
+            window.location.href = '?page=dashboard';
+        } else {
+            window.location.href = '?page=client_dashboard';
+        }
     }
 
     isImpersonating() {
