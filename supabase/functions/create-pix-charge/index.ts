@@ -92,16 +92,17 @@ serve(async (req) => {
             ? "https://www.asaas.com/api/v3"
             : "https://sandbox.asaas.com/api/v3";
 
-        // 5. Verificar cobrança existente (idempotência por company_id + installment_id)
+        // 5. Idempotência: só reutiliza charge existente se tiver QR Code válido
         const { data: existingCharge } = await supabase
             .from("pix_charges")
             .select("*")
             .eq("installment_id", installment_id)
             .eq("company_id", companyId)
             .eq("status", "CREATED")
+            .not("qr_code_url", "is", null)
             .maybeSingle();
 
-        if (existingCharge) {
+        if (existingCharge?.qr_code_url || existingCharge?.copy_paste) {
             return new Response(JSON.stringify(existingCharge), {
                 status: 200,
                 headers: { ...corsHeaders, "Content-Type": "application/json" }
